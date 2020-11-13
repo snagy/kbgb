@@ -413,6 +413,27 @@ function addButton(txt, action) {
     return button;
 }
 
+function addKeyActionButton(txt, keyAction) {
+    return addButton(txt, function () {
+        for (let kId of globals.pickedKeys) {
+            let bd = globals.boardData;
+            let k = bd.keys[kId];
+            keyAction(k);
+        }
+        refreshKeyboard();
+    }); 
+}
+
+function addLabel(txt) {
+    var t = new BABYLON.GUI.TextBlock();
+    t.width = "60px";
+    t.height = "40px";
+    t.text = txt;
+    t.color = "white";
+    t.fontSize = 24;
+    return t;
+}
+
 function initKBGB() {
     // get the canvas DOM element
     globals.canvas = document.getElementById('renderCanvas');
@@ -427,46 +448,32 @@ function initKBGB() {
     
     globals.screengui = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("screenUI");
     //let ctrlBar = BABYLON.GUI.Control.AddHeader(control, text, size, options { isHorizontal, controlFirst }):
-    let ctrlBar = new BABYLON.GUI.StackPanel();    
+    let ctrlBar = new BABYLON.GUI.StackPanel();  
+    ctrlBar.height = "80px";
+    ctrlBar.isPointerBlocker = true;
     ctrlBar.isVertical = false;
-    ctrlBar.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
-    //ctrlBar.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
+    //ctrlBar.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
+    ctrlBar.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
+ 
+    ctrlBar.addControl(addLabel("Pos: "));
+    ctrlBar.addControl(addKeyActionButton(`◄`, (k) => k.x -= 0.25 ));
+    ctrlBar.addControl(addKeyActionButton(`▲`, (k) => k.y -= 0.25 ));
+    ctrlBar.addControl(addKeyActionButton(`▼`, (k) => k.y += 0.25 ));
+    ctrlBar.addControl(addKeyActionButton(`►`, (k) => k.x += 0.25 ));
 
-    ctrlBar.addControl(addButton(`◄`,function () {
-        for (let kId of globals.pickedKeys) {
-            let bd = globals.boardData;
-            let k = bd.keys[kId];
-            k.x -= 0.25;
-        }
-        refreshKeyboard();
-    }));
 
-    ctrlBar.addControl(addButton(`▲`,function () {
-        for (let kId of globals.pickedKeys) {
-            let bd = globals.boardData;
-            let k = bd.keys[kId];
-            k.y -= 0.25;
-        }
-        refreshKeyboard();
-    }));
+    ctrlBar.addControl(addLabel("Rot: "));
+    ctrlBar.addControl(addKeyActionButton(`⤹`, (k) => k.rotation_angle -= 15 ));
+    ctrlBar.addControl(addKeyActionButton(`⤸`, (k) => k.rotation_angle += 15 ));
 
-    ctrlBar.addControl(addButton(`▼`,function () {
-        for (let kId of globals.pickedKeys) {
-            let bd = globals.boardData;
-            let k = bd.keys[kId];
-            k.y += 0.25;
-        }
-        refreshKeyboard();
-    }));
+    ctrlBar.addControl(addLabel("W: "));
+    ctrlBar.addControl(addKeyActionButton(`⬌`, (k) => k.width += 0.25 ));
+    ctrlBar.addControl(addKeyActionButton(`⬄`, (k) => k.width -= 0.25 ));
 
-    ctrlBar.addControl(addButton(`►`,function () {
-        for (let kId of globals.pickedKeys) {
-            let bd = globals.boardData;
-            let k = bd.keys[kId];
-            k.x += 0.25;
-        }
-        refreshKeyboard();
-    }));
+    ctrlBar.addControl(addLabel("H: "));
+    ctrlBar.addControl(addKeyActionButton(`⬍`, (k) => k.height += 0.25 ));
+    ctrlBar.addControl(addKeyActionButton(`⇳`, (k) => k.height -= 0.25 ));
+    
     globals.screengui.addControl(ctrlBar);   
 
     // run the render loop
