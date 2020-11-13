@@ -19,7 +19,7 @@ function createMaterials() {
     mats["keySel"].specularColor = new BABYLON.Color3(0, 0, 0);
 
     mats["key"] = new BABYLON.StandardMaterial("key", globals.scene);
-    mats["key"].diffuseColor = new BABYLON.Color3(1, 0.9, 1.0);
+    mats["key"].diffuseColor = new BABYLON.Color3(0.9, 0.9, 0.9);
     mats["key"].specularColor = new BABYLON.Color3(0.5, 0.5, 0.5);
 }
 
@@ -237,6 +237,7 @@ function refreshOutlines() {
                     genArrayFromOutline(rd.outline, 0.5, 0.5, true)]
                 }, globals.scene);
             oRD[id].material = mats["keySel"];
+            oRD[id].translate(new BABYLON.Vector3(0, 1, 0), 1, BABYLON.Space.LOCAL);
         }
     }
 }
@@ -393,21 +394,8 @@ function createScene() {
     return scene;
 }
 
-function initKBGB() {
-    // get the canvas DOM element
-    globals.canvas = document.getElementById('renderCanvas');
-
-    // load the 3D engine
-    globals.engine = new BABYLON.Engine(globals.canvas, true);
-
-    // call the createScene function
-    globals.scene = createScene();
-
-    globals.scene.debugLayer.show();
-
-
-    globals.screengui = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("screenUI");
-    var button = BABYLON.GUI.Button.CreateSimpleButton("button", "->");
+function addButton(txt, action) {
+    var button = BABYLON.GUI.Button.CreateSimpleButton("button", txt);
     button.top = "0px";
     button.left = "0px";
     button.width = "40px";
@@ -418,21 +406,68 @@ function initKBGB() {
     button.children[0].fontSize = 24;
     button.color = "#FF7979";
     button.background = "#EB4D4B";
-    button.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
+    //button.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
 
-    button.onPointerClickObservable.add(function () {
+    button.onPointerClickObservable.add(action);
+
+    return button;
+}
+
+function initKBGB() {
+    // get the canvas DOM element
+    globals.canvas = document.getElementById('renderCanvas');
+
+    // load the 3D engine
+    globals.engine = new BABYLON.Engine(globals.canvas, true);
+
+    // call the createScene function
+    globals.scene = createScene();
+
+    //globals.scene.debugLayer.show();
+    
+    globals.screengui = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("screenUI");
+    //let ctrlBar = BABYLON.GUI.Control.AddHeader(control, text, size, options { isHorizontal, controlFirst }):
+    let ctrlBar = new BABYLON.GUI.StackPanel();    
+    ctrlBar.isVertical = false;
+    ctrlBar.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
+    //ctrlBar.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
+
+    ctrlBar.addControl(addButton(`◄`,function () {
+        for (let kId of globals.pickedKeys) {
+            let bd = globals.boardData;
+            let k = bd.keys[kId];
+            k.x -= 0.25;
+        }
+        refreshKeyboard();
+    }));
+
+    ctrlBar.addControl(addButton(`▲`,function () {
+        for (let kId of globals.pickedKeys) {
+            let bd = globals.boardData;
+            let k = bd.keys[kId];
+            k.y -= 0.25;
+        }
+        refreshKeyboard();
+    }));
+
+    ctrlBar.addControl(addButton(`▼`,function () {
+        for (let kId of globals.pickedKeys) {
+            let bd = globals.boardData;
+            let k = bd.keys[kId];
+            k.y += 0.25;
+        }
+        refreshKeyboard();
+    }));
+
+    ctrlBar.addControl(addButton(`►`,function () {
         for (let kId of globals.pickedKeys) {
             let bd = globals.boardData;
             let k = bd.keys[kId];
             k.x += 0.25;
         }
         refreshKeyboard();
-
-        button.background = "#000079";
-        button.children[0].text = "->";
-    });
-
-    globals.screengui.addControl(button);
+    }));
+    globals.screengui.addControl(ctrlBar);   
 
     // run the render loop
     globals.engine.runRenderLoop(function () {
