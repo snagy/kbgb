@@ -10,6 +10,13 @@ var tuning = {
     bezelThickness: 5
 }
 
+function createKeyMaterial(name,color) {
+    let mats = globals.renderData.mats;
+    mats[name] = new BABYLON.StandardMaterial(name, globals.scene);
+    mats[name].diffuseColor = color;
+    mats[name].specularColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+}
+
 function createMaterials() {
     let mats = globals.renderData.mats;
 
@@ -18,9 +25,7 @@ function createMaterials() {
     mats["keySel"].emissiveColor = new BABYLON.Color3(1, 0, 0);
     mats["keySel"].specularColor = new BABYLON.Color3(0, 0, 0);
 
-    mats["key"] = new BABYLON.StandardMaterial("key", globals.scene);
-    mats["key"].diffuseColor = new BABYLON.Color3(0.9, 0.9, 0.9);
-    mats["key"].specularColor = new BABYLON.Color3(0.5, 0.5, 0.5);
+    createKeyMaterial("key", new BABYLON.Color3(0.9, 0.9, 0.9));
 }
 
 function lineLineIntersection(p0, d0, p1, d1) {
@@ -285,7 +290,9 @@ function refreshKeyboard() {
         }
         rd.keycap = BABYLON.MeshBuilder.CreatePolygon(id, { shape: rd.outline, updatable: false }, scene);
 
-        rd.keycap.material = globals.renderData.mats["key"];
+        if(k.matName && globals.renderData.mats[k.matName]) {
+            rd.keycap.material = globals.renderData.mats[k.matName];
+        }
 
         let bezelHole = [
             BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(-kDim[0] - tuning.bezelGap, 0, -kDim[1] - tuning.bezelGap), kXform),
@@ -350,11 +357,12 @@ function snapCamera() {
 }
 
 function loadKeyboard() {
-    fetch('testkbs/kle_atreus.kle')
-        // fetch('testkbs/basis-mono.kle')
+    fetch('testkbs/basis-mono.kle')
         .then(response => response.json())
         .then(data => {
             console.log(data);
+            let mats = globals.renderData.mats;
+
             let bd = {};
             bd.meta = data.meta;
             bd.case = data.case;
@@ -362,9 +370,16 @@ function loadKeyboard() {
             let kIdx = 0
             for (let k of data.keys) {
                 k.id = "key" + kIdx++;
+                
+                if(!mats[k.color]) {
+                    createKeyMaterial(k.color,BABYLON.Color3.FromHexString(k.color));
+                }
+                k.matName = k.color;
+                
                 bd.keys[k.id] = k;
             }
             globals.boardData = bd;
+            
             createMaterials();
             refreshKeyboard();
             snapCamera();
@@ -444,7 +459,7 @@ function initKBGB() {
     // call the createScene function
     globals.scene = createScene();
 
-    //globals.scene.debugLayer.show();
+    // globals.scene.debugLayer.show();
     
     globals.screengui = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("screenUI");
     //let ctrlBar = BABYLON.GUI.Control.AddHeader(control, text, size, options { isHorizontal, controlFirst }):
@@ -463,8 +478,8 @@ function initKBGB() {
 
 
     ctrlBar.addControl(addLabel("Rot: "));
-    ctrlBar.addControl(addKeyActionButton(`⤹`, (k) => k.rotation_angle -= 15 ));
-    ctrlBar.addControl(addKeyActionButton(`⤸`, (k) => k.rotation_angle += 15 ));
+    ctrlBar.addControl(addKeyActionButton(`⤹`, (k) => k.rotation_angle -= 5 ));
+    ctrlBar.addControl(addKeyActionButton(`⤸`, (k) => k.rotation_angle += 5 ));
 
     ctrlBar.addControl(addLabel("W: "));
     ctrlBar.addControl(addKeyActionButton(`⬌`, (k) => k.width += 0.25 ));
@@ -474,7 +489,7 @@ function initKBGB() {
     ctrlBar.addControl(addKeyActionButton(`⬍`, (k) => k.height += 0.25 ));
     ctrlBar.addControl(addKeyActionButton(`⇳`, (k) => k.height -= 0.25 ));
     
-    globals.screengui.addControl(ctrlBar);   
+    globals.screengui.addControl(ctrlBar);
 
     // run the render loop
     globals.engine.runRenderLoop(function () {
