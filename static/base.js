@@ -43,6 +43,27 @@ function lineLineIntersection(p0, d0, p1, d1) {
     return intersection;
 }
 
+function segmentIntersection(x0, x1, y0, y1) {
+    let xL = x1.subtract(x0);
+    let yL = y1.subtract(y0);
+    let xNorm = (new BABYLON.Vector3(xL.z, 0, -xL.x)).normalize();
+    let yNorm = (new BABYLON.Vector3(yL.z, 0, -yL.x)).normalize();
+
+    let intersection = lineLineIntersection(x0,xNorm,y0,yNorm);
+    if(intersection) {
+        let xD = BABYLON.Vector3.Dot(intersection.subtract(x0),xL);
+        let xT = xD*xD / xL.lengthSquared;
+        if( xT >= -BABYLON.Epsilon && xT <= (1+BABYLON.Epsilon) ) {
+            let yD = BABYLON.Vector3.Dot(intersection.subtract(y0),yL);
+            let yT = yD*yD / yL.lengthSquared;
+            if( yT >= -BABYLON.Epsilon && yT <= (1+BABYLON.Epsilon) ) {
+                return intersection;
+            }
+        }
+    }
+    return null;
+}
+
 function getRotFromNormal(norm) {
     let t = Math.acos(norm.x);
     if (norm.z < 0) t = 2 * Math.PI - t;
@@ -247,7 +268,7 @@ function refreshOutlines() {
     }
 }
 
-function refreshKeyboard() {
+function refreshLayout() {
     const scene = globals.scene;
     const bd = globals.boardData;
 
@@ -257,19 +278,28 @@ function refreshKeyboard() {
     let bezelHoles = [];
 
     let kRD = globals.renderData.keys;
-    for (const [id, k] of Object.entries(bd.keys)) {
+    let outlines = [];
+
+    let kgID = 0;
+    for (const [id, k] of Object.entries(bd.layout.keys)) {
         console.log(k);
 
         if (!kRD[id]) {
-            kRD[id] = {};
+            kRD[id] = {keyGroupId:null,
+                        mins:[100000.0, 100000.0], maxs:[-100000.0, -100000.0],
+                        bezelMins:[100000.0, 100000.0], bezelMaxs:[-100000.0, -100000.0]
+                    };
         }
         let rd = kRD[id];
 
-        let kDim = [(tuning.keyDims[0] + tuning.base1U[0] * (k.width - 1)) / 2,
+        let keycapDim = [(tuning.keyDims[0] + tuning.base1U[0] * (k.width - 1)) / 2,
         (tuning.keyDims[1] + tuning.base1U[1] * (k.height - 1)) / 2];
 
-        let kPos = [k.x * tuning.base1U[0] + kDim[0],
-        -(k.y * tuning.base1U[1] + kDim[1])]
+        // let uDim = [(tuning.base1U[0] + tuning.base1U[0] * (k.width - 1)) / 2,
+        // (tuning.base1U[1] + tuning.base1U[1] * (k.height - 1)) / 2];
+
+        let kPos = [k.x * tuning.base1U[0] + keycapDim[0],
+        -(k.y * tuning.base1U[1] + keycapDim[1])]
         let kPosition = new BABYLON.Vector3(kPos[0], 0, kPos[1]);
         let kXform = BABYLON.Matrix.Identity();
         kXform = kXform.multiply(BABYLON.Matrix.Translation(kPos[0], 0, kPos[1]));
@@ -279,10 +309,10 @@ function refreshKeyboard() {
             kXform = kXform.multiply(BABYLON.Matrix.Translation(k.rotation_x * tuning.base1U[0], 0, -k.rotation_y * tuning.base1U[1]));
         }
         rd.outline = [
-            BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(-kDim[0], 0, -kDim[1]), kXform),
-            BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(kDim[0], 0, -kDim[1]), kXform),
-            BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(kDim[0], 0, kDim[1]), kXform),
-            BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(-kDim[0], 0, kDim[1]), kXform)
+            BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(-keycapDim[0], 0, -keycapDim[1]), kXform),
+            BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(keycapDim[0], 0, -keycapDim[1]), kXform),
+            BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(keycapDim[0], 0, keycapDim[1]), kXform),
+            BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(-keycapDim[0], 0, keycapDim[1]), kXform)
         ];
 
         if (rd.keycap) {
@@ -294,25 +324,109 @@ function refreshKeyboard() {
             rd.keycap.material = globals.renderData.mats[k.matName];
         }
 
-        let bezelHole = [
-            BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(-kDim[0] - tuning.bezelGap, 0, -kDim[1] - tuning.bezelGap), kXform),
-            BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(kDim[0] + tuning.bezelGap, 0, -kDim[1] - tuning.bezelGap), kXform),
-            BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(kDim[0] + tuning.bezelGap, 0, kDim[1] + tuning.bezelGap), kXform),
-            BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(-kDim[0] - tuning.bezelGap, 0, kDim[1] + tuning.bezelGap), kXform)
+        rd.bezelHole = [
+            BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(-keycapDim[0] - tuning.bezelGap, 0, -keycapDim[1] - tuning.bezelGap), kXform),
+            BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(keycapDim[0] + tuning.bezelGap, 0, -keycapDim[1] - tuning.bezelGap), kXform),
+            BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(keycapDim[0] + tuning.bezelGap, 0, keycapDim[1] + tuning.bezelGap), kXform),
+            BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(-keycapDim[0] - tuning.bezelGap, 0, keycapDim[1] + tuning.bezelGap), kXform)
         ];
-        bezelHoles.push(bezelHole);
+        bezelHoles.push(rd.bezelHole);
+
+        for (let p of rd.bezelHole) {
+            rd.bezelMins[0] = Math.min(rd.bezelMins[0], p.x);
+            rd.bezelMaxs[0] = Math.max(rd.bezelMaxs[0], p.x);
+            rd.bezelMins[1] = Math.min(rd.bezelMins[1], p.z);
+            rd.bezelMaxs[1] = Math.max(rd.bezelMaxs[1], p.z);
+        }
 
         for (let p of rd.outline) {
-            mins[0] = Math.min(mins[0], p.x);
-            maxs[0] = Math.max(maxs[0], p.x);
-            mins[1] = Math.min(mins[1], p.z);
-            maxs[1] = Math.max(maxs[1], p.z);
+            rd.mins[0] = Math.min(rd.mins[0], p.x);
+            rd.maxs[0] = Math.max(rd.maxs[0], p.x);
+            rd.mins[1] = Math.min(rd.mins[1], p.z);
+            rd.maxs[1] = Math.max(rd.maxs[1], p.z);
         }
-    }
-    bd.bounds = { mins: mins, maxs: maxs };
+        mins[0] = Math.min(rd.mins[0], mins[0]);
+        maxs[0] = Math.max(rd.maxs[0], maxs[0]);
+        mins[1] = Math.min(rd.mins[1], mins[1]);
+        maxs[1] = Math.max(rd.maxs[1], maxs[1]);
 
-    let convex = true;
-    if(convex) {
+        let checkOverlap = function(k1, rd1, k2, rd2) {
+            if( rd1.bezelMins[0]+BABYLON.Epsilon > rd2.bezelMaxs[0] || rd2.bezelMins[0]+BABYLON.Epsilon > rd1.bezelMaxs[0] ||
+                rd1.bezelMins[1]+BABYLON.Epsilon > rd2.bezelMaxs[1] || rd2.bezelMins[1]+BABYLON.Epsilon > rd1.bezelMaxs[1] ) {
+                return false
+            }
+
+            // more checks?
+            if(rd1.keyGroupId && rd2.keyGroupId) {
+                // merge
+                console.log(`merging kgIDs ${rd1.keyGroupId} and ${rd2.keyGroupId}`);
+                let pKG = rd1.keyGroupId;
+                let oKG = rd2.keyGroupId;
+                for(const [otherId, oRD] of Object.entries(kRD)) {
+                    if(oRD.keyGroupId == oKG) {
+                        oRD.keyGroupId = pKG;
+                    }
+                }
+            }
+            else if(rd1.keyGroupId) {
+                rd2.keyGroupId = rd1.keyGroupId;
+            }
+            else if(rd2.keyGroupId) {
+                rd1.keyGroupId = rd2.keyGroupId;
+            }
+            else {
+                rd1.keyGroupId = rd2.keyGroupId = kgID++;
+            }
+        }
+
+        for (const [otherId, otherRD] of Object.entries(kRD)) {
+            if(otherId == id || otherRD.keyGroupId == rd.keyGroupId) {
+                continue;
+            }
+
+            let otherKey = bd.layout.keys[otherId];
+            checkOverlap(k,rd,otherKey,otherRD);
+        }
+
+        if(!rd.keyGroupId) {
+            rd.keyGroupId = kgID++;
+        }
+
+        // let addedToOutline = -1;
+        // for (let o of outlines) 
+        // {
+        //     for(let i = 0; i < bezelHole.length; i++) {
+        //         let x0 = bezelHole[i];
+        //         let x1 = bezelHole[(i+1)%bezelHole.length];
+        //         for(let j = 0; j < o.points.length; j++) {
+        //             let y0 = o.points[j];
+        //             let y1 = o.points[(j+1)%o.points.length];
+        //             if(segmentIntersection(x0,x1,y0,y1)) {
+        //                 let line = BABYLON.MeshBuilder.CreateLines("ksdf",{points:[x0,intersection]},scene);
+        //             }
+        //         }
+        //     }
+        // }
+        // if(addedToOutline == -1) {
+        //     outlines.push({points:bezelHole});
+        // }
+    }
+
+    for (let o of outlines) 
+    {
+        //let line = BABYLON.MeshBuilder.CreateLines("ksdf",{points:o.points},scene);
+    }
+    bd.layout.bounds = { mins: mins, maxs: maxs };
+
+    refreshOutlines();
+}
+
+function refreshCase() {
+    const scene = globals.scene;
+    const bd = globals.boardData;
+    const kRD = globals.renderData.keys;
+
+    if(bd.caseType == "convex") {
         let kPs = [];
         for( let [id,rd] of Object.entries(kRD) ) {
             for( let p of rd.outline ) {
@@ -323,11 +437,12 @@ function refreshKeyboard() {
     }
     else
     {
+        let bounds = bd.layout.bounds;
         bd.outline = [
-            new BABYLON.Vector3(mins[0], 0, mins[1]),
-            new BABYLON.Vector3(maxs[0], 0, mins[1]),
-            new BABYLON.Vector3(maxs[0], 0, maxs[1]),
-            new BABYLON.Vector3(mins[0], 0, maxs[1])
+            new BABYLON.Vector3(bounds.mins[0], 0, bounds.mins[1]),
+            new BABYLON.Vector3(bounds.maxs[0], 0, bounds.mins[1]),
+            new BABYLON.Vector3(bounds.maxs[0], 0, bounds.maxs[1]),
+            new BABYLON.Vector3(bounds.mins[0], 0, bounds.maxs[1])
         ];
     }
 
@@ -339,18 +454,53 @@ function refreshKeyboard() {
     if (cRD.edge) {
         scene.removeMesh(cRD.edge);
     }
-    cRD.edge = BABYLON.MeshBuilder.CreatePolygon("edge", { shape: caseFrame, holes: cavityInnerEdge, updatable: true }, scene);
+    cRD.edge = BABYLON.MeshBuilder.CreatePolygon("edge", { shape: caseFrame, depth:9, holes: cavityInnerEdge, updatable: true }, scene);
 
-    //var bezelGeo = BABYLON.MeshBuilder.CreatePolygon("bezel", {shape:caseFrame, holes:bezelHoles }, scene);
+    if (cRD.bottom) {
+        scene.removeMesh(cRD.bottom);
+    }
+    cRD.bottom = BABYLON.MeshBuilder.CreatePolygon("bottom", { shape: caseFrame, depth:3, updatable: true }, scene);
+    cRD.bottom.translate(new BABYLON.Vector3(0, -9, 0), 1, BABYLON.Space.LOCAL);
 
-    refreshOutlines();
+
+    let keyGroups = {};
+    let bezelOutlines = [];
+    for(const [otherId, oRD] of Object.entries(kRD)) {
+        console.log(`kgid: ${oRD.keyGroupId}`);
+        if(!keyGroups[oRD.keyGroupId]) {
+            keyGroups[oRD.keyGroupId] = [];
+        }
+        keyGroups[oRD.keyGroupId].push(oRD);
+    }
+    for(const [kgId, KG] of Object.entries(keyGroups)) {
+        let kPs = [];
+        for( const rd of KG ) {
+            for( let p of rd.bezelHole ) {
+                kPs.push(p)
+            }
+        }
+        let outline = convexHull2d(kPs);
+        bezelOutlines.push(genArrayFromOutline(outline, 0.0, 0.5, false, 8));
+    }
+    
+    if (cRD.bezel) {
+        scene.removeMesh(cRD.bezel);
+    }
+    cRD.bezel = BABYLON.MeshBuilder.CreatePolygon("bezel", { shape: caseFrame, depth:7.5, holes: bezelOutlines }, scene);
+    cRD.bezel.translate(new BABYLON.Vector3(0, 7.5, 0), 1, BABYLON.Space.LOCAL);
+}
+
+function refreshKeyboard() {
+    refreshLayout();
+
+    refreshCase();
 }
 
 function snapCamera() {
     const bd = globals.boardData;
-    globals.camera.setTarget(new BABYLON.Vector3(bd.bounds.mins[0] + (bd.bounds.maxs[0] - bd.bounds.mins[0]) / 2.0,
+    globals.camera.setTarget(new BABYLON.Vector3(bd.layout.bounds.mins[0] + (bd.layout.bounds.maxs[0] - bd.layout.bounds.mins[0]) / 2.0,
         0,
-        bd.bounds.mins[1] + (bd.bounds.maxs[1] - bd.bounds.mins[1]) / 2.0));
+        bd.layout.bounds.mins[1] + (bd.layout.bounds.maxs[1] - bd.layout.bounds.mins[1]) / 2.0));
     globals.camera.alpha = -Math.PI / 2;
     globals.camera.beta = 0;
     globals.camera.radius = 300;
@@ -366,7 +516,7 @@ function loadKeyboard() {
             let bd = {};
             bd.meta = data.meta;
             bd.case = data.case;
-            bd.keys = {};
+            bd.layout = {keys: {}};
             let kIdx = 0
             for (let k of data.keys) {
                 k.id = "key" + kIdx++;
@@ -376,7 +526,7 @@ function loadKeyboard() {
                 }
                 k.matName = k.color;
                 
-                bd.keys[k.id] = k;
+                bd.layout.keys[k.id] = k;
             }
             globals.boardData = bd;
             
@@ -409,44 +559,149 @@ function createScene() {
     return scene;
 }
 
-function addButton(txt, action) {
-    var button = BABYLON.GUI.Button.CreateSimpleButton("button", txt);
-    button.top = "0px";
-    button.left = "0px";
-    button.width = "40px";
-    button.height = "40px";
-    button.cornerRadius = 8;
-    button.thickness = 2;
-    button.children[0].color = "#DFF9FB";
-    button.children[0].fontSize = 24;
-    button.color = "#FF7979";
-    button.background = "#EB4D4B";
-    //button.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
+let kbgbGUI = {
+    addButton: function(txt, action, style) {
+        style = style?style:{};
+        var button = BABYLON.GUI.Button.CreateSimpleButton("button", txt);
+        button.top = "0px";
+        button.left = "0px";
+        button.width = style.width?style.width:"60px";
+        button.height = style.height?style.height:".4";
+        button.cornerRadius = 5;
+        button.thickness = 2;
+        button.children[0].color = "#DFF9FB";
+        button.children[0].fontSize = 24;
+        button.color = "#FF7979";
+        button.background = "#EB4D4B";
+        //button.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
+    
+        button.onPointerClickObservable.add(action);
+    
+        return button;
+    },
+    addLabel: function(txt) {
+        var t = new BABYLON.GUI.TextBlock();
+        t.width = "80px";
+        t.height = ".9";
+        t.text = txt;
+        t.color = "white";
+        t.fontSize = 24;
+        return t;
+    },
+    addKeyActionButton: function(txt, keyAction) {
+        return kbgbGUI.addButton(txt, function () {
+            for (let kId of globals.pickedKeys) {
+                let bd = globals.boardData;
+                let k = bd.layout.keys[kId];
+                keyAction(k);
+            }
+            refreshKeyboard();
+        }); 
+    },
+    modes:{
+        "key":{
+            add: function() {
+                //let ctrlBar = BABYLON.GUI.Control.AddHeader(control, text, size, options { isHorizontal, controlFirst }):
+                let ctrlBar = new BABYLON.GUI.StackPanel();  
+                ctrlBar.height = ".2";
+                ctrlBar.isPointerBlocker = true;
+                ctrlBar.isVertical = false;
+                //ctrlBar.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
+                ctrlBar.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
+            
+                ctrlBar.addControl(kbgbGUI.addLabel("Pos: "));
+                ctrlBar.addControl(kbgbGUI.addKeyActionButton(`◄`, (k) => k.x -= 0.25 ));
+                ctrlBar.addControl(kbgbGUI.addKeyActionButton(`▲`, (k) => k.y -= 0.25 ));
+                ctrlBar.addControl(kbgbGUI.addKeyActionButton(`▼`, (k) => k.y += 0.25 ));
+                ctrlBar.addControl(kbgbGUI.addKeyActionButton(`►`, (k) => k.x += 0.25 ));
+            
+            
+                ctrlBar.addControl(kbgbGUI.addLabel("Rot: "));
+                ctrlBar.addControl(kbgbGUI.addKeyActionButton(`⤹`, (k) => k.rotation_angle -= 5 ));
+                ctrlBar.addControl(kbgbGUI.addKeyActionButton(`⤸`, (k) => k.rotation_angle += 5 ));
+            
+                ctrlBar.addControl(kbgbGUI.addLabel("W: "));
+                ctrlBar.addControl(kbgbGUI.addKeyActionButton(`⬌`, (k) => k.width += 0.25 ));
+                ctrlBar.addControl(kbgbGUI.addKeyActionButton(`⬄`, (k) => k.width -= 0.25 ));
+            
+                ctrlBar.addControl(kbgbGUI.addLabel("H: "));
+                ctrlBar.addControl(kbgbGUI.addKeyActionButton(`⬍`, (k) => k.height += 0.25 ));
+                ctrlBar.addControl(kbgbGUI.addKeyActionButton(`⇳`, (k) => k.height -= 0.25 ));
+                
+                globals.screengui.addControl(ctrlBar);
+                kbgbGUI.activeModeCtrl = ctrlBar;
+            }
+        },
+        "case":{
+            add: function() {
+                //let ctrlBar = BABYLON.GUI.Control.AddHeader(control, text, size, options { isHorizontal, controlFirst }):
+                let ctrlBar = new BABYLON.GUI.StackPanel();  
+                ctrlBar.height = ".2";
+                ctrlBar.isPointerBlocker = true;
+                ctrlBar.isVertical = false;
+                ctrlBar.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
+            
+                ctrlBar.addControl(kbgbGUI.addLabel("Type: "));
 
-    button.onPointerClickObservable.add(action);
+                var addRadio = function(text, parent) {
 
-    return button;
-}
-
-function addKeyActionButton(txt, keyAction) {
-    return addButton(txt, function () {
-        for (let kId of globals.pickedKeys) {
-            let bd = globals.boardData;
-            let k = bd.keys[kId];
-            keyAction(k);
+                    var button = new BABYLON.GUI.RadioButton();
+                    button.width = "20px";
+                    button.height = "20px";
+                    button.color = "white";
+                    button.background = "green";     
+            
+                    button.onIsCheckedChangedObservable.add(function(state) {
+                        if(state) {
+                            globals.boardData.caseType = text;
+                            refreshCase()
+                        }
+                    }); 
+            
+                    var header = BABYLON.GUI.Control.AddHeader(button, text, "100px", { isHorizontal: true, controlFirst: true });
+                    header.height = "30px";
+            
+                    parent.addControl(header);    
+                }
+            
+            
+                let radioCtrl = new BABYLON.GUI.StackPanel();  
+                radioCtrl.height = "1";
+                radioCtrl.width = "200px";
+                radioCtrl.isVertical = true;
+                addRadio("rectangle", radioCtrl);
+                addRadio("convex", radioCtrl);
+                addRadio("concave", radioCtrl);
+                ctrlBar.addControl(radioCtrl);
+                globals.screengui.addControl(ctrlBar);
+                kbgbGUI.activeModeCtrl = ctrlBar;
+            }
         }
-        refreshKeyboard();
-    }); 
-}
+    },
+    setGUIMode: function(mode) {
+        if(kbgbGUI.activeModeCtrl) {
+            globals.screengui.removeControl(kbgbGUI.activeModeCtrl);
+        }
+        if(kbgbGUI.modes[mode]) {
+            kbgbGUI.modes[mode].add();
+        }
+    },
+    addModeGUI: function() {
+        let ctrlBar = new BABYLON.GUI.StackPanel();  
+        ctrlBar.height = ".1";
+        ctrlBar.isPointerBlocker = true;
+        ctrlBar.isVertical = false;
+        //ctrlBar.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
+        ctrlBar.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP;
 
-function addLabel(txt) {
-    var t = new BABYLON.GUI.TextBlock();
-    t.width = "60px";
-    t.height = "40px";
-    t.text = txt;
-    t.color = "white";
-    t.fontSize = 24;
-    return t;
+        ctrlBar.addControl(kbgbGUI.addButton("layout", () => {kbgbGUI.setGUIMode("key")}, {height:"1",width:"120px"}));
+        ctrlBar.addControl(kbgbGUI.addButton("case", () => {kbgbGUI.setGUIMode("case")}, {height:"1",width:"120px"}));
+        ctrlBar.addControl(kbgbGUI.addButton("pcb", () => {kbgbGUI.setGUIMode("pcb")}, {height:"1",width:"120px"}));
+        ctrlBar.addControl(kbgbGUI.addButton("deets", () => {kbgbGUI.setGUIMode("details")}, {height:"1",width:"120px"}));
+
+        kbgbGUI.modeCtrl = ctrlBar;
+        globals.screengui.addControl(ctrlBar);
+    }
 }
 
 function initKBGB() {
@@ -459,42 +714,16 @@ function initKBGB() {
     // call the createScene function
     globals.scene = createScene();
 
-    // globals.scene.debugLayer.show();
     
     globals.screengui = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("screenUI");
-    //let ctrlBar = BABYLON.GUI.Control.AddHeader(control, text, size, options { isHorizontal, controlFirst }):
-    let ctrlBar = new BABYLON.GUI.StackPanel();  
-    ctrlBar.height = "80px";
-    ctrlBar.isPointerBlocker = true;
-    ctrlBar.isVertical = false;
-    //ctrlBar.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
-    ctrlBar.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
- 
-    ctrlBar.addControl(addLabel("Pos: "));
-    ctrlBar.addControl(addKeyActionButton(`◄`, (k) => k.x -= 0.25 ));
-    ctrlBar.addControl(addKeyActionButton(`▲`, (k) => k.y -= 0.25 ));
-    ctrlBar.addControl(addKeyActionButton(`▼`, (k) => k.y += 0.25 ));
-    ctrlBar.addControl(addKeyActionButton(`►`, (k) => k.x += 0.25 ));
 
-
-    ctrlBar.addControl(addLabel("Rot: "));
-    ctrlBar.addControl(addKeyActionButton(`⤹`, (k) => k.rotation_angle -= 5 ));
-    ctrlBar.addControl(addKeyActionButton(`⤸`, (k) => k.rotation_angle += 5 ));
-
-    ctrlBar.addControl(addLabel("W: "));
-    ctrlBar.addControl(addKeyActionButton(`⬌`, (k) => k.width += 0.25 ));
-    ctrlBar.addControl(addKeyActionButton(`⬄`, (k) => k.width -= 0.25 ));
-
-    ctrlBar.addControl(addLabel("H: "));
-    ctrlBar.addControl(addKeyActionButton(`⬍`, (k) => k.height += 0.25 ));
-    ctrlBar.addControl(addKeyActionButton(`⇳`, (k) => k.height -= 0.25 ));
-    
-    globals.screengui.addControl(ctrlBar);
+    kbgbGUI.addModeGUI();
 
     // run the render loop
     globals.engine.runRenderLoop(function () {
         globals.scene.render();
     });
+
 
     // load a keyboard
     loadKeyboard();
@@ -503,6 +732,16 @@ function initKBGB() {
     window.addEventListener('resize', function () {
         globals.engine.resize();
     });
+
+    window.addEventListener('keydown', event => {
+        if( event.key == 'i' ) {
+            if(globals.scene.debugLayer.isVisible()) {
+                globals.scene.debugLayer.hide();
+            } else {
+                globals.scene.debugLayer.show();
+            }
+        }
+    })
 }
 
 window.addEventListener('DOMContentLoaded', function () {
@@ -517,7 +756,7 @@ window.addEventListener("click", function (e) {
     var pickResult = scene.pick(scene.pointerX, scene.pointerY);
     //console.log(pickResult);
     if (pickResult && pickResult.pickedMesh) {
-        if (globals.boardData.keys[pickResult.pickedMesh.name]) {
+        if (globals.boardData.layout.keys[pickResult.pickedMesh.name]) {
             let pickedKeys = globals.pickedKeys;
             if (e.metaKey || e.ctrlKey) {
                 if (globals.pickedKeys.indexOf(pickResult.pickedMesh.name) > 0) {
