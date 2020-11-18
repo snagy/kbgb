@@ -391,31 +391,8 @@ function refreshLayout() {
         if(!rd.keyGroupId) {
             rd.keyGroupId = kgID++;
         }
-
-        // let addedToOutline = -1;
-        // for (let o of outlines) 
-        // {
-        //     for(let i = 0; i < bezelHole.length; i++) {
-        //         let x0 = bezelHole[i];
-        //         let x1 = bezelHole[(i+1)%bezelHole.length];
-        //         for(let j = 0; j < o.points.length; j++) {
-        //             let y0 = o.points[j];
-        //             let y1 = o.points[(j+1)%o.points.length];
-        //             if(segmentIntersection(x0,x1,y0,y1)) {
-        //                 let line = BABYLON.MeshBuilder.CreateLines("ksdf",{points:[x0,intersection]},scene);
-        //             }
-        //         }
-        //     }
-        // }
-        // if(addedToOutline == -1) {
-        //     outlines.push({points:bezelHole});
-        // }
     }
 
-    for (let o of outlines) 
-    {
-        //let line = BABYLON.MeshBuilder.CreateLines("ksdf",{points:o.points},scene);
-    }
     bd.layout.bounds = { mins: mins, maxs: maxs };
 
     refreshOutlines();
@@ -434,6 +411,14 @@ function refreshCase() {
             }
         }
         bd.outline = convexHull2d(kPs);
+
+        if(bd.forceSymmetrical) {
+            let midPoint = (bd.layout.bounds.maxs[0] - bd.layout.bounds.mins[0]) * 0.5 + bd.layout.bounds.mins[0];
+            for(let oP of bd.outline) {
+                kPs.push(new BABYLON.Vector3(midPoint - (oP.x - midPoint), oP.y, oP.z));
+            }
+            bd.outline = convexHull2d(kPs);
+        }
     }
     else
     {
@@ -673,6 +658,20 @@ let kbgbGUI = {
                 addRadio("convex", radioCtrl);
                 addRadio("concave", radioCtrl);
                 ctrlBar.addControl(radioCtrl);
+
+                var checkbox = new BABYLON.GUI.Checkbox();
+                checkbox.width = "20px";
+                checkbox.height = "20px";
+                checkbox.isChecked = false;
+                checkbox.color = "green";
+                checkbox.onIsCheckedChangedObservable.add(function(value) {
+                    globals.boardData.forceSymmetrical = value;
+                    refreshCase();
+                });
+
+                ctrlBar.addControl(kbgbGUI.addLabel("SYM: "));
+                ctrlBar.addControl(checkbox);
+
                 globals.screengui.addControl(ctrlBar);
                 kbgbGUI.activeModeCtrl = ctrlBar;
             }
