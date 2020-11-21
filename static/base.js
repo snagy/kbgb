@@ -7,7 +7,9 @@ var tuning = {
     switchCutout: [14.0, 14.0],
     base1U: [19.05, 19.05],
     bezelGap: 1.05,
-    bezelThickness: 5
+    bezelThickness: 5,
+    keyShape:"square",
+    drawCase:true
 }
 
 function createKeyMaterial(name,color) {
@@ -62,6 +64,21 @@ function segmentIntersection(x0, x1, y0, y1) {
         }
     }
     return null;
+}
+
+function isPointInPoly(p, poly) {
+    for(let i = 0; i < poly.length; i++) {
+        let point = poly[i];
+        let next = poly[(i + 1) % poly.length];
+        let nextDir = next.subtract(point).normalize();
+        let nextNorm = new BABYLON.Vector3(nextDir.z, 0, -nextDir.x);
+        let pV = p.subtract(point).normalize();
+        let d = BABYLON.Vector3.Dot(pV,nextNorm)
+        if( d > BABYLON.Epsilon) {
+            return false;
+        }
+    }
+    return true;
 }
 
 function getRotFromNormal(norm) {
@@ -177,7 +194,7 @@ function convexHull2d(points) {
     }
 
     let pList = [];
-    for( let i of result ) {
+    for( const i of result ) {
         pList.unshift(points[i])
     }
 
@@ -263,7 +280,7 @@ function refreshOutlines() {
                     genArrayFromOutline(rd.outline, 0.5, 0.5, true)]
                 }, globals.scene);
             oRD[id].material = mats["keySel"];
-            oRD[id].translate(new BABYLON.Vector3(0, 1, 0), 1, BABYLON.Space.LOCAL);
+            oRD[id].translate(new BABYLON.Vector3(0, 10.5, 0), 1, BABYLON.Space.LOCAL);
         }
     }
 }
@@ -278,6 +295,14 @@ function refreshLayout() {
     let bezelHoles = [];
 
     let kRD = globals.renderData.keys;
+    // clear the renderdata (cache this later?)
+    for(const [id, rd] of Object.entries(kRD)) {
+        if (rd.keycap) {
+            scene.removeMesh(rd.keycap);
+        }
+    }
+    kRD = globals.renderData.keys = [];
+    
     let outlines = [];
 
     let kgID = 0;
@@ -285,9 +310,10 @@ function refreshLayout() {
         console.log(k);
 
         if (!kRD[id]) {
-            kRD[id] = {keyGroupId:null,
+            kRD[id] = {keyGroupId:null,id:id,
                         mins:[100000.0, 100000.0], maxs:[-100000.0, -100000.0],
-                        bezelMins:[100000.0, 100000.0], bezelMaxs:[-100000.0, -100000.0]
+                        bezelMins:[100000.0, 100000.0], bezelMaxs:[-100000.0, -100000.0],
+                        overlappingKeys:{};
                     };
         }
         let rd = kRD[id];
@@ -318,10 +344,13 @@ function refreshLayout() {
         if (rd.keycap) {
             scene.removeMesh(rd.keycap);
         }
-        rd.keycap = BABYLON.MeshBuilder.CreatePolygon(id, { shape: rd.outline, updatable: false }, scene);
-
-        if(k.matName && globals.renderData.mats[k.matName]) {
-            rd.keycap.material = globals.renderData.mats[k.matName];
+        if (tuning.keyShape) {
+            rd.keycap = BABYLON.MeshBuilder.CreatePolygon(id, { shape: rd.outline, depth: 7, updatable: false }, scene);
+            rd.keycap.translate(new BABYLON.Vector3(0, 10.5, 0), 1, BABYLON.Space.LOCAL);
+    
+            if(k.matName && globals.renderData.mats[k.matName]) {
+                rd.keycap.material = globals.renderData.mats[k.matName];
+            }
         }
 
         rd.bezelHole = [
@@ -356,26 +385,54 @@ function refreshLayout() {
                 return false
             }
 
-            // more checks?
-            if(rd1.keyGroupId && rd2.keyGroupId) {
-                // merge
-                console.log(`merging kgIDs ${rd1.keyGroupId} and ${rd2.keyGroupId}`);
-                let pKG = rd1.keyGroupId;
-                let oKG = rd2.keyGroupId;
-                for(const [otherId, oRD] of Object.entries(kRD)) {
-                    if(oRD.keyGroupId == oKG) {
-                        oRD.keyGroupId = pKG;
+            // see if any of the lines bisect the other rect  (since it's a rect, we know each line is actually a normal of the previous)
+
+            let checkIntersection = (pRD, oRD) => {
+                for(let iP = 0; iP < pRD.bezelHole.length; iP++) {
+                    let line = pRD.bezelHole[(iP+1)%pRD.bezelHole.length].subtract(pRD.bezelHole[iP]);
+                    let allLess = true;
+                    let allMore = true;
+                    for(let oP = 0; oP < oRD.bezelHole.length; oP++) {
+                        let dot = BABYLON.Vector3.Dot(line,oRD.bezelHole[oP].subtract(pRD.bezelHole[iP]));
+                        allMore &= dot > -BABYLON.Epsilon;
+                        allLess &= dot < BABYLON.Epsilon;
+                    }
+    
+                    if( allMore || allLess ) {
+                        return true;
                     }
                 }
+                return false;
             }
-            else if(rd1.keyGroupId) {
-                rd2.keyGroupId = rd1.keyGroupId;
+            let confirmedIntersection = checkIntersection(rd1,rd2);
+            if(!confirmedIntersection) {
+                confirmedIntersection = checkIntersection(rd2,rd1);
             }
-            else if(rd2.keyGroupId) {
-                rd1.keyGroupId = rd2.keyGroupId;
-            }
-            else {
-                rd1.keyGroupId = rd2.keyGroupId = kgID++;
+            //segmentIntersection()
+
+            if(confirmedIntersection) {
+                rd1.overlappingKeys[rd2.id] = true;
+                rd2.overlappingKeys[rd1.id] = true;
+                if(rd1.keyGroupId && rd2.keyGroupId) {
+                    // merge
+                    console.log(`merging kgIDs ${rd1.keyGroupId} and ${rd2.keyGroupId}`);
+                    let pKG = rd1.keyGroupId;
+                    let oKG = rd2.keyGroupId;
+                    for(const [otherId, oRD] of Object.entries(kRD)) {
+                        if(oRD.keyGroupId == oKG) {
+                            oRD.keyGroupId = pKG;
+                        }
+                    }
+                }
+                else if(rd1.keyGroupId) {
+                    rd2.keyGroupId = rd1.keyGroupId;
+                }
+                else if(rd2.keyGroupId) {
+                    rd1.keyGroupId = rd2.keyGroupId;
+                }
+                else {
+                    rd1.keyGroupId = rd2.keyGroupId = kgID++;
+                }
             }
         }
 
@@ -439,13 +496,17 @@ function refreshCase() {
     if (cRD.edge) {
         scene.removeMesh(cRD.edge);
     }
-    cRD.edge = BABYLON.MeshBuilder.CreatePolygon("edge", { shape: caseFrame, depth:9, holes: cavityInnerEdge, updatable: true }, scene);
+    if( tuning.drawCase ) {
+        cRD.edge = BABYLON.MeshBuilder.CreatePolygon("edge", { shape: caseFrame, depth:9, holes: cavityInnerEdge, updatable: true }, scene);
+    }
 
     if (cRD.bottom) {
         scene.removeMesh(cRD.bottom);
     }
-    cRD.bottom = BABYLON.MeshBuilder.CreatePolygon("bottom", { shape: caseFrame, depth:3, updatable: true }, scene);
-    cRD.bottom.translate(new BABYLON.Vector3(0, -9, 0), 1, BABYLON.Space.LOCAL);
+    if( tuning.drawCase ) {
+        cRD.bottom = BABYLON.MeshBuilder.CreatePolygon("bottom", { shape: caseFrame, depth:3, updatable: true }, scene);
+        cRD.bottom.translate(new BABYLON.Vector3(0, -9, 0), 1, BABYLON.Space.LOCAL);
+    }
 
 
     let keyGroups = {};
@@ -458,21 +519,117 @@ function refreshCase() {
         keyGroups[oRD.keyGroupId].push(oRD);
     }
     for(const [kgId, KG] of Object.entries(keyGroups)) {
-        let kPs = [];
+        // push all lines into a list
+        let lines = [];
         for( const rd of KG ) {
-            for( let p of rd.bezelHole ) {
-                kPs.push(p)
+            for(let p = 0; p < rd.bezelHole.length; p++) {
+                lines.push([rd.bezelHole[p],rd.bezelHole[(p+1)%rd.bezelHole.length]]);
             }
         }
-        let outline = convexHull2d(kPs);
-        bezelOutlines.push(genArrayFromOutline(outline, 0.0, 0.5, false, 8));
+        // lines.sort((a,b) => {
+        //             if( a[0].x - b[0].x > BABYLON.Epsilon ) {
+        //                 return (a[0].x - b[0].x);
+        //             }
+        //             return (b[0].z - a[0].z);
+        //         });
+        let parseList = {};
+        let maxOverlapSq = tuning.bezelGap*tuning.bezelGap + BABYLON.Epsilon;
+        let originalLineNum = lines.length;
+        for( let iL = 0; iL < originalLineNum; iL++ ) {
+            let lL = lines[iL];
+            let lDir = lL[1].subtract(lL[0]);
+            let lLen = lDir.length()
+            if(lLen < BABYLON.Epsilon) continue;
+            let lineNorm = lDir.normalizeFromLength(lLen);
+
+            let jLmax = lines.length;
+            for( let jL = iL+1; jL < jLmax; jL++ ) {
+                let oL = lines[jL];
+                let oDir = oL[1].subtract(oL[0]);
+                let oLen = oDir.length();
+                if(oLen < BABYLON.Epsilon ) continue;
+                let oLNorm = oDir.normalizeFromLength(oLen);
+                // check to see if these two are facing away from each other
+                let lineDot = BABYLON.Vector3.Dot(oLNorm,lineNorm)
+                if( lineDot < BABYLON.Epsilon-1 || lineDot > 1-BABYLON.Epsilon) {
+                    let diff = lL[0].subtract(oL[0]);
+                    let dd = BABYLON.Vector3.Dot(diff, oLNorm);
+                    let projPoint = oL[0].add(oLNorm.scale(dd))
+                    if( projPoint.subtract(lL[0]).lengthSquared() < maxOverlapSq) {
+                        if(lineDot < BABYLON.Epsilon-1) {
+                            // at this point, dd is the distance between the two starting points (which are facing each other) 
+                            // erase the overlapping portion of each line
+                            // O ------------> olen
+                            //      llen <--------- L
+                            // O <----------------> dd
+                            let funFunc = (primeL, primeLen, otherLen, line, norm, distBetween) => {
+                                if(!parseList[primeL]) {
+                                    let primeToOtherNear = Math.max(distBetween - otherLen,0) / primeLen;
+                                    let primeToOtherFar = distBetween / primeLen;
+                                    if(primeToOtherNear < 1 - BABYLON.Epsilon && primeToOtherFar > BABYLON.Epsilon) {
+                                        // kill O and replace it with any remaining line segments
+                                        parseList[primeL] = true;
+                                        if (primeToOtherNear > BABYLON.Epsilon) {
+                                            lines.push([line[0],line[0].add(norm.scale(distBetween - otherLen))]);
+                                        }
+                                        if (primeToOtherFar < 1 - BABYLON.Epsilon) {
+                                            lines.push([line[0].add(norm.scale(distBetween)), line[1]]);
+                                        }
+                                    }
+                                }
+                            }
+
+                            funFunc(jL,oLen,lLen,oL,oLNorm,dd);
+                            funFunc(iL,lLen,oLen,lL,lineNorm,dd);
+                        }
+                        else if( lineDot > 1-BABYLON.Epsilon ) {
+                            if( dd > BABYLON.Epsilon ) {
+                                // O -------->
+                                //        L ---------->
+                                // O <---> dd
+                                // consume L
+                                let overlapDist = oLen - dd;
+                                if(!parseList[iL]) {
+                                    if(overlapDist > BABYLON.Epsilon) {
+                                        parseList[iL] = true;
+                                        lines.push([lL[0].add(lineNorm.scale(overlapDist)),lL[1]]);
+                                    }
+                                }
+                            }
+                            if( dd < BABYLON.Epsilon ) {
+                                // L -------->
+                                //        O ---------->
+                                // L <---> -dd
+                                // consume L
+                                let overlapDist = -dd;
+                                if(!parseList[iL]) {
+                                    if(overlapDist < lLen - BABYLON.Epsilon) {
+                                    parseList[iL] = true;
+                                        lines.push([lL[0],lL[0].add(lineNorm.scale(overlapDist))]);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        let parsedLines = [];
+        for(let iL = 0; iL < lines.length; iL++ ) {
+            if(!parseList[iL]) {
+                parsedLines.push(lines[iL]);
+            }
+        }
+        let linesys = BABYLON.MeshBuilder.CreateLineSystem(kgId, {lines:parsedLines}, scene);
     }
     
     if (cRD.bezel) {
         scene.removeMesh(cRD.bezel);
     }
-    cRD.bezel = BABYLON.MeshBuilder.CreatePolygon("bezel", { shape: caseFrame, depth:7.5, holes: bezelOutlines }, scene);
-    cRD.bezel.translate(new BABYLON.Vector3(0, 7.5, 0), 1, BABYLON.Space.LOCAL);
+    if( tuning.drawCase ) {
+        cRD.bezel = BABYLON.MeshBuilder.CreatePolygon("bezel", { shape: caseFrame, depth:7.5, holes: bezelOutlines }, scene);
+        cRD.bezel.translate(new BABYLON.Vector3(0, 7.5, 0), 1, BABYLON.Space.LOCAL);
+    }
 }
 
 function refreshKeyboard() {
@@ -492,7 +649,7 @@ function snapCamera() {
 }
 
 function loadKeyboard() {
-    fetch('testkbs/basis-mono.kle')
+    fetch('testkbs/threekeyoffset.kle')
         .then(response => response.json())
         .then(data => {
             console.log(data);
@@ -739,6 +896,14 @@ function initKBGB() {
             } else {
                 globals.scene.debugLayer.show();
             }
+        }
+        if( event.key == 'k' ) {
+            tuning.keyShape = tuning.keyShape?null:"square";
+            refreshKeyboard();
+        }
+        if( event.key == 'c' ) {
+            tuning.drawCase = tuning.drawCase?false:true;
+            refreshKeyboard();
         }
     })
 }

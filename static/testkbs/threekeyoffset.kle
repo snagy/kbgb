@@ -1,0 +1,102 @@
+{
+  "meta": {
+    "author": "",
+    "backcolor": "#ffffff",
+    "background": null,
+    "name": "basis-mono",
+    "notes": "",
+    "radii": "",
+    "switchBrand": "",
+    "switchMount": "",
+    "switchType": ""
+  },
+  "keys": [
+    {
+      "color": "#f396ab",
+      "labels": [],
+      "textColor": [],
+      "textSize": [],
+      "default": {
+        "textColor": "#5c5c5c",
+        "textSize": 7
+      },
+      "x": 2,
+      "y": 0,
+      "width": 1.5,
+      "height": 1,
+      "x2": 0,
+      "y2": 0,
+      "width2": 1.5,
+      "height2": 1,
+      "rotation_x": 0,
+      "rotation_y": 0,
+      "rotation_angle": 0,
+      "decal": false,
+      "ghost": false,
+      "stepped": false,
+      "nub": false,
+      "profile": "DSA",
+      "sm": "",
+      "sb": "",
+      "st": ""
+    },
+    {
+      "color": "#e8e7e3",
+      "labels": [],
+      "textColor": [],
+      "textSize": [],
+      "default": {
+        "textColor": "#5c5c5c",
+        "textSize": 7
+      },
+      "x": 3.5,
+      "y": 0,
+      "width": 1,
+      "height": 1,
+      "x2": 0,
+      "y2": 0,
+      "width2": 1,
+      "height2": 1,
+      "rotation_x": 0,
+      "rotation_y": 0,
+      "rotation_angle": 0,
+      "decal": false,
+      "ghost": false,
+      "stepped": false,
+      "nub": false,
+      "profile": "DSA",
+      "sm": "",
+      "sb": "",
+      "st": ""
+    },
+    {
+      "color": "#e8e7e3",
+      "labels": [],
+      "textColor": [],
+      "textSize": [],
+      "default": {
+        "textColor": "#5c5c5c",
+        "textSize": 7
+      },
+      "x": 3.0,
+      "y": 1,
+      "width": 1,
+      "height": 1,
+      "x2": 0,
+      "y2": 0,
+      "width2": 1,
+      "height2": 1,
+      "rotation_x": 0,
+      "rotation_y": 0,
+      "rotation_angle": 0,
+      "decal": false,
+      "ghost": false,
+      "stepped": false,
+      "nub": false,
+      "profile": "DSA",
+      "sm": "",
+      "sb": "",
+      "st": ""
+    }
+  ]
+}
