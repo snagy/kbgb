@@ -17,8 +17,19 @@ function initKBGB() {
     });
 
 
+    let keyboards = [
+        'testkbs/kle_atreus.kle',
+        'testkbs/basis-mono.kle',
+        'testkbs/kle-ergodox.kle',
+        'testkbs/onekey.kle',
+        'testkbs/twokey.kle',
+        'testkbs/threekey.kle',
+        'testkbs/threekeyoffset.kle',
+    ]
+    let kbdidx = 0;
+
     // load a keyboard
-    boardOps.loadKeyboard();
+    boardOps.loadKeyboard(keyboards[kbdidx]);
 
     // the canvas/window resize event handler
     window.addEventListener('resize', function () {
@@ -48,6 +59,10 @@ function initKBGB() {
         if( event.key == 'b' ) {
             tuning.drawBezel = tuning.drawBezel?false:true;
             boardOps.refreshKeyboard();
+        }
+        if( event.key == 'r' ) {
+            kbdidx = (kbdidx+1)%keyboards.length;
+            boardOps.loadKeyboard(keyboards[kbdidx]);
         }
     })
 }

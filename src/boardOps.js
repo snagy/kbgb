@@ -540,8 +540,8 @@ export function refreshKeyboard() {
     refreshCase();
 }
 
-export function loadKeyboard() {
-    fetch('testkbs/kle_atreus.kle')
+export function loadKeyboard(path) {
+    fetch(path)
         .then(response => response.json())
         .then(data => {
             // console.log(data);
