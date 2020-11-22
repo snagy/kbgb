@@ -54,10 +54,10 @@ function segmentIntersection(x0, x1, y0, y1) {
     let intersection = lineLineIntersection(x0,xNorm,y0,yNorm);
     if(intersection) {
         let xD = BABYLON.Vector3.Dot(intersection.subtract(x0),xL);
-        let xT = xD*xD / xL.lengthSquared;
+        let xT = xD*xD / xL.lengthSquared();
         if( xT >= -BABYLON.Epsilon && xT <= (1+BABYLON.Epsilon) ) {
             let yD = BABYLON.Vector3.Dot(intersection.subtract(y0),yL);
-            let yT = yD*yD / yL.lengthSquared;
+            let yT = yD*yD / yL.lengthSquared();
             if( yT >= -BABYLON.Epsilon && yT <= (1+BABYLON.Epsilon) ) {
                 return intersection;
             }
@@ -66,6 +66,20 @@ function segmentIntersection(x0, x1, y0, y1) {
     return null;
 }
 
+function rayToSegment(x0, xL, xNorm, y0, y1) {
+    //let xL = x1.subtract(x0);
+    let yL = y1.subtract(y0);
+    //let xNorm = (new BABYLON.Vector3(xL.z, 0, -xL.x)).normalize();
+    let yNorm = (new BABYLON.Vector3(yL.z, 0, -yL.x)).normalize();
+
+    let intersection = lineLineIntersection(x0,xNorm,y0,yNorm);
+    if(intersection && intersection.subtract(y0).lengthSquared() < yL.lengthSquared() + BABYLON.Epsilon) {
+        return intersection;
+    }
+    return null;
+}
+
+// only convex
 function isPointInPoly(p, poly) {
     for(let i = 0; i < poly.length; i++) {
         let point = poly[i];
@@ -313,7 +327,7 @@ function refreshLayout() {
             kRD[id] = {keyGroupId:null,id:id,
                         mins:[100000.0, 100000.0], maxs:[-100000.0, -100000.0],
                         bezelMins:[100000.0, 100000.0], bezelMaxs:[-100000.0, -100000.0],
-                        overlappingKeys:{};
+                        overlappingKeys:{}
                     };
         }
         let rd = kRD[id];
@@ -411,8 +425,8 @@ function refreshLayout() {
             //segmentIntersection()
 
             if(confirmedIntersection) {
-                rd1.overlappingKeys[rd2.id] = true;
-                rd2.overlappingKeys[rd1.id] = true;
+                rd1.overlappingKeys[rd2.id] = rd2;
+                rd2.overlappingKeys[rd1.id] = rd1;
                 if(rd1.keyGroupId && rd2.keyGroupId) {
                     // merge
                     console.log(`merging kgIDs ${rd1.keyGroupId} and ${rd2.keyGroupId}`);
@@ -437,7 +451,7 @@ function refreshLayout() {
         }
 
         for (const [otherId, otherRD] of Object.entries(kRD)) {
-            if(otherId == id || otherRD.keyGroupId == rd.keyGroupId) {
+            if(otherId == id) {
                 continue;
             }
 
@@ -522,19 +536,80 @@ function refreshCase() {
         // push all lines into a list
         let lines = [];
         for( const rd of KG ) {
+            rd.outlineLines = [];
+            rd.parsedOutlineLines = {};
             for(let p = 0; p < rd.bezelHole.length; p++) {
-                lines.push([rd.bezelHole[p],rd.bezelHole[(p+1)%rd.bezelHole.length]]);
+                let lStart = rd.bezelHole[p];
+                let lEnd = rd.bezelHole[(p+1)%rd.bezelHole.length]
+                rd.outlineLines.push([lStart,lEnd]);
+            }
+
+            for( const [oId,otherRD] of Object.entries(rd.overlappingKeys) ) {
+                for(let iL = rd.outlineLines.length - 1; iL >= 0; iL--) {
+                    let l = rd.outlineLines[iL];
+                    let lL = l[1].subtract(l[0]);
+                    let lNorm = new BABYLON.Vector3(lL.z,0,-lL.x).normalize();
+                    let isStartInPoly = isPointInPoly(l[0],otherRD.bezelHole);
+                    let isEndInPoly = isPointInPoly(l[1],otherRD.bezelHole)
+                    if(isStartInPoly) {
+                        if(isEndInPoly) {
+                            // both are inside the poly, just remove the line
+                            console.log(`removing line ${iL} from ${rd.id}`);
+                            rd.outlineLines.splice(iL, 1);
+                        }
+                        let minExitT = 100000.0;
+                        let bestIntersection = null;
+                        for(let iOP = 0; iOP < otherRD.bezelHole.length; iOP++) {
+                            let intersection = rayToSegment(l[0], lL, lNorm, otherRD.bezelHole[iOP], otherRD.bezelHole[(iOP+1)%otherRD.bezelHole.length]);
+                            if(intersection) {
+                                let t = intersection.subtract(l[0]).lengthSquared();
+                                if( t > BABYLON.Epsilon && t < minExitT ) {
+                                    minExitT = t;
+                                    bestIntersection = intersection;
+                                }
+                            }
+                        }
+                        if (bestIntersection) {
+                            console.log(`trimming line ${iL} from ${rd.id} to ${minExitT}`);
+                            l[0] = bestIntersection;
+                        } else { console.log(`FAILED TO TRIM ${iL} from ${rd.id}`); }
+                    }
+                    else if(isEndInPoly) {
+                        let revLine = l[0].subtract(l[1])
+                        let revNorm = new BABYLON.Vector3(revLine.z,0,-revLine.x).normalize();
+                        let minExitT = 100000.0;
+                        let bestIntersection = null;
+                        for(let iOP = 0; iOP < otherRD.bezelHole.length; iOP++) {
+                            let intersection = rayToSegment(l[1], revLine, revNorm, otherRD.bezelHole[iOP], otherRD.bezelHole[(iOP+1)%otherRD.bezelHole.length]);
+                            if( intersection ) {
+                                let t = intersection.subtract(l[1]).lengthSquared();
+                                if( t > BABYLON.Epsilon && t < minExitT ) {
+                                    minExitT = t;
+                                    bestIntersection = intersection;
+                                }
+                            }
+                        }
+                        if (bestIntersection) {
+                            console.log(`rev trimming line ${iL} from ${rd.id} to ${minExitT}`);
+                            l[1] = bestIntersection;
+                        } else { console.log(`FAILED TO REV TRIM ${iL} from ${rd.id}`); }
+                    }
+                    else {
+
+                    }
+                    // else neither end is in the poly and we should do full seg->seg checks
+                }
+            }
+
+            for(const l of rd.outlineLines) {
+                lines.push(l);
             }
         }
-        // lines.sort((a,b) => {
-        //             if( a[0].x - b[0].x > BABYLON.Epsilon ) {
-        //                 return (a[0].x - b[0].x);
-        //             }
-        //             return (b[0].z - a[0].z);
-        //         });
-        let parseList = {};
         let maxOverlapSq = tuning.bezelGap*tuning.bezelGap + BABYLON.Epsilon;
         let originalLineNum = lines.length;
+        let parseList = {};
+        if(0) {
+            
         for( let iL = 0; iL < originalLineNum; iL++ ) {
             let lL = lines[iL];
             let lDir = lL[1].subtract(lL[0]);
@@ -604,7 +679,7 @@ function refreshCase() {
                                 let overlapDist = -dd;
                                 if(!parseList[iL]) {
                                     if(overlapDist < lLen - BABYLON.Epsilon) {
-                                    parseList[iL] = true;
+                                        parseList[iL] = true;
                                         lines.push([lL[0],lL[0].add(lineNorm.scale(overlapDist))]);
                                     }
                                 }
@@ -613,6 +688,7 @@ function refreshCase() {
                     }
                 }
             }
+        }
         }
         let parsedLines = [];
         for(let iL = 0; iL < lines.length; iL++ ) {
@@ -649,7 +725,7 @@ function snapCamera() {
 }
 
 function loadKeyboard() {
-    fetch('testkbs/threekeyoffset.kle')
+    fetch('testkbs/kle-ergodox.kle')
         .then(response => response.json())
         .then(data => {
             console.log(data);
