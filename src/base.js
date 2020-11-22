@@ -18,9 +18,14 @@ function initKBGB() {
 
 
     let keyboards = [
+        'testkbs/ansi104.kle',
+        'testkbs/fc660m.kle',
         'testkbs/kle_atreus.kle',
         'testkbs/basis-mono.kle',
+        'testkbs/basis-stagger-3.kle',
         'testkbs/kle-ergodox.kle',
+        'testkbs/foggy_sp_knobs.kle',
+        'testkbs/reddit-9d-ortho.kle',
         'testkbs/onekey.kle',
         'testkbs/twokey.kle',
         'testkbs/threekey.kle',

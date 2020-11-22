@@ -549,6 +549,7 @@ export function loadKeyboard(path) {
 
             let bd = {};
             bd.meta = data.meta;
+            bd.forceSymmetrical = true;
             bd.caseType = "convex";
             bd.case = data.case;
             bd.layout = {keys: {}};
