@@ -5,7 +5,7 @@ export function createKeyMaterial(name,color) {
     let mats = globals.renderData.mats;
     mats[name] = new BABYLON.PBRMetallicRoughnessMaterial(name, globals.scene);
     mats[name].metallic = 0;
-    mats[name].roughness = 1.0;
+    mats[name].roughness = 0.6;
     mats[name].baseColor = color;
     mats[name].environmentTexture = globals.hdrTexture;
 }
@@ -24,6 +24,13 @@ export function createMaterials() {
     mats[caseMatName].roughness = 0.8;
     mats[caseMatName].baseColor = new BABYLON.Color3(0.6, 0.6, 0.6);
     mats[caseMatName].environmentTexture = globals.hdrTexture;
+
+    let plateMatName = "plate";
+    mats[plateMatName] = new BABYLON.PBRMetallicRoughnessMaterial(plateMatName, globals.scene);
+    mats[plateMatName].metallic = 1;
+    mats[plateMatName].roughness = 0.2;
+    mats[plateMatName].baseColor = new BABYLON.Color3(0.5, 0.5, 0.5);
+    mats[plateMatName].environmentTexture = globals.hdrTexture;
 
     createKeyMaterial("key", new BABYLON.Color3(0.9, 0.9, 0.9));
 }

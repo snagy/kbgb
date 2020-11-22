@@ -41,6 +41,14 @@ function initKBGB() {
             tuning.drawCase = tuning.drawCase?false:true;
             boardOps.refreshKeyboard();
         }
+        if( event.key == 'p' ) {
+            tuning.drawPlate = tuning.drawPlate?false:true;
+            boardOps.refreshKeyboard();
+        }
+        if( event.key == 'b' ) {
+            tuning.drawBezel = tuning.drawBezel?false:true;
+            boardOps.refreshKeyboard();
+        }
     })
 }
 

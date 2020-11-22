@@ -86,6 +86,14 @@ export function refreshLayout() {
             BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(-keycapDim[0], 0, keycapDim[1]), kXform)
         ];
 
+        let switchCutDims = [tuning.switchCutout[0]*0.5, tuning.switchCutout[1]*0.5];
+        rd.switchCut = [
+            BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(-switchCutDims[0], 0, -switchCutDims[1]), kXform),
+            BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(switchCutDims[0], 0, -switchCutDims[1]), kXform),
+            BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(switchCutDims[0], 0, switchCutDims[1]), kXform),
+            BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(-switchCutDims[0], 0, switchCutDims[1]), kXform)
+        ];
+
         if (rd.keycap) {
             scene.removeMesh(rd.keycap);
         }
@@ -199,6 +207,217 @@ export function refreshLayout() {
     refreshOutlines();
 }
 
+function getCombinedOutlineFromRDGroup(KG) {
+    for( const rd of KG ) {
+        rd.outlineLines = [];
+        rd.parsedOutlineLines = {};
+        for(let p = 0; p < rd.bezelHole.length; p++) {
+            let lStart = rd.bezelHole[p];
+            let lEnd = rd.bezelHole[(p+1)%rd.bezelHole.length]
+            rd.outlineLines.push([lStart,lEnd]);
+        }
+
+        for( const [oId,otherRD] of Object.entries(rd.overlappingKeys) ) {
+            for(let iL = rd.outlineLines.length - 1; iL >= 0; iL--) {
+                let l = rd.outlineLines[iL];
+                let lL = l[1].subtract(l[0]);
+                let lNorm = new BABYLON.Vector3(lL.z,0,-lL.x).normalize();
+                let isStartInPoly = coremath.isPointInPoly(l[0],otherRD.bezelHole);
+                let isEndInPoly = coremath.isPointInPoly(l[1],otherRD.bezelHole)
+                if(isStartInPoly) {
+                    if(isEndInPoly) {
+                        // both are inside the poly, just remove the line
+                        // console.log(`removing line ${iL} from ${rd.id}`);
+                        rd.outlineLines.splice(iL, 1);
+                    }
+                    let minExitT = 100000.0;
+                    let bestIntersection = null;
+                    for(let iOP = 0; iOP < otherRD.bezelHole.length; iOP++) {
+                        let intersection = coremath.rayToSegment(l[0], lL, lNorm, otherRD.bezelHole[iOP], otherRD.bezelHole[(iOP+1)%otherRD.bezelHole.length]);
+                        if(intersection) {
+                            let t = intersection.subtract(l[0]).lengthSquared();
+                            if( t > BABYLON.Epsilon && t < minExitT ) {
+                                minExitT = t;
+                                bestIntersection = intersection;
+                            }
+                        }
+                    }
+                    if (bestIntersection) {
+                        // console.log(`trimming line ${iL} from ${rd.id} to ${minExitT}`);
+                        l[0] = bestIntersection;
+                    }
+                    // else { console.log(`FAILED TO TRIM ${iL} from ${rd.id}`); }
+                }
+                else if(isEndInPoly) {
+                    let revLine = l[0].subtract(l[1])
+                    let revNorm = new BABYLON.Vector3(revLine.z,0,-revLine.x).normalize();
+                    let minExitT = 100000.0;
+                    let bestIntersection = null;
+                    for(let iOP = 0; iOP < otherRD.bezelHole.length; iOP++) {
+                        let intersection = coremath.rayToSegment(l[1], revLine, revNorm, otherRD.bezelHole[iOP], otherRD.bezelHole[(iOP+1)%otherRD.bezelHole.length]);
+                        if( intersection ) {
+                            let t = intersection.subtract(l[1]).lengthSquared();
+                            if( t > BABYLON.Epsilon && t < minExitT ) {
+                                minExitT = t;
+                                bestIntersection = intersection;
+                            }
+                        }
+                    }
+                    if (bestIntersection) {
+                        // console.log(`rev trimming line ${iL} from ${rd.id} to ${minExitT}`);
+                        l[1] = bestIntersection;
+                    }
+                    // else { console.log(`FAILED TO REV TRIM ${iL} from ${rd.id}`); }
+                }
+                else {
+                    // else neither end is in the poly and we should do full seg->seg checks if we're worried about this
+                }
+            }
+        }
+    }
+    let maxOverlapSq = tuning.bezelGap*tuning.bezelGap + BABYLON.Epsilon;
+
+    // clip any overlapping parallel lines against each other (cancel if they face each other)
+    for( const rd of KG ) {
+        rd.visitedForOutline = true;
+        let ilMax = rd.outlineLines.length;
+        for(let iL = 0; iL < ilMax; iL++) {
+            let lL = rd.outlineLines[iL];
+            let lDir = lL[1].subtract(lL[0]);
+            let lLen = lDir.length()
+            if(lLen < BABYLON.Epsilon) continue;
+            let lineNorm = lDir.normalizeFromLength(lLen);
+
+            for( const [oId,otherRD] of Object.entries(rd.overlappingKeys) ) {
+                if(otherRD.visitedForOutline) continue;
+
+                let jLMax = otherRD.outlineLines.length;
+                for( let jL = 0; jL < jLMax; jL++ ) {
+                    let oL = otherRD.outlineLines[jL];
+                    let oDir = oL[1].subtract(oL[0]);
+                    let oLen = oDir.length();
+                    if(oLen < BABYLON.Epsilon ) continue;
+                    let oLNorm = oDir.normalizeFromLength(oLen);
+                    // check to see if these two are facing away from each other
+                    let lineDot = BABYLON.Vector3.Dot(oLNorm,lineNorm)
+                    if( lineDot < BABYLON.Epsilon-1 || lineDot > 1-BABYLON.Epsilon) {
+                        let diff = lL[0].subtract(oL[0]);
+                        let dd = BABYLON.Vector3.Dot(diff, oLNorm);
+                        let projPoint = oL[0].add(oLNorm.scale(dd))
+                        if( projPoint.subtract(lL[0]).lengthSquared() < maxOverlapSq) {
+                            if(lineDot < BABYLON.Epsilon-1) {
+                                // at this point, dd is the distance between the two starting points (which are facing each other) 
+                                // erase the overlapping portion of each line
+                                // O ------------> olen
+                                //      llen <--------- L
+                                // O <----------------> dd
+                                overlapFunc(jL,oLen,lLen,oL,oLNorm,dd,otherRD.outlineLines,otherRD.parsedOutlineLines);
+                                overlapFunc(iL,lLen,oLen,lL,lineNorm,dd,rd.outlineLines,rd.parsedOutlineLines);
+                            }
+                            else if( lineDot > 1-BABYLON.Epsilon ) {
+                                if( dd > BABYLON.Epsilon ) {
+                                    // O -------->
+                                    //        L ---------->
+                                    // O <---> dd
+                                    // consume L
+                                    let overlapDist = oLen - dd;
+                                    if(!rd.parsedOutlineLines[iL]) {
+                                        if(overlapDist > BABYLON.Epsilon) {
+                                            rd.parsedOutlineLines[iL] = true;
+                                            rd.outlineLines.push([lL[0].add(lineNorm.scale(overlapDist)),lL[1]]);
+                                        }
+                                    }
+                                }
+                                if( dd < BABYLON.Epsilon ) {
+                                    // L -------->
+                                    //        O ---------->
+                                    // L <---> -dd
+                                    // consume L
+                                    let overlapDist = -dd;
+                                    if(!rd.parsedOutlineLines[iL]) {
+                                        if(overlapDist < lLen - BABYLON.Epsilon) {
+                                            rd.parsedOutlineLines[iL] = true;
+                                            rd.outlineLines.push([lL[0],lL[0].add(lineNorm.scale(overlapDist))]);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    let parsedLines = [];
+    let nextKeyRd = null;
+    let nextLineIndex = -1;
+    let invertNextLine = false;
+    // pick a line at random.  this could actually pick something on an interior island so we should probably
+    // run the loop gen algorithm until all the lines are used up and then pick the polygon with the largest area
+    for( const rd of KG ) {
+        for(let iL = 0; iL < rd.outlineLines.length; iL++) {
+            if(!rd.parsedOutlineLines[iL]) {
+                nextKeyRd = rd;
+                nextLineIndex = iL;
+                break;
+            }
+        }
+        if(nextLineIndex >= 0) break;
+    }
+
+    let outline = [];
+    // finally, walk through the list of available outline lines and pick the closest end point for the next line
+    while(nextKeyRd != null && nextLineIndex >= 0) {
+        nextKeyRd.parsedOutlineLines[nextLineIndex] = true;
+        let prevLine = nextKeyRd.outlineLines[nextLineIndex];
+        if(invertNextLine) {
+            let tmp = prevLine[0];
+            prevLine[0] = prevLine[1];
+            prevLine[1] = tmp;
+        }
+
+        outline.push(prevLine[0]);
+
+        parsedLines.push(prevLine);
+        nextLineIndex = -1;
+        let nextDistSq = 1000000.0
+
+        let checkNext = (n,nRd,i) => {
+            let newDistSq = prevLine[1].subtract(n[0]).lengthSquared();
+            if(newDistSq < nextDistSq) {
+                nextDistSq = newDistSq;
+                nextKeyRd = nRd;
+                nextLineIndex = i;
+                invertNextLine = false;
+            }
+
+            newDistSq = prevLine[1].subtract(n[1]).lengthSquared();
+            if(newDistSq < nextDistSq) {
+                nextDistSq = newDistSq;
+                nextKeyRd = nRd;
+                nextLineIndex = i;
+                invertNextLine = true;
+            }
+        }
+        
+        for(let iL = 0; iL < nextKeyRd.outlineLines.length; iL++) {
+            if(!nextKeyRd.parsedOutlineLines[iL]) {
+                checkNext(nextKeyRd.outlineLines[iL],nextKeyRd,iL);
+            }
+        }
+
+        for( const [oId,otherRD] of Object.entries(nextKeyRd.overlappingKeys) ) {
+            for( let jL = 0; jL < otherRD.outlineLines.length; jL++ ) {
+                if(otherRD.parsedOutlineLines[jL]) continue;
+
+                checkNext(otherRD.outlineLines[jL],otherRD,jL);
+            }
+        }
+    }
+    return outline;
+}
+
 
 export function refreshCase() {
     const scene = globals.scene;
@@ -261,6 +480,7 @@ export function refreshCase() {
     }
     if( tuning.drawCase ) {
         cRD.edge = BABYLON.MeshBuilder.CreatePolygon("edge", { shape: caseFrame, depth:9, holes: cavityInnerEdge, updatable: true }, scene);
+        cRD.edge.translate(new BABYLON.Vector3(0, -1.5, 0), 1, BABYLON.Space.LOCAL);
         cRD.edge.material = mats["case"];
     }
 
@@ -269,7 +489,7 @@ export function refreshCase() {
     }
     if( tuning.drawCase ) {
         cRD.bottom = BABYLON.MeshBuilder.CreatePolygon("bottom", { shape: caseFrame, depth:3, updatable: true }, scene);
-        cRD.bottom.translate(new BABYLON.Vector3(0, -9, 0), 1, BABYLON.Space.LOCAL);
+        cRD.bottom.translate(new BABYLON.Vector3(0, -9-1.5, 0), 1, BABYLON.Space.LOCAL);
         cRD.bottom.material = mats["case"];
     }
 
@@ -283,225 +503,34 @@ export function refreshCase() {
         }
         keyGroups[oRD.keyGroupId].push(oRD);
     }
+
     for(const [kgId, KG] of Object.entries(keyGroups)) {
-        for( const rd of KG ) {
-            rd.outlineLines = [];
-            rd.parsedOutlineLines = {};
-            for(let p = 0; p < rd.bezelHole.length; p++) {
-                let lStart = rd.bezelHole[p];
-                let lEnd = rd.bezelHole[(p+1)%rd.bezelHole.length]
-                rd.outlineLines.push([lStart,lEnd]);
-            }
-
-            for( const [oId,otherRD] of Object.entries(rd.overlappingKeys) ) {
-                for(let iL = rd.outlineLines.length - 1; iL >= 0; iL--) {
-                    let l = rd.outlineLines[iL];
-                    let lL = l[1].subtract(l[0]);
-                    let lNorm = new BABYLON.Vector3(lL.z,0,-lL.x).normalize();
-                    let isStartInPoly = coremath.isPointInPoly(l[0],otherRD.bezelHole);
-                    let isEndInPoly = coremath.isPointInPoly(l[1],otherRD.bezelHole)
-                    if(isStartInPoly) {
-                        if(isEndInPoly) {
-                            // both are inside the poly, just remove the line
-                            // console.log(`removing line ${iL} from ${rd.id}`);
-                            rd.outlineLines.splice(iL, 1);
-                        }
-                        let minExitT = 100000.0;
-                        let bestIntersection = null;
-                        for(let iOP = 0; iOP < otherRD.bezelHole.length; iOP++) {
-                            let intersection = coremath.rayToSegment(l[0], lL, lNorm, otherRD.bezelHole[iOP], otherRD.bezelHole[(iOP+1)%otherRD.bezelHole.length]);
-                            if(intersection) {
-                                let t = intersection.subtract(l[0]).lengthSquared();
-                                if( t > BABYLON.Epsilon && t < minExitT ) {
-                                    minExitT = t;
-                                    bestIntersection = intersection;
-                                }
-                            }
-                        }
-                        if (bestIntersection) {
-                            // console.log(`trimming line ${iL} from ${rd.id} to ${minExitT}`);
-                            l[0] = bestIntersection;
-                        }
-                        // else { console.log(`FAILED TO TRIM ${iL} from ${rd.id}`); }
-                    }
-                    else if(isEndInPoly) {
-                        let revLine = l[0].subtract(l[1])
-                        let revNorm = new BABYLON.Vector3(revLine.z,0,-revLine.x).normalize();
-                        let minExitT = 100000.0;
-                        let bestIntersection = null;
-                        for(let iOP = 0; iOP < otherRD.bezelHole.length; iOP++) {
-                            let intersection = coremath.rayToSegment(l[1], revLine, revNorm, otherRD.bezelHole[iOP], otherRD.bezelHole[(iOP+1)%otherRD.bezelHole.length]);
-                            if( intersection ) {
-                                let t = intersection.subtract(l[1]).lengthSquared();
-                                if( t > BABYLON.Epsilon && t < minExitT ) {
-                                    minExitT = t;
-                                    bestIntersection = intersection;
-                                }
-                            }
-                        }
-                        if (bestIntersection) {
-                            // console.log(`rev trimming line ${iL} from ${rd.id} to ${minExitT}`);
-                            l[1] = bestIntersection;
-                        }
-                        // else { console.log(`FAILED TO REV TRIM ${iL} from ${rd.id}`); }
-                    }
-                    else {
-                        // else neither end is in the poly and we should do full seg->seg checks if we're worried about this
-                    }
-                }
-            }
-        }
-        let maxOverlapSq = tuning.bezelGap*tuning.bezelGap + BABYLON.Epsilon;
-
-        // clip any overlapping parallel lines against each other (cancel if they face each other)
-        for( const rd of KG ) {
-            rd.visitedForOutline = true;
-            let ilMax = rd.outlineLines.length;
-            for(let iL = 0; iL < ilMax; iL++) {
-                let lL = rd.outlineLines[iL];
-                let lDir = lL[1].subtract(lL[0]);
-                let lLen = lDir.length()
-                if(lLen < BABYLON.Epsilon) continue;
-                let lineNorm = lDir.normalizeFromLength(lLen);
-
-                for( const [oId,otherRD] of Object.entries(rd.overlappingKeys) ) {
-                    if(otherRD.visitedForOutline) continue;
-
-                    let jLMax = otherRD.outlineLines.length;
-                    for( let jL = 0; jL < jLMax; jL++ ) {
-                        let oL = otherRD.outlineLines[jL];
-                        let oDir = oL[1].subtract(oL[0]);
-                        let oLen = oDir.length();
-                        if(oLen < BABYLON.Epsilon ) continue;
-                        let oLNorm = oDir.normalizeFromLength(oLen);
-                        // check to see if these two are facing away from each other
-                        let lineDot = BABYLON.Vector3.Dot(oLNorm,lineNorm)
-                        if( lineDot < BABYLON.Epsilon-1 || lineDot > 1-BABYLON.Epsilon) {
-                            let diff = lL[0].subtract(oL[0]);
-                            let dd = BABYLON.Vector3.Dot(diff, oLNorm);
-                            let projPoint = oL[0].add(oLNorm.scale(dd))
-                            if( projPoint.subtract(lL[0]).lengthSquared() < maxOverlapSq) {
-                                if(lineDot < BABYLON.Epsilon-1) {
-                                    // at this point, dd is the distance between the two starting points (which are facing each other) 
-                                    // erase the overlapping portion of each line
-                                    // O ------------> olen
-                                    //      llen <--------- L
-                                    // O <----------------> dd
-                                    overlapFunc(jL,oLen,lLen,oL,oLNorm,dd,otherRD.outlineLines,otherRD.parsedOutlineLines);
-                                    overlapFunc(iL,lLen,oLen,lL,lineNorm,dd,rd.outlineLines,rd.parsedOutlineLines);
-                                }
-                                else if( lineDot > 1-BABYLON.Epsilon ) {
-                                    if( dd > BABYLON.Epsilon ) {
-                                        // O -------->
-                                        //        L ---------->
-                                        // O <---> dd
-                                        // consume L
-                                        let overlapDist = oLen - dd;
-                                        if(!rd.parsedOutlineLines[iL]) {
-                                            if(overlapDist > BABYLON.Epsilon) {
-                                                rd.parsedOutlineLines[iL] = true;
-                                                rd.outlineLines.push([lL[0].add(lineNorm.scale(overlapDist)),lL[1]]);
-                                            }
-                                        }
-                                    }
-                                    if( dd < BABYLON.Epsilon ) {
-                                        // L -------->
-                                        //        O ---------->
-                                        // L <---> -dd
-                                        // consume L
-                                        let overlapDist = -dd;
-                                        if(!rd.parsedOutlineLines[iL]) {
-                                            if(overlapDist < lLen - BABYLON.Epsilon) {
-                                                rd.parsedOutlineLines[iL] = true;
-                                                rd.outlineLines.push([lL[0],lL[0].add(lineNorm.scale(overlapDist))]);
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        let parsedLines = [];
-        let nextKeyRd = null;
-        let nextLineIndex = -1;
-        let invertNextLine = false;
-        // pick a line at random.  this could actually pick something on an interior island so we should probably
-        // run the loop gen algorithm until all the lines are used up and then pick the polygon with the largest area
-        for( const rd of KG ) {
-            for(let iL = 0; iL < rd.outlineLines.length; iL++) {
-                if(!rd.parsedOutlineLines[iL]) {
-                    nextKeyRd = rd;
-                    nextLineIndex = iL;
-                    break;
-                }
-            }
-            if(nextLineIndex >= 0) break;
-        }
-
-        let outline = [];
-        // finally, walk through the list of available outline lines and pick the closest end point for the next line
-        while(nextKeyRd != null && nextLineIndex >= 0) {
-            nextKeyRd.parsedOutlineLines[nextLineIndex] = true;
-            let prevLine = nextKeyRd.outlineLines[nextLineIndex];
-            if(invertNextLine) {
-                let tmp = prevLine[0];
-                prevLine[0] = prevLine[1];
-                prevLine[1] = tmp;
-            }
-
-            outline.push(prevLine[0]);
-
-            parsedLines.push(prevLine);
-            nextLineIndex = -1;
-            let nextDistSq = 1000000.0
-
-            let checkNext = (n,nRd,i) => {
-                let newDistSq = prevLine[1].subtract(n[0]).lengthSquared();
-                if(newDistSq < nextDistSq) {
-                    nextDistSq = newDistSq;
-                    nextKeyRd = nRd;
-                    nextLineIndex = i;
-                    invertNextLine = false;
-                }
-
-                newDistSq = prevLine[1].subtract(n[1]).lengthSquared();
-                if(newDistSq < nextDistSq) {
-                    nextDistSq = newDistSq;
-                    nextKeyRd = nRd;
-                    nextLineIndex = i;
-                    invertNextLine = true;
-                }
-            }
-            
-            for(let iL = 0; iL < nextKeyRd.outlineLines.length; iL++) {
-                if(!nextKeyRd.parsedOutlineLines[iL]) {
-                    checkNext(nextKeyRd.outlineLines[iL],nextKeyRd,iL);
-                }
-            }
-
-            for( const [oId,otherRD] of Object.entries(nextKeyRd.overlappingKeys) ) {
-                for( let jL = 0; jL < otherRD.outlineLines.length; jL++ ) {
-                    if(otherRD.parsedOutlineLines[jL]) continue;
-
-                    checkNext(otherRD.outlineLines[jL],otherRD,jL);
-                }
-            }
-        }
+        let outline = getCombinedOutlineFromRDGroup(KG);
         bezelOutlines.push(coremath.genArrayFromOutline(outline,0.0,tuning.bezelCornerFillet,false));
     }
     
     if (cRD.bezel) {
         scene.removeMesh(cRD.bezel);
     }
-    if( tuning.drawCase ) {
+    if( tuning.drawBezel ) {
         cRD.bezel = BABYLON.MeshBuilder.CreatePolygon("bezel", { shape: caseFrame, depth:7.5, holes: bezelOutlines }, scene);
         cRD.bezel.translate(new BABYLON.Vector3(0, 7.5, 0), 1, BABYLON.Space.LOCAL);
         //cRD.bezel.rotation = new BABYLON.Vector3(-Math.PI/12, 0, 0);
         cRD.bezel.material = mats["case"];
+    }
+
+    if (cRD.plate) {
+        scene.removeMesh(cRD.plate);
+    }
+
+    let switchCuts = [];
+    for(const [otherId, rd] of Object.entries(kRD)) {
+        switchCuts.push(rd.switchCut);
+    }
+    if( tuning.drawPlate ) {
+        cRD.plate = BABYLON.MeshBuilder.CreatePolygon("plate", { shape: caseFrame, depth:1.5, holes: switchCuts }, scene);
+        //cRD.plate.translate()
+        cRD.plate.material = mats["plate"];
     }
 }
 
@@ -512,7 +541,7 @@ export function refreshKeyboard() {
 }
 
 export function loadKeyboard() {
-    fetch('testkbs/basis-mono.kle')
+    fetch('testkbs/kle_atreus.kle')
         .then(response => response.json())
         .then(data => {
             // console.log(data);
@@ -520,6 +549,7 @@ export function loadKeyboard() {
 
             let bd = {};
             bd.meta = data.meta;
+            bd.caseType = "convex";
             bd.case = data.case;
             bd.layout = {keys: {}};
             let kIdx = 0
