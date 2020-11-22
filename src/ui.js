@@ -132,7 +132,26 @@ export const kbgbGUI = {
                 globals.screengui.addControl(ctrlBar);
                 kbgbGUI.activeModeCtrl = ctrlBar;
             }
-        }
+        },
+        "details":{
+            add: function() {
+                //let ctrlBar = BABYLON.GUI.Control.AddHeader(control, text, size, options { isHorizontal, controlFirst }):
+                let ctrlBar = new BABYLON.GUI.StackPanel();  
+                ctrlBar.height = ".2";
+                ctrlBar.isPointerBlocker = true;
+                ctrlBar.isVertical = false;
+                //ctrlBar.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
+                ctrlBar.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
+            
+                let txt = kbgbGUI.addLabel("WORK IN PROGRESS.  Press 'r' to cycle keyboards, press 'k', 'b', 'p' and 'c' to toggle rendering of stuff");
+
+                txt.width = "1200px";
+                ctrlBar.addControl(txt);
+                
+                globals.screengui.addControl(ctrlBar);
+                kbgbGUI.activeModeCtrl = ctrlBar;
+            }
+        },
     },
     setGUIMode: function(mode) {
         if(kbgbGUI.activeModeCtrl) {
