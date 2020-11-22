@@ -14,18 +14,28 @@ var tuning = {
 
 function createKeyMaterial(name,color) {
     let mats = globals.renderData.mats;
-    mats[name] = new BABYLON.StandardMaterial(name, globals.scene);
-    mats[name].diffuseColor = color;
-    mats[name].specularColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+    mats[name] = new BABYLON.PBRMetallicRoughnessMaterial(name, globals.scene);
+    mats[name].metallic = 0;
+    mats[name].roughness = 1.0;
+    mats[name].baseColor = color;
+    mats[name].environmentTexture = globals.hdrTexture;
 }
 
 function createMaterials() {
     let mats = globals.renderData.mats;
+    let name = "keySel";
+    mats[name] = new BABYLON.StandardMaterial(name, globals.scene);
+    mats[name].diffuseColor = new BABYLON.Color3(0, 0, 0);
+    mats[name].emissiveColor = new BABYLON.Color3(1, 0, 0);
+    mats[name].specularColor = new BABYLON.Color3(0, 0, 0);
 
-    mats["keySel"] = new BABYLON.StandardMaterial("keySel", globals.scene);
-    mats["keySel"].diffuseColor = new BABYLON.Color3(0, 0, 0);
-    mats["keySel"].emissiveColor = new BABYLON.Color3(1, 0, 0);
-    mats["keySel"].specularColor = new BABYLON.Color3(0, 0, 0);
+    let caseMatName = "case";
+    mats[caseMatName] = new BABYLON.PBRMetallicRoughnessMaterial(caseMatName, globals.scene);
+    mats[caseMatName].metallic = 1;
+    mats[caseMatName].roughness = 0.8;
+    mats[caseMatName].baseColor = new BABYLON.Color3(0.6, 0.6, 0.6);
+    mats[caseMatName].environmentTexture = globals.hdrTexture;
+
 
     createKeyMaterial("key", new BABYLON.Color3(0.9, 0.9, 0.9));
 }
@@ -477,6 +487,7 @@ function refreshCase() {
     const scene = globals.scene;
     const bd = globals.boardData;
     const kRD = globals.renderData.keys;
+    const mats = globals.renderData.mats;
 
     let funFunc = (primeL, primeLen, otherLen, line, norm, distBetween, lineArray, parseArray) => {
         if(!parseArray[primeL]) {
@@ -533,6 +544,7 @@ function refreshCase() {
     }
     if( tuning.drawCase ) {
         cRD.edge = BABYLON.MeshBuilder.CreatePolygon("edge", { shape: caseFrame, depth:9, holes: cavityInnerEdge, updatable: true }, scene);
+        cRD.edge.material = mats["case"];
     }
 
     if (cRD.bottom) {
@@ -541,6 +553,7 @@ function refreshCase() {
     if( tuning.drawCase ) {
         cRD.bottom = BABYLON.MeshBuilder.CreatePolygon("bottom", { shape: caseFrame, depth:3, updatable: true }, scene);
         cRD.bottom.translate(new BABYLON.Vector3(0, -9, 0), 1, BABYLON.Space.LOCAL);
+        cRD.bottom.material = mats["case"];
     }
 
 
@@ -778,6 +791,7 @@ function refreshCase() {
     if( tuning.drawCase ) {
         cRD.bezel = BABYLON.MeshBuilder.CreatePolygon("bezel", { shape: caseFrame, depth:7.5, holes: bezelOutlines }, scene);
         cRD.bezel.translate(new BABYLON.Vector3(0, 7.5, 0), 1, BABYLON.Space.LOCAL);
+        cRD.bezel.material = mats["case"];
     }
 }
 
@@ -798,7 +812,7 @@ function snapCamera() {
 }
 
 function loadKeyboard() {
-    fetch('testkbs/kle_atreus.kle')
+    fetch('testkbs/basis-mono.kle')
         .then(response => response.json())
         .then(data => {
             console.log(data);
@@ -844,7 +858,12 @@ function createScene() {
     globals.camera = camera;
 
     // create a basic light, aiming 0,1,0 - meaning, to the sky
-    var light = new BABYLON.HemisphericLight('light1', new BABYLON.Vector3(0, 1, 0), scene);
+    // var light = new BABYLON.HemisphericLight('light1', new BABYLON.Vector3(0, 1, 0), scene);
+    // // Default intensity is 1. Let's dim the light a small amount
+    // light.intensity = 0.7;
+    var skyboxPath = "assets/environment.dds";
+    globals.hdrTexture = BABYLON.CubeTexture.CreateFromPrefilteredData(skyboxPath, scene);
+    globals.currentSkybox = scene.createDefaultSkybox(globals.hdrTexture, true, (scene.activeCamera.maxZ - scene.activeCamera.minZ) / 2, 0.3);
 
     // return the created scene
     return scene;
