@@ -18,6 +18,7 @@ function initKBGB() {
 
 
     let keyboards = [
+        'testkbs/hy_nova.kle',
         'testkbs/ansi104.kle',
         'testkbs/fc660m.kle',
         'testkbs/kle_atreus.kle',
