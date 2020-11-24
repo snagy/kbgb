@@ -23,7 +23,7 @@ export function rayToSegment(x0, xL, xNorm, y0, y1) {
     let intersection = lineLineIntersection(x0,xNorm,y0,yNorm);
     if(intersection) {
         let intLenSq = intersection.subtract(y0).lengthSquared();
-        if(intLenSq > BABYLON.Epsilon && intLenSq < yL.lengthSquared() - BABYLON.Epsilon) {
+        if(intLenSq > -BABYLON.Epsilon && intLenSq < yL.lengthSquared() - BABYLON.Epsilon) {
             return intersection;
         }
     }
