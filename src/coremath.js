@@ -1,7 +1,7 @@
 
 export function lineLineIntersection(p0, d0, p1, d1) {
     let det = d0.x * d1.z - d1.x * d0.z;
-    if (det < BABYLON.Epsilon) // no collision
+    if (Math.abs(det) < BABYLON.Epsilon) // no collision
     {
         return null;
     }
@@ -14,20 +14,50 @@ export function lineLineIntersection(p0, d0, p1, d1) {
     return intersection;
 }
 
-export function rayToSegment(x0, xL, xNorm, y0, y1) {
+function pointToLineDistSq(x0, xL, y0) {
+    let dir = y0.subtract(x0);
+    let xNormalized = xL.normalizeToNew();
+    let dot = BABYLON.Vector3.Dot(dir,xNormalized);
+
+    let nearestPoint = x0.add(xNormalized.scale(dot));
+    return y0.subtract(nearestPoint).lengthSquared();
+}
+
+export function segmentToSegment(x0, x1, xL, xNorm, y0, y1) {
     //let xL = x1.subtract(x0);
     let yL = y1.subtract(y0);
     //let xNorm = (new BABYLON.Vector3(xL.z, 0, -xL.x)).normalize();
     let yNorm = (new BABYLON.Vector3(yL.z, 0, -yL.x)).normalize();
 
-    let intersection = lineLineIntersection(x0,xNorm,y0,yNorm);
-    if(intersection) {
-        let intLenSq = intersection.subtract(y0).lengthSquared();
-        if(intLenSq > -BABYLON.Epsilon && intLenSq < yL.lengthSquared() - BABYLON.Epsilon) {
-            return intersection;
+    let result = {intersection: lineLineIntersection(x0,xNorm,y0,yNorm),
+                  type:"unknown"}
+    if(result.intersection) {
+        let y0Dot = BABYLON.Vector3.Dot(result.intersection.subtract(y0),yL);
+        let y1Dot = BABYLON.Vector3.Dot(result.intersection.subtract(y1),yL);
+        let x0Dot = BABYLON.Vector3.Dot(result.intersection.subtract(x0),xL);
+        let x1Dot = BABYLON.Vector3.Dot(result.intersection.subtract(x1),xL);
+        if(y0Dot > -BABYLON.Epsilon && y1Dot < BABYLON.Epsilon &&
+           x0Dot > -BABYLON.Epsilon && x1Dot < BABYLON.Epsilon) {
+            result.type = "in_segment";
+        } else {
+            result.type = "off_segment";
+        }
+    } else {
+        if(pointToLineDistSq(x0,xL,y0) < BABYLON.Epsilon) {
+            result.type = "colinear"
+            // check overlap?
+            // let y0In = (BABYLON.Vector3.Dot(y0.subtract(x0),xL) > -BABYLON.Epsilon && BABYLON.Vector3.Dot(y0.subtract(x1),xL) < BABYLON.Epsilon);
+            // let y1In = (BABYLON.Vector3.Dot(y1.subtract(x0),xL) > -BABYLON.Epsilon && BABYLON.Vector3.Dot(y1.subtract(x1),xL) < BABYLON.Epsilon);
+            // let x0In = (BABYLON.Vector3.Dot(x0.subtract(y0),yL) > -BABYLON.Epsilon && BABYLON.Vector3.Dot(x0.subtract(y1),yL) < BABYLON.Epsilon);
+            // let x1In = (BABYLON.Vector3.Dot(x1.subtract(y0),yL) > -BABYLON.Epsilon && BABYLON.Vector3.Dot(x1.subtract(y1),yL) < BABYLON.Epsilon);
+            // if(y0In || x0In || y1In || x1In) {
+            //     result.type = "colinear_OVERLAPPING"
+            // }
+        } else {
+            result.type = "parallel"
         }
     }
-    return null;
+    return result;
 }
 
 // only convex
