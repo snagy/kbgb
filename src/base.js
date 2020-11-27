@@ -31,8 +31,9 @@ function initKBGB() {
         'testkbs/twokey.kle',
         'testkbs/threekey.kle',
         'testkbs/threekeyoffset.kle',
+        'testkbs/keysize_test.kle'
     ]
-    let kbdidx = 4;
+    let kbdidx = 1;
 
     // load a keyboard
     boardOps.loadKeyboard(keyboards[kbdidx]);

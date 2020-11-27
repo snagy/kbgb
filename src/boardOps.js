@@ -30,6 +30,68 @@ export function refreshOutlines() {
     }
 }
 
+function getPlateCutsWithStabs(width,height,kXform) {
+    let switchCutDims = [tuning.switchCutout[0]*0.5, tuning.switchCutout[1]*0.5];
+    let cuts =  [[
+        BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(-switchCutDims[0], 0, -switchCutDims[1]), kXform),
+        BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(switchCutDims[0], 0, -switchCutDims[1]), kXform),
+        BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(switchCutDims[0], 0, switchCutDims[1]), kXform),
+        BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(-switchCutDims[0], 0, switchCutDims[1]), kXform)
+    ]];
+
+    let stabCutDims = [7*0.5,15*0.5];
+    if( width >=2 ) {
+        let stabOffsetX = 0.0;
+        if(width <= 2.75) {
+            stabOffsetX = 11.938;
+        }
+        else if(width <= 3.0) {
+            stabOffsetX = 19.05;
+        }
+        else if(width <= 4) {
+            stabOffsetX = 28.575;
+        }
+        else if(width <= 4.5) {
+            stabOffsetX = 34.671;
+        }
+        else if(width <= 5.5) {
+            stabOffsetX = 42.8625;
+        }
+        else if(width <= 6) {
+            stabOffsetX = 47.5;
+        }
+        else if(width <= 6.25) {
+            stabOffsetX = 50;
+        }
+        else if(width <= 6.5) {
+            stabOffsetX = 52.38;
+        }
+        else if(width <= 7) {
+            stabOffsetX = 57.15;
+        }
+        else {
+            stabOffsetX = 66.675;
+        }
+
+        let stabXforms = [kXform.multiply(BABYLON.Matrix.Translation(-stabOffsetX, 0, -2)),
+                          kXform.multiply(BABYLON.Matrix.Translation( stabOffsetX, 0, -2))];
+        let stabCut = [new BABYLON.Vector3(-stabCutDims[0], 0, -stabCutDims[1]),
+                       new BABYLON.Vector3(stabCutDims[0], 0, -stabCutDims[1]),
+                       new BABYLON.Vector3(stabCutDims[0], 0, stabCutDims[1]),
+                       new BABYLON.Vector3(-stabCutDims[0], 0, stabCutDims[1])];
+
+        for(let j = 0; j < stabXforms.length; j++) {
+            let xformedCut = [];
+            for(let i = 0; i < stabCut.length; i++) {
+                xformedCut.push(BABYLON.Vector3.TransformCoordinates(stabCut[i],stabXforms[j]));
+            }
+            cuts.push(xformedCut);
+        }
+    }
+
+    return cuts;
+}
+
 export function refreshLayout() {
     const scene = globals.scene;
     const bd = globals.boardData;
@@ -86,13 +148,7 @@ export function refreshLayout() {
             BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(-keycapDim[0], 0, keycapDim[1]), kXform)
         ];
 
-        let switchCutDims = [tuning.switchCutout[0]*0.5, tuning.switchCutout[1]*0.5];
-        rd.switchCut = [
-            BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(-switchCutDims[0], 0, -switchCutDims[1]), kXform),
-            BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(switchCutDims[0], 0, -switchCutDims[1]), kXform),
-            BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(switchCutDims[0], 0, switchCutDims[1]), kXform),
-            BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(-switchCutDims[0], 0, switchCutDims[1]), kXform)
-        ];
+        rd.switchCut = getPlateCutsWithStabs(k.width,k.height,kXform);
 
         if (rd.keycap) {
             scene.removeMesh(rd.keycap);
@@ -446,7 +502,7 @@ function getCombinedOutlineFromRDGroup(KG) {
 
         parsedLines.push(prevLine);
         nextLineIndex = -1;
-        let nextDistSq = 1000000.0
+        let nextDistSq = 20.0
 
         let checkNext = (n,nRd,i) => {
             let newDistSq = prevLine[1].subtract(n[0]).lengthSquared();
@@ -584,7 +640,7 @@ export function refreshCase() {
 
     let switchCuts = [];
     for(const [otherId, rd] of Object.entries(kRD)) {
-        switchCuts.push(rd.switchCut);
+        switchCuts.push(...rd.switchCut);
     }
     if( tuning.drawPlate ) {
         cRD.plate = BABYLON.MeshBuilder.CreatePolygon("plate", { shape: caseFrame, depth:1.5, holes: switchCuts }, scene);
