@@ -16,7 +16,6 @@ function initKBGB() {
         globals.scene.render();
     });
 
-
     let keyboards = [
         'testkbs/hy_nova.kle',
         'testkbs/ansi104.kle',
@@ -33,7 +32,7 @@ function initKBGB() {
         'testkbs/threekeyoffset.kle',
         'testkbs/keysize_test.kle'
     ]
-    let kbdidx = 1;
+    let kbdidx = 13;
 
     // load a keyboard
     boardOps.loadKeyboard(keyboards[kbdidx]);

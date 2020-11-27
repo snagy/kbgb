@@ -39,42 +39,49 @@ function getPlateCutsWithStabs(width,height,kXform) {
         BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(-switchCutDims[0], 0, switchCutDims[1]), kXform)
     ]];
 
+    let sXform = kXform;
+    let span = width;
+    if(height >= 1.75) {
+        span = height;
+        sXform = BABYLON.Matrix.RotationY(Math.PI / 2.0).multiply(sXform);
+    }
+
     let stabCutDims = [7*0.5,15*0.5];
-    if( width >=2 ) {
+    if( span >= 2 ) {
         let stabOffsetX = 0.0;
-        if(width <= 2.75) {
+        if(span <= 2.75) {
             stabOffsetX = 11.938;
         }
-        else if(width <= 3.0) {
+        else if(span <= 3.0) {
             stabOffsetX = 19.05;
         }
-        else if(width <= 4) {
+        else if(span <= 4) {
             stabOffsetX = 28.575;
         }
-        else if(width <= 4.5) {
+        else if(span <= 4.5) {
             stabOffsetX = 34.671;
         }
-        else if(width <= 5.5) {
+        else if(span <= 5.5) {
             stabOffsetX = 42.8625;
         }
-        else if(width <= 6) {
+        else if(span <= 6) {
             stabOffsetX = 47.5;
         }
-        else if(width <= 6.25) {
+        else if(span <= 6.25) {
             stabOffsetX = 50;
         }
-        else if(width <= 6.5) {
+        else if(span <= 6.5) {
             stabOffsetX = 52.38;
         }
-        else if(width <= 7) {
+        else if(span <= 7) {
             stabOffsetX = 57.15;
         }
         else {
             stabOffsetX = 66.675;
         }
 
-        let stabXforms = [kXform.multiply(BABYLON.Matrix.Translation(-stabOffsetX, 0, -2)),
-                          kXform.multiply(BABYLON.Matrix.Translation( stabOffsetX, 0, -2))];
+        let stabXforms = [BABYLON.Matrix.Translation(-stabOffsetX, 0, -2).multiply(sXform),
+                          BABYLON.Matrix.Translation( stabOffsetX, 0, -2).multiply(sXform)];
         let stabCut = [new BABYLON.Vector3(-stabCutDims[0], 0, -stabCutDims[1]),
                        new BABYLON.Vector3(stabCutDims[0], 0, -stabCutDims[1]),
                        new BABYLON.Vector3(stabCutDims[0], 0, stabCutDims[1]),
