@@ -110,10 +110,10 @@ function getPlateCutsWithStabs(width,height,kXform,plateCuts,pcbBounds) {
 
         // stab foot = 4 wide x 19 h
         let stabPCBFootDims = [3,9.5];
-        let stabFoot = [new BABYLON.Vector3(-stabPCBFootDims[0], 0, -6),
-        new BABYLON.Vector3(stabPCBFootDims[0], 0, -6),
-        new BABYLON.Vector3(stabPCBFootDims[0], 0, 13),
-        new BABYLON.Vector3(-stabPCBFootDims[0], 0, 13)];
+        let stabFoot = [new BABYLON.Vector3(-stabPCBFootDims[0], 0, -7),
+        new BABYLON.Vector3(stabPCBFootDims[0], 0, -7),
+        new BABYLON.Vector3(stabPCBFootDims[0], 0, 11),
+        new BABYLON.Vector3(-stabPCBFootDims[0], 0, 11)];
 
         for(let j = 0; j < stabXforms.length; j++) {
             let xformedCut = [];
@@ -298,6 +298,24 @@ export function refreshLayout() {
         if(!rd.keyGroupId) {
             rd.keyGroupId = kgID++;
         }
+    }
+
+    let kPs = [];
+    for( let [id,rd] of Object.entries(kRD) ) {
+        for( let b of rd.pcbBoxes) {
+            for( let p of b) {
+                kPs.push(p)
+            }
+        }
+    }
+    bd.pcbOutline = coremath.convexHull2d(kPs);
+    bd.pcbBounds = {mins:[100000.0, 100000.0],
+                     maxs:[-100000.0, -100000.0]};
+    for(let p of bd.pcbOutline) {
+        bd.pcbBounds.mins[0] = Math.min(bd.pcbBounds.mins[0], p.x);
+        bd.pcbBounds.maxs[0] = Math.max(bd.pcbBounds.maxs[0], p.x);
+        bd.pcbBounds.mins[1] = Math.min(bd.pcbBounds.mins[1], p.z);
+        bd.pcbBounds.maxs[1] = Math.max(bd.pcbBounds.maxs[1], p.z);
     }
 
     bd.layout.bounds = { mins: mins, maxs: maxs };
@@ -595,6 +613,9 @@ export function refreshCase() {
                 kPs.push(p)
             }
         }
+        for(let p of bd.pcbOutline) {
+            kPs.push(p);
+        }
         bd.outline = coremath.convexHull2d(kPs);
 
         if(bd.forceSymmetrical) {
@@ -607,12 +628,13 @@ export function refreshCase() {
     }
     else
     {
+        let pcbBounds = bd.pcbBounds;
         let bounds = bd.layout.bounds;
         bd.outline = [
-            new BABYLON.Vector3(bounds.mins[0], 0, bounds.mins[1]),
-            new BABYLON.Vector3(bounds.maxs[0], 0, bounds.mins[1]),
-            new BABYLON.Vector3(bounds.maxs[0], 0, bounds.maxs[1]),
-            new BABYLON.Vector3(bounds.mins[0], 0, bounds.maxs[1])
+            new BABYLON.Vector3(Math.min(bounds.mins[0],pcbBounds.mins[0]), 0, Math.min(bounds.mins[1],pcbBounds.mins[1])),
+            new BABYLON.Vector3(Math.max(bounds.maxs[0],pcbBounds.maxs[0]), 0, Math.min(bounds.mins[1],pcbBounds.mins[1])),
+            new BABYLON.Vector3(Math.max(bounds.maxs[0],pcbBounds.maxs[0]), 0, Math.max(bounds.maxs[1],pcbBounds.maxs[1])),
+            new BABYLON.Vector3(Math.min(bounds.mins[0],pcbBounds.mins[0]), 0, Math.max(bounds.maxs[1],pcbBounds.maxs[1]))
         ];
     }
 
@@ -643,16 +665,6 @@ export function refreshCase() {
         scene.removeMesh(cRD.pcbMesh);
     }
     if( tuning.drawPCB ) {
-        let kPs = [];
-        for( let [id,rd] of Object.entries(kRD) ) {
-            for( let b of rd.pcbBoxes) {
-                for( let p of b) {
-                    kPs.push(p)
-                }
-            }
-        }
-        bd.pcbOutline = coremath.convexHull2d(kPs);
-    
         let pcbOutline = coremath.genArrayFromOutline(bd.pcbOutline, 0.0, 2.0, false);
         cRD.pcbMesh = BABYLON.MeshBuilder.CreatePolygon("pcbMesh", { shape: pcbOutline, depth:1.6, updatable: true }, scene);
         cRD.pcbMesh.translate(new BABYLON.Vector3(0, -5.0, 0), 1, BABYLON.Space.LOCAL);
