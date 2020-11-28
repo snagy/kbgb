@@ -32,14 +32,19 @@ export function refreshOutlines() {
 
 function getPlateCutsWithStabs(width,height,kXform) {
     let switchCutDims = [tuning.switchCutout[0]*0.5, tuning.switchCutout[1]*0.5];
+    let sXform = kXform;
+
+    // wack ass cherry 6u spacebar
+    if(width == 6) {
+        sXform = BABYLON.Matrix.Translation(9.525, 0, 0).multiply(sXform)
+    }
     let cuts =  [[
-        BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(-switchCutDims[0], 0, -switchCutDims[1]), kXform),
-        BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(switchCutDims[0], 0, -switchCutDims[1]), kXform),
-        BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(switchCutDims[0], 0, switchCutDims[1]), kXform),
-        BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(-switchCutDims[0], 0, switchCutDims[1]), kXform)
+        BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(-switchCutDims[0], 0, -switchCutDims[1]), sXform),
+        BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(switchCutDims[0], 0, -switchCutDims[1]), sXform),
+        BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(switchCutDims[0], 0, switchCutDims[1]), sXform),
+        BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(-switchCutDims[0], 0, switchCutDims[1]), sXform)
     ]];
 
-    let sXform = kXform;
     let span = width;
     if(height >= 1.75) {
         span = height;
@@ -48,40 +53,46 @@ function getPlateCutsWithStabs(width,height,kXform) {
 
     let stabCutDims = [7*0.5,15*0.5];
     if( span >= 2 ) {
-        let stabOffsetX = 0.0;
+        let stabOffsetXL = 0.0;
+        let stabOffsetXR = 0.0;
         if(span <= 2.75) {
-            stabOffsetX = 11.938;
+            stabOffsetXL = stabOffsetXR = 11.938;
         }
         else if(span <= 3.0) {
-            stabOffsetX = 19.05;
+            stabOffsetXL = stabOffsetXR = 19.05;
         }
         else if(span <= 4) {
-            stabOffsetX = 28.575;
+            stabOffsetXL = stabOffsetXR = 28.575;
         }
         else if(span <= 4.5) {
-            stabOffsetX = 34.671;
+            stabOffsetXL = stabOffsetXR = 34.671;
         }
         else if(span <= 5.5) {
-            stabOffsetX = 42.8625;
+            stabOffsetXL = stabOffsetXR = 42.8625;
+        }
+        else if(span == 6) {
+            // cherry 6u again
+            stabOffsetXL = 57.15;
+            stabOffsetXR = 38.1
         }
         else if(span <= 6) {
-            stabOffsetX = 47.5;
+            stabOffsetXL = stabOffsetXR = 47.5;
         }
         else if(span <= 6.25) {
-            stabOffsetX = 50;
+            stabOffsetXL = stabOffsetXR = 50;
         }
         else if(span <= 6.5) {
-            stabOffsetX = 52.38;
+            stabOffsetXL = stabOffsetXR = 52.38;
         }
         else if(span <= 7) {
-            stabOffsetX = 57.15;
+            stabOffsetXL = stabOffsetXR = 57.15;
         }
         else {
-            stabOffsetX = 66.675;
+            stabOffsetXL = stabOffsetXR = 66.675;
         }
 
-        let stabXforms = [BABYLON.Matrix.Translation(-stabOffsetX, 0, -2).multiply(sXform),
-                          BABYLON.Matrix.Translation( stabOffsetX, 0, -2).multiply(sXform)];
+        let stabXforms = [BABYLON.Matrix.Translation(-stabOffsetXL, 0, -2).multiply(sXform),
+                          BABYLON.Matrix.Translation( stabOffsetXR, 0, -2).multiply(sXform)];
         let stabCut = [new BABYLON.Vector3(-stabCutDims[0], 0, -stabCutDims[1]),
                        new BABYLON.Vector3(stabCutDims[0], 0, -stabCutDims[1]),
                        new BABYLON.Vector3(stabCutDims[0], 0, stabCutDims[1]),
