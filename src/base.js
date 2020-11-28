@@ -62,6 +62,10 @@ function initKBGB() {
             tuning.drawPlate = tuning.drawPlate?false:true;
             boardOps.refreshKeyboard();
         }
+        if( event.key == 'e' ) {
+            tuning.drawPCB = tuning.drawPCB?false:true;
+            boardOps.refreshKeyboard();
+        }
         if( event.key == 'b' ) {
             tuning.drawBezel = tuning.drawBezel?false:true;
             boardOps.refreshKeyboard();

@@ -30,7 +30,7 @@ export function refreshOutlines() {
     }
 }
 
-function getPlateCutsWithStabs(width,height,kXform) {
+function getPlateCutsWithStabs(width,height,kXform,plateCuts,pcbBounds) {
     let switchCutDims = [tuning.switchCutout[0]*0.5, tuning.switchCutout[1]*0.5];
     let sXform = kXform;
 
@@ -38,12 +38,22 @@ function getPlateCutsWithStabs(width,height,kXform) {
     if(width == 6) {
         sXform = BABYLON.Matrix.Translation(9.525, 0, 0).multiply(sXform)
     }
-    let cuts =  [[
+    plateCuts.push([
         BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(-switchCutDims[0], 0, -switchCutDims[1]), sXform),
         BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(switchCutDims[0], 0, -switchCutDims[1]), sXform),
         BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(switchCutDims[0], 0, switchCutDims[1]), sXform),
         BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(-switchCutDims[0], 0, switchCutDims[1]), sXform)
-    ]];
+    ]);
+
+    // pcb footprint of a hotswap switch: x +/- 9 y +/- 6.75
+    // enc: 6.75, 8,5
+    let keyPCBBounds = [9,6.75];
+    pcbBounds.push([
+        BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(-keyPCBBounds[0], 0, -keyPCBBounds[1]), sXform),
+        BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(keyPCBBounds[0], 0, -keyPCBBounds[1]), sXform),
+        BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(keyPCBBounds[0], 0, keyPCBBounds[1]), sXform),
+        BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(-keyPCBBounds[0], 0, keyPCBBounds[1]), sXform)
+    ]);
 
     let span = width;
     if(height >= 1.75) {
@@ -98,16 +108,27 @@ function getPlateCutsWithStabs(width,height,kXform) {
                        new BABYLON.Vector3(stabCutDims[0], 0, stabCutDims[1]),
                        new BABYLON.Vector3(-stabCutDims[0], 0, stabCutDims[1])];
 
+        // stab foot = 4 wide x 19 h
+        let stabPCBFootDims = [3,9.5];
+        let stabFoot = [new BABYLON.Vector3(-stabPCBFootDims[0], 0, -6),
+        new BABYLON.Vector3(stabPCBFootDims[0], 0, -6),
+        new BABYLON.Vector3(stabPCBFootDims[0], 0, 13),
+        new BABYLON.Vector3(-stabPCBFootDims[0], 0, 13)];
+
         for(let j = 0; j < stabXforms.length; j++) {
             let xformedCut = [];
             for(let i = 0; i < stabCut.length; i++) {
                 xformedCut.push(BABYLON.Vector3.TransformCoordinates(stabCut[i],stabXforms[j]));
             }
-            cuts.push(xformedCut);
+            plateCuts.push(xformedCut);
+
+            let xformedPCBBounds = [];
+            for(let i = 0; i < stabFoot.length; i++) {
+                xformedPCBBounds.push(BABYLON.Vector3.TransformCoordinates(stabFoot[i],stabXforms[j]));
+            }
+            pcbBounds.push(xformedPCBBounds);
         }
     }
-
-    return cuts;
 }
 
 export function refreshLayout() {
@@ -166,7 +187,10 @@ export function refreshLayout() {
             BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(-keycapDim[0], 0, keycapDim[1]), kXform)
         ];
 
-        rd.switchCut = getPlateCutsWithStabs(k.width,k.height,kXform);
+        rd.pcbBoxes = [];
+        rd.switchCut = [];
+
+        getPlateCutsWithStabs(k.width,k.height,kXform,rd.switchCut,rd.pcbBoxes);
 
         if (rd.keycap) {
             scene.removeMesh(rd.keycap);
@@ -615,6 +639,25 @@ export function refreshCase() {
         cRD.bottom.material = mats["case"];
     }
 
+    if (cRD.pcbMesh) {
+        scene.removeMesh(cRD.pcbMesh);
+    }
+    if( tuning.drawPCB ) {
+        let kPs = [];
+        for( let [id,rd] of Object.entries(kRD) ) {
+            for( let b of rd.pcbBoxes) {
+                for( let p of b) {
+                    kPs.push(p)
+                }
+            }
+        }
+        bd.pcbOutline = coremath.convexHull2d(kPs);
+    
+        let pcbOutline = coremath.genArrayFromOutline(bd.pcbOutline, 0.0, 2.0, false);
+        cRD.pcbMesh = BABYLON.MeshBuilder.CreatePolygon("pcbMesh", { shape: pcbOutline, depth:1.6, updatable: true }, scene);
+        cRD.pcbMesh.translate(new BABYLON.Vector3(0, -5.0, 0), 1, BABYLON.Space.LOCAL);
+        cRD.pcbMesh.material = mats["fr4"];
+    }
 
     let keyGroups = {};
     let bezelOutlines = [];

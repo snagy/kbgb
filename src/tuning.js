@@ -8,5 +8,6 @@ export const tuning = {
     keyShape:"square",
     drawCase:true,
     drawBezel:true,
-    drawPlate:true
+    drawPlate:true,
+    drawPCB:true
 }

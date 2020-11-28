@@ -32,6 +32,13 @@ export function createMaterials() {
     mats[plateMatName].baseColor = new BABYLON.Color3(0.5, 0.5, 0.5);
     mats[plateMatName].environmentTexture = globals.hdrTexture;
 
+    let pcbMatName = "fr4";
+    mats[pcbMatName] = new BABYLON.PBRMetallicRoughnessMaterial(pcbMatName, globals.scene);
+    mats[pcbMatName].metallic = 0;
+    mats[pcbMatName].roughness = 0.2;
+    mats[pcbMatName].baseColor = new BABYLON.Color3(41/255, 110/255, 1/255);
+    mats[pcbMatName].environmentTexture = globals.hdrTexture;
+
     createKeyMaterial("key", new BABYLON.Color3(0.9, 0.9, 0.9));
 }
 
