@@ -639,23 +639,32 @@ export function refreshCase() {
     }
 
     let cRD = globals.renderData.case;
+    cRD.layers = {};
 
-    let cavityInnerEdge = [coremath.genArrayFromOutline(bd.outline, tuning.bezelGap, tuning.bezelCornerFillet, false)];
-    let caseFrame = coremath.genArrayFromOutline(bd.outline, tuning.bezelGap + tuning.bezelThickness, tuning.bezelThickness, false, 8);
 
-    if (cRD.edge) {
-        scene.removeMesh(cRD.edge);
+    let cavityInnerEdgeVec = [coremath.offsetAndFilletOutline(bd.outline, tuning.bezelGap, tuning.bezelCornerFillet, false)];
+    // let cavityInnerEdge = [coremath.genArrayFromOutline(bd.outline, tuning.bezelGap, tuning.bezelCornerFillet, false)];
+    let caseFrameVec = coremath.offsetAndFilletOutline(bd.outline, tuning.bezelGap + tuning.bezelThickness, tuning.bezelThickness, false);
+    let caseFrame = coremath.genPointsFromVectorPath(caseFrameVec,8);
+
+    if (cRD.edgeMesh) {
+        scene.removeMesh(cRD.edgeMesh);
     }
     if( tuning.drawCase ) {
-        cRD.edge = BABYLON.MeshBuilder.CreatePolygon("edge", { shape: caseFrame, depth:9, holes: cavityInnerEdge, updatable: true }, scene);
-        cRD.edge.translate(new BABYLON.Vector3(0, -1.5, 0), 1, BABYLON.Space.LOCAL);
-        cRD.edge.material = mats["case"];
+        cRD.layers["edge"] = {outlines:[caseFrameVec, ...cavityInnerEdgeVec]};
+        cRD.edgeMesh = BABYLON.MeshBuilder.CreatePolygon("edge", 
+                                                         { shape: caseFrame, depth:9, 
+                                                           holes: cavityInnerEdgeVec.map((a) => coremath.genPointsFromVectorPath(a,8)),
+                                                           updatable: true }, scene);
+        cRD.edgeMesh.translate(new BABYLON.Vector3(0, -1.5, 0), 1, BABYLON.Space.LOCAL);
+        cRD.edgeMesh.material = mats["case"];
     }
 
     if (cRD.bottom) {
         scene.removeMesh(cRD.bottom);
     }
     if( tuning.drawCase ) {
+        cRD.layers["bottom"] = {outlines:[caseFrameVec]};
         cRD.bottom = BABYLON.MeshBuilder.CreatePolygon("bottom", { shape: caseFrame, depth:3, updatable: true }, scene);
         cRD.bottom.translate(new BABYLON.Vector3(0, -9-1.5, 0), 1, BABYLON.Space.LOCAL);
         cRD.bottom.material = mats["case"];
@@ -665,13 +674,16 @@ export function refreshCase() {
         scene.removeMesh(cRD.pcbMesh);
     }
     if( tuning.drawPCB ) {
-        let pcbOutline = coremath.genArrayFromOutline(bd.pcbOutline, 0.0, 2.0, false);
+        let pcbOutlineVec = coremath.offsetAndFilletOutline(bd.pcbOutline, 0.0, 2.0, false);
+        let pcbOutline = coremath.genPointsFromVectorPath(pcbOutlineVec);
+        cRD.layers["pcb"] = {outlines:[pcbOutlineVec]};
         cRD.pcbMesh = BABYLON.MeshBuilder.CreatePolygon("pcbMesh", { shape: pcbOutline, depth:1.6, updatable: true }, scene);
         cRD.pcbMesh.translate(new BABYLON.Vector3(0, -5.0, 0), 1, BABYLON.Space.LOCAL);
         cRD.pcbMesh.material = mats["fr4"];
     }
 
     let keyGroups = {};
+    let bezelOutlineVecs = []
     let bezelOutlines = [];
     for(const [otherId, oRD] of Object.entries(kRD)) {
         // console.log(`${otherId} is in kgid: ${oRD.keyGroupId}`);
@@ -684,7 +696,10 @@ export function refreshCase() {
     let dbglines = [];
     for(const [kgId, KG] of Object.entries(keyGroups)) {
         let outline = getCombinedOutlineFromRDGroup(KG);
-        bezelOutlines.push(coremath.genArrayFromOutline(outline,0.0,tuning.bezelCornerFillet,false));
+
+        let bezelOutlineVec = coremath.offsetAndFilletOutline(outline, 0.0, tuning.bezelCornerFillet, false);
+        bezelOutlineVecs.push(bezelOutlineVec);
+        bezelOutlines.push(coremath.genPointsFromVectorPath(bezelOutlineVec));
         
         // for( const rd of KG ) {
         //     for(let iL = 0; iL < rd.outlineLines.length; iL++) {
@@ -701,24 +716,33 @@ export function refreshCase() {
         scene.removeMesh(cRD.bezel);
     }
     if( tuning.drawBezel ) {
+
+        cRD.layers["bezel"] = {outlines:[caseFrameVec, ...bezelOutlineVecs]};
         cRD.bezel = BABYLON.MeshBuilder.CreatePolygon("bezel", { shape: caseFrame, depth:7.5, holes: bezelOutlines }, scene);
         cRD.bezel.translate(new BABYLON.Vector3(0, 7.5, 0), 1, BABYLON.Space.LOCAL);
         //cRD.bezel.rotation = new BABYLON.Vector3(-Math.PI/12, 0, 0);
         cRD.bezel.material = mats["case"];
     }
 
-    if (cRD.plate) {
-        scene.removeMesh(cRD.plate);
+    if (cRD.plateMesh) {
+        scene.removeMesh(cRD.plateMesh);
     }
 
     let switchCuts = [];
+    let switchCutsVec = [];
     for(const [otherId, rd] of Object.entries(kRD)) {
-        switchCuts.push(...rd.switchCut);
+        for(let cut of rd.switchCut) {
+            let switchOutlineVec = coremath.offsetAndFilletOutline(cut, 0.0, 0.5, false);
+            switchCutsVec.push(switchOutlineVec);
+            switchCuts.push(coremath.genPointsFromVectorPath(switchOutlineVec));
+        }
+        // switchCuts.push(...rd.switchCut);
     }
     if( tuning.drawPlate ) {
-        cRD.plate = BABYLON.MeshBuilder.CreatePolygon("plate", { shape: caseFrame, depth:1.5, holes: switchCuts }, scene);
+        cRD.layers["plate"] = {outlines:[caseFrameVec, ...switchCutsVec]};
+        cRD.plateMesh = BABYLON.MeshBuilder.CreatePolygon("plate", { shape: caseFrame, depth:1.5, holes: switchCuts }, scene);
         //cRD.plate.translate()
-        cRD.plate.material = mats["plate"];
+        cRD.plateMesh.material = mats["plate"];
     }
 }
 

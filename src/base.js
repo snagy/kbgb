@@ -3,6 +3,7 @@ import {tuning} from './tuning.js'
 import {kbgbGUI} from './ui.js'
 import * as boardOps from './boardOps.js'
 import * as gfx from './gfx.js'
+import * as dxf from './dxf_export.js'
 
 function initKBGB() {
     gfx.init();

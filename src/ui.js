@@ -1,5 +1,19 @@
 import {globals} from './globals.js'
 import * as boardOps from './boardOps.js'
+import * as svg from './svg_export.js'
+
+function download(content, fileName, contentType) {
+    var a = document.createElement("a");
+    var file = new Blob([content], {type: contentType});
+    a.href = URL.createObjectURL(file);
+    a.download = fileName;
+    a.click();
+}
+
+function downloadSVG(layerName) {
+    const bd = globals.boardData;
+    download(svg.exportLayerString(layerName), `${bd.meta.name}_${layerName}.svg`, 'text/plain');
+}
 
 export const kbgbGUI = {
     addButton: function(txt, action, style) {
@@ -143,12 +157,26 @@ export const kbgbGUI = {
                 //ctrlBar.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
                 ctrlBar.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
             
-                let txt = kbgbGUI.addLabel("WORK IN PROGRESS.  Press 'r' to cycle keyboards, press 'k', 'b', 'p' and 'c' to toggle rendering of stuff");
+                let addSVGButton = function(layerName) {
+                    ctrlBar.addControl(kbgbGUI.addButton(layerName, () => {
+                        downloadSVG(layerName);
+                    }, {height:"60px",width:"120px"}));
+                }
+                addSVGButton("bezel");
+                addSVGButton("plate");
+                addSVGButton("edge");
+                addSVGButton("bottom");
+                addSVGButton("pcb");
 
-                txt.width = "1200px";
+                let txt = kbgbGUI.addLabel("WORK IN PROGRESS.");
+
+                txt.width = "260px";
                 ctrlBar.addControl(txt);
                 
+
                 globals.screengui.addControl(ctrlBar);
+                
+
                 kbgbGUI.activeModeCtrl = ctrlBar;
             }
         },

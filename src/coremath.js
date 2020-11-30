@@ -198,13 +198,91 @@ export function convexHull2d(points) {
 }
 
 // offset is + to the left, - to right (right won't work right now)
-export function genArrayFromOutline(outline, offset, fillets, close, segments) {
-    let outPoints = [];
-    //todo turn fillets into array if it's just a value
-    if (!segments) {
-        segments = 4;
-    }
+// export function genArrayFromOutline(outline, offset, fillets, close, segments) {
+//     let outPoints = [];
+//     //todo turn fillets into array if it's just a value
+//     if (!segments) {
+//         segments = 4;
+//     }
 
+//     for (let i = 0; i < outline.length; i++) {
+//         let point = outline[i];
+//         let next = outline[(i + 1) % outline.length];
+//         let prev = outline[(i - 1 + outline.length) % outline.length];
+//         let nextDir = next.subtract(point).normalize();
+//         let prevDir = point.subtract(prev).normalize();
+//         let nextNorm = new BABYLON.Vector3(nextDir.z, 0, -nextDir.x);
+//         let prevNorm = new BABYLON.Vector3(prevDir.z, 0, -prevDir.x);
+//         let inPoint = point.add(prevNorm.scale(offset));
+//         let outPoint = point.add(nextNorm.scale(offset));
+
+//         let intersection = lineLineIntersection(inPoint, prevNorm,
+//             outPoint, nextNorm);
+//         if (intersection === null) {
+//             outPoints.push(inPoint);
+//             outPoints.push(outPoint);
+//             continue;
+//         }
+
+//         if (!fillets) {
+//             outPoints.push(intersection);
+//         }
+//         else {
+//             let fillet = fillets;
+//             let flip = BABYLON.Vector3.Dot(prevNorm,nextDir) > 0;
+//             if( flip ) {
+//                 fillet = -fillet;
+//             }
+//             let filletCenter = lineLineIntersection(inPoint.add(prevNorm.scale(-fillet)), prevNorm,
+//                 outPoint.add(nextNorm.scale(-fillet)), nextNorm);
+
+
+//             let startRot = getRotFromNormal(prevNorm)+ Math.PI * 2;
+//             let endRot = getRotFromNormal(nextNorm)+ Math.PI * 2;
+//             if(flip) {
+//                 startRot += Math.PI;
+//                 endRot += Math.PI;
+//                 fillet = -fillet;
+//                 if (startRot < endRot) {
+//                     startRot += Math.PI * 2;
+//                 }
+//             }
+//             else if (endRot < startRot) {
+//                 endRot += Math.PI * 2;
+//             }
+//             let rotStep = (endRot - startRot) / segments;
+//             for (let i = 0; i <= segments; i++) {
+//                 outPoints.push(filletCenter.add(getNormalFromRot(startRot + rotStep * i).scale(fillet)));
+//             }
+//         }
+//     }
+
+//     if (close) {
+//         outPoints.push(outPoints[0]);
+//     }
+
+//     return outPoints;
+// }
+
+
+function Point(point) {
+    this.type = 0;
+    this.point = point;
+}
+
+
+function Arc(center, radius, rotDegrees, endRot) {
+    this.type = 1;
+    this.center = center;
+    this.radius = radius;
+    this.rotDegrees = rotDegrees;
+    this.endRot = endRot;
+}
+
+// offset is + to the left, - to right (right won't work right now)
+export function offsetAndFilletOutline(outline, offset, fillets, close) {
+    let vectorOutline = [];
+    //todo turn fillets into array if it's just a value
     for (let i = 0; i < outline.length; i++) {
         let point = outline[i];
         let next = outline[(i + 1) % outline.length];
@@ -219,13 +297,13 @@ export function genArrayFromOutline(outline, offset, fillets, close, segments) {
         let intersection = lineLineIntersection(inPoint, prevNorm,
             outPoint, nextNorm);
         if (intersection === null) {
-            outPoints.push(inPoint);
-            outPoints.push(outPoint);
+            vectorOutline.push(new Point(inPoint));
+            vectorOutline.push(new Point(outPoint));
             continue;
         }
 
         if (!fillets) {
-            outPoints.push(intersection);
+            vectorOutline.push(new Point(intersection));
         }
         else {
             let fillet = fillets;
@@ -234,8 +312,9 @@ export function genArrayFromOutline(outline, offset, fillets, close, segments) {
                 fillet = -fillet;
             }
             let filletCenter = lineLineIntersection(inPoint.add(prevNorm.scale(-fillet)), prevNorm,
-                outPoint.add(nextNorm.scale(-fillet)), nextNorm);
+                                                    outPoint.add(nextNorm.scale(-fillet)), nextNorm);
 
+            vectorOutline.push(new Point(filletCenter.add(prevNorm.scale(fillet))));
 
             let startRot = getRotFromNormal(prevNorm)+ Math.PI * 2;
             let endRot = getRotFromNormal(nextNorm)+ Math.PI * 2;
@@ -250,16 +329,45 @@ export function genArrayFromOutline(outline, offset, fillets, close, segments) {
             else if (endRot < startRot) {
                 endRot += Math.PI * 2;
             }
-            let rotStep = (endRot - startRot) / segments;
-            for (let i = 0; i <= segments; i++) {
-                outPoints.push(filletCenter.add(getNormalFromRot(startRot + rotStep * i).scale(fillet)));
-            }
+            let totRot = endRot - startRot;
+            vectorOutline.push(new Arc(filletCenter, fillet, totRot, endRot))
         }
     }
 
     if (close) {
-        outPoints.push(outPoints[0]);
+        vectorOutline.push(vectorOutline[0]);
+    }
+
+    return vectorOutline;
+}
+
+export function genPointsFromVectorPath(vectorPath, segmentsPerFillet) {
+    let outPoints = [];
+    //todo turn fillets into array if it's just a value
+    if (!segmentsPerFillet) {
+        segmentsPerFillet = 4;
+    }
+
+    for (let i = 0; i < vectorPath.length; i++) {
+        let nextItem = vectorPath[i];
+        switch(nextItem.type) {
+            case 0:
+                outPoints.push(nextItem.point)
+                break;
+            case 1:
+                let rotStep = nextItem.rotDegrees / segmentsPerFillet;
+                let endRot = nextItem.endRot;
+                for (let i = segmentsPerFillet-1; i >= 0; i--) {
+                    outPoints.push(nextItem.center.add(getNormalFromRot(endRot - rotStep * i).scale(nextItem.radius)));
+                }
+                break;
+        }
     }
 
     return outPoints;
+}
+
+export function genArrayFromOutline(outline, offset, fillets, close, segments) {
+    let vectorPath = offsetAndFilletOutline(outline, offset, fillets, close);
+    return genPointsFromVectorPath(vectorPath, segments);
 }
