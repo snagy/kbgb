@@ -156,8 +156,24 @@ export const kbgbGUI = {
                     tuning.bezelThickness = value;
                     boardOps.refreshCase();
                 });
+                ctrlBar.addControl(label);   
                 ctrlBar.addControl(slider);   
 
+                let filletLabel = kbgbGUI.addLabel("bezel fillet: ")
+                var filletSlider = new BABYLON.GUI.Slider();
+                filletSlider.minimum = 0.5;
+                filletSlider.maximum = 20;
+                filletSlider.value = tuning.caseCornerFillet;
+                filletSlider.height = "20px";
+                filletSlider.width = "200px";
+                filletSlider.onValueChangedObservable.add(function(value) {
+                    filletLabel.text = "Bezel fillet: " + (value) + " mm";
+                    tuning.caseCornerFillet = value;
+                    boardOps.refreshCase();
+                });
+                ctrlBar.addControl(filletLabel);   
+                ctrlBar.addControl(filletSlider);   
+                
                 globals.screengui.addControl(ctrlBar);
                 kbgbGUI.activeModeCtrl = ctrlBar;
             }

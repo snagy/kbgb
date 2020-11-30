@@ -301,7 +301,7 @@ export function refreshLayout() {
     }
 
     bd.layout.bounds = { mins: mins, maxs: maxs };
-    
+
     let kPs = [];
     for( let [id,rd] of Object.entries(kRD) ) {
         for( let b of rd.pcbBoxes) {
@@ -652,7 +652,7 @@ export function refreshCase() {
 
     let cavityInnerEdgeVec = [coremath.offsetAndFilletOutline(bd.outline, tuning.bezelGap, tuning.bezelCornerFillet, false)];
     // let cavityInnerEdge = [coremath.genArrayFromOutline(bd.outline, tuning.bezelGap, tuning.bezelCornerFillet, false)];
-    let caseFrameVec = coremath.offsetAndFilletOutline(bd.outline, tuning.bezelGap + tuning.bezelThickness, tuning.bezelThickness, false);
+    let caseFrameVec = coremath.offsetAndFilletOutline(bd.outline, tuning.bezelGap + tuning.bezelThickness, tuning.caseCornerFillet, false);
     let caseFrame = coremath.genPointsFromVectorPath(caseFrameVec,8);
 
     if (cRD.edgeMesh) {

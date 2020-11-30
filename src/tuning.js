@@ -4,6 +4,7 @@ export const tuning = {
     base1U: [19.05, 19.05],
     bezelGap: 1.05,
     bezelThickness: 8,
+    caseCornerFillet: 8,
     bezelCornerFillet: 0.5,
     keyShape:"square",
     drawCase:true,
