@@ -1,4 +1,5 @@
 import {globals} from './globals.js'
+import {tuning} from './tuning.js'
 import * as boardOps from './boardOps.js'
 import * as svg from './svg_export.js'
 
@@ -133,11 +134,51 @@ export const kbgbGUI = {
                 var checkbox = new BABYLON.GUI.Checkbox();
                 checkbox.width = "20px";
                 checkbox.height = "20px";
-                checkbox.isChecked = false;
+                checkbox.isChecked = globals.boardData.forceSymmetrical;
                 checkbox.color = "green";
                 checkbox.onIsCheckedChangedObservable.add(function(value) {
                     globals.boardData.forceSymmetrical = value;
                     boardOps.refreshCase();
+                });
+
+                ctrlBar.addControl(kbgbGUI.addLabel("SYM: "));
+                ctrlBar.addControl(checkbox);
+
+                let label = kbgbGUI.addLabel("bezel thickness: ")
+                var slider = new BABYLON.GUI.Slider();
+                slider.minimum = 5;
+                slider.maximum = 50;
+                slider.value = tuning.bezelThickness;
+                slider.height = "20px";
+                slider.width = "200px";
+                slider.onValueChangedObservable.add(function(value) {
+                    label.text = "Bezel Thickness: " + (value) + " mm";
+                    tuning.bezelThickness = value;
+                    boardOps.refreshCase();
+                });
+                ctrlBar.addControl(slider);   
+
+                globals.screengui.addControl(ctrlBar);
+                kbgbGUI.activeModeCtrl = ctrlBar;
+            }
+        },
+        "pcb":{
+            add: function() {
+                //let ctrlBar = BABYLON.GUI.Control.AddHeader(control, text, size, options { isHorizontal, controlFirst }):
+                let ctrlBar = new BABYLON.GUI.StackPanel();  
+                ctrlBar.height = ".2";
+                ctrlBar.isPointerBlocker = true;
+                ctrlBar.isVertical = false;
+                ctrlBar.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
+            
+                var checkbox = new BABYLON.GUI.Checkbox();
+                checkbox.width = "20px";
+                checkbox.height = "20px";
+                checkbox.isChecked = globals.boardData.forcePCBSymmetrical;
+                checkbox.color = "green";
+                checkbox.onIsCheckedChangedObservable.add(function(value) {
+                    globals.boardData.forcePCBSymmetrical = value;
+                    boardOps.refreshLayout();
                 });
 
                 ctrlBar.addControl(kbgbGUI.addLabel("SYM: "));

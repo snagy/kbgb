@@ -300,6 +300,8 @@ export function refreshLayout() {
         }
     }
 
+    bd.layout.bounds = { mins: mins, maxs: maxs };
+    
     let kPs = [];
     for( let [id,rd] of Object.entries(kRD) ) {
         for( let b of rd.pcbBoxes) {
@@ -309,6 +311,13 @@ export function refreshLayout() {
         }
     }
     bd.pcbOutline = coremath.convexHull2d(kPs);
+    if(bd.forcePCBSymmetrical) {
+        let midPoint = (bd.layout.bounds.maxs[0] - bd.layout.bounds.mins[0]) * 0.5 + bd.layout.bounds.mins[0];
+        for(let oP of bd.pcbOutline) {
+            kPs.push(new BABYLON.Vector3(midPoint - (oP.x - midPoint), oP.y, oP.z));
+        }
+        bd.pcbOutline = coremath.convexHull2d(kPs);
+    }
     bd.pcbBounds = {mins:[100000.0, 100000.0],
                      maxs:[-100000.0, -100000.0]};
     for(let p of bd.pcbOutline) {
@@ -318,7 +327,6 @@ export function refreshLayout() {
         bd.pcbBounds.maxs[1] = Math.max(bd.pcbBounds.maxs[1], p.z);
     }
 
-    bd.layout.bounds = { mins: mins, maxs: maxs };
 
     refreshOutlines();
 }
@@ -762,6 +770,7 @@ export function loadKeyboard(path) {
             let bd = {};
             bd.meta = data.meta;
             bd.forceSymmetrical = true;
+            bd.forcePCBSymmetrical = true;
             bd.caseType = "convex";
             bd.case = data.case;
             bd.layout = {keys: {}};
