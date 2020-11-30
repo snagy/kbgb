@@ -3,7 +3,7 @@ export const tuning = {
     switchCutout: [14.0, 14.0],
     base1U: [19.05, 19.05],
     bezelGap: 1.05,
-    bezelThickness: 5,
+    bezelThickness: 8,
     bezelCornerFillet: 0.5,
     keyShape:"square",
     drawCase:true,

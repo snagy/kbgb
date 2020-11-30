@@ -20,9 +20,11 @@ export function exportLayerString(layerName) {
     append(`<?xml version="1.0" standalone="no"?>`)
 
     let bBounds = bd.layout.bounds;
+    let w = bBounds.maxs[0]-bBounds.mins[0]+40
+    let h = -bBounds.mins[1]+bBounds.maxs[1]+40
 
     //begin svg
-    append(`<svg viewBox="${f(bBounds.mins[0]-20)} ${f(-bBounds.maxs[1]-20)} ${f(bBounds.maxs[0]-bBounds.mins[0]+40)} ${f(-bBounds.mins[1]+bBounds.maxs[1]+40)}" xmlns="http://www.w3.org/2000/svg" version="1.1">`);
+    append(`<svg width="${f(w)}mm" height="${f(h)}mm" viewBox="${f(bBounds.mins[0]-20)} ${f(-bBounds.maxs[1]-20)} ${f(w)} ${f(h)}" xmlns="http://www.w3.org/2000/svg" version="1.1">`);
 
     append(`<title>${bd.meta.name} ${layerName} layer</title>`);
     
