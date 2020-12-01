@@ -666,6 +666,7 @@ export function refreshCase() {
                                                            updatable: true }, scene);
         cRD.edgeMesh.translate(new BABYLON.Vector3(0, -1.5, 0), 1, BABYLON.Space.LOCAL);
         cRD.edgeMesh.material = mats["case"];
+        //gfx.combineSideVerts(cRD.edgeMesh);
     }
 
     if (cRD.bottom) {
