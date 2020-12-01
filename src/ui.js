@@ -26,10 +26,10 @@ export const kbgbGUI = {
         button.height = style.height?style.height:".4";
         button.cornerRadius = 5;
         button.thickness = 2;
-        button.children[0].color = "#DFF9FB";
+        button.children[0].color = "#FFFFFF";
         button.children[0].fontSize = 24;
-        button.color = "#FF7979";
-        button.background = "#EB4D4B";
+        button.color = "#101010";
+        button.background = "#909090";
         //button.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
     
         button.onPointerClickObservable.add(action);
