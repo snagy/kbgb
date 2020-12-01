@@ -141,11 +141,11 @@ function createScene() {
 
     globals.camera = camera;
 
-    var ssao = new BABYLON.SSAORenderingPipeline('ssaopipeline', scene, 0.75, [camera]);
-    ssao.base = 0.6;
-    ssao.radius = 0.001;
-    ssao.area = 0.003;
-    ssao.falloff = 0.00001;
+    // var ssao = new BABYLON.SSAORenderingPipeline('ssaopipeline', scene, 0.75, [camera]);
+    // ssao.base = 0.6;
+    // ssao.radius = 0.001;
+    // ssao.area = 0.003;
+    // ssao.falloff = 0.00001;
 
     // create a basic light, aiming 0,1,0 - meaning, to the sky
     // var light = new BABYLON.HemisphericLight('light1', new BABYLON.Vector3(0, 1, 0), scene);
