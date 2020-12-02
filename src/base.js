@@ -27,13 +27,14 @@ function initKBGB() {
         'testkbs/kle-ergodox.kle',
         'testkbs/foggy_sp_knobs.kle',
         'testkbs/reddit-9d-ortho.kle',
+        'testkbs/blank.kle',
         'testkbs/onekey.kle',
         'testkbs/twokey.kle',
         'testkbs/threekey.kle',
         'testkbs/threekeyoffset.kle',
         'testkbs/keysize_test.kle'
     ]
-    let kbdidx = 1;
+    let kbdidx = 9;
 
     // load a keyboard
     boardOps.loadKeyboard(keyboards[kbdidx]);
