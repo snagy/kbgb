@@ -1,3 +1,4 @@
+import * as BABYLON from '@babylonjs/core'
 
 export function lineLineIntersection(p0, d0, p1, d1) {
     let det = d0.x * d1.z - d1.x * d0.z;
@@ -279,6 +280,12 @@ function Arc(center, radius, rotDegrees, endRot) {
     this.endRot = endRot;
 }
 
+export function Circle(center, radius) {
+    this.type = 2;
+    this.center = center;
+    this.radius = radius;
+}
+
 // offset is + to the left, - to right (right won't work right now)
 export function offsetAndFilletOutline(outline, offset, fillets, close) {
     let vectorOutline = [];
@@ -370,4 +377,19 @@ export function genPointsFromVectorPath(vectorPath, segmentsPerFillet) {
 export function genArrayFromOutline(outline, offset, fillets, close, segments) {
     let vectorPath = offsetAndFilletOutline(outline, offset, fillets, close);
     return genPointsFromVectorPath(vectorPath, segments);
+}
+
+export function genArrayForCircle(circle, offset, segments) {
+    let outPoints = [];
+    //todo turn fillets into array if it's just a value
+    if (!segments) {
+        segments = 10;
+    }
+
+    let rotStep = Math.PI * 2 / segments;
+    for (let i = 0; i <= segments; i++) {
+        outPoints.push(circle.center.add(getNormalFromRot(rotStep * i).scale(circle.radius)));
+    }
+
+    return outPoints;
 }

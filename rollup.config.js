@@ -8,7 +8,7 @@ export default {
     input: 'src/base.js',
     output: {
       file: 'static/src/pack.js',
-      format: 'umd',
+      format: 'iife',
       name: 'base.js',
 
       sourcemap: true,

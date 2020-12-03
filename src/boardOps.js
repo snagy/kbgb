@@ -1,7 +1,8 @@
-import {globals} from './globals.js'
-import {tuning} from './tuning.js'
-import * as coremath from './coremath.js'
-import * as gfx from './gfx.js'
+import {globals} from './globals.js';
+import {tuning} from './tuning.js';
+import * as coremath from './coremath.js';
+import * as gfx from './gfx.js';
+import * as BABYLON from '@babylonjs/core'
 
 export function refreshOutlines() {
     let kRD = globals.renderData.keys;
@@ -196,7 +197,7 @@ export function refreshLayout() {
             scene.removeMesh(rd.keycap);
         }
         if (tuning.keyShape) {
-            rd.keycap = BABYLON.MeshBuilder.CreatePolygon(id, { shape: rd.outline, depth: 7, updatable: false }, scene);
+            rd.keycap = BABYLON.MeshBuilder.CreatePolygon(id, { shape: coremath.genArrayFromOutline(rd.outline,0,0.25), depth: 7, updatable: false }, scene);
             rd.keycap.translate(new BABYLON.Vector3(0, 10.5, 0), 1, BABYLON.Space.LOCAL);
     
             if(k.matName && globals.renderData.mats[k.matName]) {
@@ -607,6 +608,53 @@ function getCombinedOutlineFromRDGroup(KG) {
     return outline;
 }
 
+export function addScrewHoles() {
+    globals.boardData.screwLocations = [];
+    if(globals.boardData.caseType == "convex") { return; }
+
+    const bounds = globals.boardData.layout.bounds;
+    const caseWidth = bounds.maxs[0] - bounds.mins[0];
+    const caseHeight = bounds.maxs[1] - bounds.mins[1];
+    const screwSideBuffer = 0;//12;
+    const maxScrewSpan = 150;
+
+
+    const topScrewLengthToCover = caseWidth+(tuning.bezelThickness+tuning.bezelThickness)*0.5-screwSideBuffer*2.0;
+    const topScrews = Math.floor(topScrewLengthToCover / maxScrewSpan) + 1
+    const topScrewSpan = topScrewLengthToCover / topScrews
+    const sideScrewLengthToCover = caseHeight+(tuning.bezelThickness+tuning.bezelThickness)*0.5-screwSideBuffer*2.0;
+    const sideScrews = Math.floor(sideScrewLengthToCover / maxScrewSpan) + 1
+    const sideScrewSpan = sideScrewLengthToCover / sideScrews
+    console.log(`num top screws: ${topScrews} span ${topScrewSpan} side screws: ${sideScrews} span: ${sideScrewSpan}`)
+    //bottom
+    for(let i = 0; i <= topScrews; i++) {
+        let newLoc = [ i*topScrewSpan + screwSideBuffer + bounds.mins[0] - tuning.bezelThickness*0.5,
+                        bounds.mins[1]-tuning.bezelThickness*0.5]
+        globals.boardData.screwLocations.push(new BABYLON.Vector3(newLoc[0], 0, newLoc[1]));
+    }
+    // top
+    for(let i = 0; i <= topScrews; i++) {
+        let newLoc = [i*topScrewSpan+screwSideBuffer+bounds.mins[0]-tuning.bezelThickness*0.5,
+                        bounds.maxs[1]+tuning.bezelThickness*0.5]
+        globals.boardData.screwLocations.push(new BABYLON.Vector3(newLoc[0], 0, newLoc[1]));
+    }
+    // sides (minus ends)
+    for(let i = 1; i < sideScrews; i++) {
+        let newLoc = [ bounds.mins[0]-tuning.bezelThickness*0.5,
+                        i*sideScrewSpan + screwSideBuffer + bounds.mins[1] - tuning.bezelThickness*0.5 ]
+        globals.boardData.screwLocations.push(new BABYLON.Vector3(newLoc[0], 0, newLoc[1]));
+    }
+    for(let i = 1; i < sideScrews; i++) {
+        let newLoc = [ bounds.maxs[0]+tuning.bezelThickness*0.5,
+                        i*sideScrewSpan + screwSideBuffer + bounds.mins[1] - tuning.bezelThickness*0.5 ]
+        globals.boardData.screwLocations.push(new BABYLON.Vector3(newLoc[0], 0, newLoc[1]));
+    }
+
+    globals.renderData.screwData = [];
+    for(const loc of globals.boardData.screwLocations) {
+        globals.renderData.screwData.push(new coremath.Circle(loc,tuning.screwHoleThruRadius));
+    }
+}
 
 export function refreshCase() {
     const scene = globals.scene;
@@ -635,6 +683,11 @@ export function refreshCase() {
     if(Object.keys(bd.layout.keys).length < 1) {
         return;
     }
+
+    addScrewHoles();
+
+    let screwHoles = globals.renderData.screwData.map((a) => coremath.genArrayForCircle(a,0,11));
+
 
     if(bd.caseType == "convex") {
         let kPs = [];
@@ -675,10 +728,10 @@ export function refreshCase() {
     let caseFrame = coremath.genPointsFromVectorPath(caseFrameVec,8);
 
     if( tuning.drawCase ) {
-        cRD.layers["edge"] = {outlines:[caseFrameVec, ...cavityInnerEdgeVec]};
+        cRD.layers["edge"] = {outlines:[caseFrameVec, ...cavityInnerEdgeVec, ...globals.renderData.screwData]};
         cRD.edgeMesh = BABYLON.MeshBuilder.CreatePolygon("edge", 
                                                          { shape: caseFrame, depth:9, 
-                                                           holes: cavityInnerEdgeVec.map((a) => coremath.genPointsFromVectorPath(a,8)),
+                                                           holes: [...screwHoles,...cavityInnerEdgeVec.map((a) => coremath.genPointsFromVectorPath(a,8))],
                                                            updatable: true }, scene);
         cRD.edgeMesh.translate(new BABYLON.Vector3(0, -1.5, 0), 1, BABYLON.Space.LOCAL);
         cRD.edgeMesh.material = mats["case"];
@@ -686,8 +739,8 @@ export function refreshCase() {
     }
 
     if( tuning.drawCase ) {
-        cRD.layers["bottom"] = {outlines:[caseFrameVec]};
-        cRD.bottom = BABYLON.MeshBuilder.CreatePolygon("bottom", { shape: caseFrame, depth:3, updatable: true }, scene);
+        cRD.layers["bottom"] = {outlines:[caseFrameVec, ...globals.renderData.screwData]};
+        cRD.bottom = BABYLON.MeshBuilder.CreatePolygon("bottom", { shape: caseFrame, depth:3, holes:screwHoles, updatable: true }, scene);
         cRD.bottom.translate(new BABYLON.Vector3(0, -9-1.5, 0), 1, BABYLON.Space.LOCAL);
         cRD.bottom.material = mats["case"];
     }
@@ -732,9 +785,8 @@ export function refreshCase() {
     // globals.lineSystem = BABYLON.MeshBuilder.CreateLineSystem("lineSystem", {lines: dbglines}, globals.scene);
 
     if( tuning.drawBezel ) {
-
-        cRD.layers["bezel"] = {outlines:[caseFrameVec, ...bezelOutlineVecs]};
-        cRD.bezel = BABYLON.MeshBuilder.CreatePolygon("bezel", { shape: caseFrame, depth:7.5, holes: bezelOutlines }, scene);
+        cRD.layers["bezel"] = {outlines:[caseFrameVec, ...bezelOutlineVecs, ...globals.renderData.screwData]};
+        cRD.bezel = BABYLON.MeshBuilder.CreatePolygon("bezel", { shape: caseFrame, depth:7.5, holes:[...screwHoles,...bezelOutlines] }, scene);
         cRD.bezel.translate(new BABYLON.Vector3(0, 7.5, 0), 1, BABYLON.Space.LOCAL);
         //cRD.bezel.rotation = new BABYLON.Vector3(-Math.PI/12, 0, 0);
         cRD.bezel.material = mats["case"];
@@ -752,8 +804,8 @@ export function refreshCase() {
         // switchCuts.push(...rd.switchCut);
     }
     if( tuning.drawPlate ) {
-        cRD.layers["plate"] = {outlines:[caseFrameVec, ...switchCutsVec]};
-        cRD.plateMesh = BABYLON.MeshBuilder.CreatePolygon("plate", { shape: caseFrame, depth:1.5, holes: switchCuts }, scene);
+        cRD.layers["plate"] = {outlines:[caseFrameVec, ...switchCutsVec, ...globals.renderData.screwData]};
+        cRD.plateMesh = BABYLON.MeshBuilder.CreatePolygon("plate", { shape: caseFrame, depth:1.5, holes: [...screwHoles,...switchCuts] }, scene);
         //cRD.plate.translate()
         cRD.plateMesh.material = mats["plate"];
     }
@@ -776,7 +828,7 @@ export function loadKeyboard(path) {
             bd.meta = data.meta;
             bd.forceSymmetrical = true;
             bd.forcePCBSymmetrical = true;
-            bd.caseType = "convex";
+            bd.caseType = "rect";
             bd.case = data.case;
             bd.layout = {keys: {}};
             let kIdx = 0

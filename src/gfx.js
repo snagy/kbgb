@@ -1,5 +1,6 @@
 import {globals} from './globals.js'
 import {tuning} from './tuning.js'
+import * as BABYLON from '@babylonjs/core'
 
 export function createKeyMaterial(name,color) {
     let mats = globals.renderData.mats;

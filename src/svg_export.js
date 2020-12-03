@@ -35,43 +35,49 @@ export function exportLayerString(layerName) {
     if( layerData.outlines ) {
         let pathStr = `<path fill="red" fill-rule="evenodd" stroke="blue" stroke-width="1" d="`
         for(let shape of layerData.outlines) {
-            let isL = false;
-            if(shape.length > 1) {
-                // starting point
-                let p = shape[0];
-                switch(p.type) {
-                    case 0:
-                        pathStr += `M${f(p.point.x)},${f(-p.point.z)}`
-                        break;
-                    case 1:
-                        let startPoint = p.center.add(coremath.getNormalFromRot(p.endRot - p.rotDegrees).scale(p.radius));
-                        pathStr += `M${f(startPoint.x)},${f(-startPoint.z)}`
-                        break;
-                }
-
-                for(let i = 0; i <= shape.length; i++) {
-                    let p = shape[i%shape.length];
+            if(Array.isArray(shape)) {
+                let isL = false;
+                if(shape.length > 1) {
+                    // starting point
+                    let p = shape[0];
                     switch(p.type) {
                         case 0:
-                            if(!isL) { pathStr+="L"; isL = true; }
-                            pathStr += `${f(p.point.x)},${f(-p.point.z)} `
+                            pathStr += `M${f(p.point.x)},${f(-p.point.z)}`
                             break;
-                        case 1: // arc
-                            isL = false;
-                            let endPoint = p.center.add(coremath.getNormalFromRot(p.endRot).scale(p.radius));
-                            //(rx ry x-axis-rotation large-arc-flag sweep-flag x y)
-                            pathStr += `A${f(p.radius)},${f(p.radius)} 0 0,0 ${f(endPoint.x)},${f(-endPoint.z)} `
+                        case 1:
+                            let startPoint = p.center.add(coremath.getNormalFromRot(p.endRot - p.rotDegrees).scale(p.radius));
+                            pathStr += `M${f(startPoint.x)},${f(-startPoint.z)}`
                             break;
                     }
+    
+                    for(let i = 0; i <= shape.length; i++) {
+                        let p = shape[i%shape.length];
+                        switch(p.type) {
+                            case 0:
+                                if(!isL) { pathStr+="L"; isL = true; }
+                                pathStr += `${f(p.point.x)},${f(-p.point.z)} `
+                                break;
+                            case 1: // arc
+                                isL = false;
+                                let endPoint = p.center.add(coremath.getNormalFromRot(p.endRot).scale(p.radius));
+                                //(rx ry x-axis-rotation large-arc-flag sweep-flag x y)
+                                pathStr += `A${f(p.radius)},${f(p.radius)} 0 0,0 ${f(endPoint.x)},${f(-endPoint.z)} `
+                                break;
+                        }
+                    }
+                }
+            } else {
+                if(shape.type == 2) {
+                    // could do this with relative movements but this is slightly more compact output.
+                    pathStr += `M${f(shape.center.x+shape.radius)},${f(-shape.center.z)}`
+                    pathStr += `A${f(shape.radius)},${f(shape.radius)} 0 1,0 ${f(shape.center.x-shape.radius)},${f(-shape.center.z)} `
+                    pathStr += `A${f(shape.radius)},${f(shape.radius)} 0 1,0 ${f(shape.center.x+shape.radius)},${f(-shape.center.z)} `
                 }
             }
         }
         pathStr += `z"/>`;
         append(pathStr);
     }
-    // append(`<rect x="1" y="1" width="398" height="398" fill="none" stroke="blue" />`);
-    // append(`<path d="M 100 100 L 300 100 L 200 300 z" fill="red" stroke="blue" stroke-width="3" />`);
-
     //end svg
     append(`</svg>`);
 

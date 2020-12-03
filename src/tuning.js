@@ -6,6 +6,7 @@ export const tuning = {
     bezelThickness: 8,
     caseCornerFillet: 8,
     bezelCornerFillet: 0.5,
+    screwHoleThruRadius: 2.3/2.0, 
     keyShape:"square",
     drawCase:true,
     drawBezel:true,

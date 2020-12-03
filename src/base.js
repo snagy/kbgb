@@ -8,8 +8,6 @@ import * as dxf from './dxf_export.js'
 function initKBGB() {
     gfx.init();
 
-    globals.screengui = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("screenUI");
-
     kbgbGUI.addModeGUI();
 
     // run the render loop
@@ -34,7 +32,7 @@ function initKBGB() {
         'testkbs/threekeyoffset.kle',
         'testkbs/keysize_test.kle'
     ]
-    let kbdidx = 9;
+    let kbdidx = 2;
 
     // load a keyboard
     boardOps.loadKeyboard(keyboards[kbdidx]);
