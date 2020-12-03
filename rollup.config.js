@@ -12,7 +12,7 @@ export default {
       name: 'base.js',
 
       sourcemap: true,
-      plugins: []//[terser()]
+      plugins: [terser()]
     },
     plugins: [nodeResolve()]
   };
