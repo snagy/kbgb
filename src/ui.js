@@ -145,35 +145,34 @@ export const kbgbGUI = {
                 ctrlBar.addControl(kbgbGUI.addLabel("SYM: "));
                 ctrlBar.addControl(checkbox);
 
-                let label = kbgbGUI.addLabel("bezel thickness: ")
-                var slider = new BJSGUI.Slider();
-                slider.minimum = 5;
-                slider.maximum = 50;
-                slider.value = tuning.bezelThickness;
-                slider.height = "20px";
-                slider.width = "200px";
-                slider.onValueChangedObservable.add(function(value) {
-                    label.text = "Bezel Thickness: " + (value) + " mm";
-                    tuning.bezelThickness = value;
-                    boardOps.refreshCase();
-                });
-                ctrlBar.addControl(label);   
-                ctrlBar.addControl(slider);   
+                let createSlider = function(txt, initialVal, min, max, onChangeFunc) {
+                    let label = kbgbGUI.addLabel(txt + initialVal)
+                    var slider = new BJSGUI.Slider();
+                    slider.minimum = min;
+                    slider.maximum = max;
+                    slider.value = tuning.bezelThickness;
+                    slider.height = "15px";
+                    slider.width = "100px";
+                    slider.onValueChangedObservable.add(function(value) {
+                        label.text = label + value;
+                        onChangeFunc(value);
+                    });
+                    ctrlBar.addControl(label);   
+                    ctrlBar.addControl(slider); 
+                }
 
-                let filletLabel = kbgbGUI.addLabel("bezel fillet: ")
-                var filletSlider = new BJSGUI.Slider();
-                filletSlider.minimum = 0.5;
-                filletSlider.maximum = 20;
-                filletSlider.value = tuning.caseCornerFillet;
-                filletSlider.height = "20px";
-                filletSlider.width = "200px";
-                filletSlider.onValueChangedObservable.add(function(value) {
-                    filletLabel.text = "Bezel fillet: " + (value) + " mm";
-                    tuning.caseCornerFillet = value;
-                    boardOps.refreshCase();
+                createSlider("Bezel Thickness: ", tuning.bezelThickness, 5.5, 50, (v) => {
+                    tuning.bezelThickness = v; boardOps.refreshCase();
                 });
-                ctrlBar.addControl(filletLabel);   
-                ctrlBar.addControl(filletSlider);   
+                createSlider("Bezel Fillet: ", tuning.caseCornerFillet, 0.5, 30, (v) => {
+                    tuning.caseCornerFillet = v; boardOps.refreshCase();
+                }); 
+                createSlider("Screw span: ", tuning.maxScrewSpan, 80, 300, (v) => {
+                    tuning.maxScrewSpan = v; boardOps.refreshCase();
+                }); 
+                createSlider("Screw offset: ", tuning.screwBezelBias, 0.0, 1.0, (v) => {
+                    tuning.screwBezelBias = v; boardOps.refreshCase();
+                }); 
                 
                 globals.screengui.addControl(ctrlBar);
                 kbgbGUI.activeModeCtrl = ctrlBar;

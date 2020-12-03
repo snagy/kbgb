@@ -112,14 +112,23 @@ export function combineSideVerts(mesh) {
     _vertexData.applyToMesh(mesh);
 }
 
-export function snapCamera() {
+export function snapCamera(mode) {
     const bd = globals.boardData;
-    globals.camera.setTarget(new BABYLON.Vector3(bd.layout.bounds.mins[0] + (bd.layout.bounds.maxs[0] - bd.layout.bounds.mins[0]) / 2.0,
-        0,
-        bd.layout.bounds.mins[1] + (bd.layout.bounds.maxs[1] - bd.layout.bounds.mins[1]) / 2.0));
-    globals.camera.alpha = -Math.PI / 2;
-    globals.camera.beta = 0;
-    globals.camera.radius = 600;
+    const bounds = bd.layout.bounds;
+    const w = bounds.maxs[0] - bounds.mins[0] + tuning.bezelThickness * 2;
+    const h = bounds.maxs[1] - bounds.mins[1] + tuning.bezelThickness * 2;
+    const dim = Math.max(w,h);
+    globals.camera.setTarget(new BABYLON.Vector3(bounds.mins[0] + (bounds.maxs[0] - bounds.mins[0]) / 2.0,
+        0, bounds.mins[1] + (bounds.maxs[1] - bounds.mins[1]) / 2.0));
+    if(mode == "top") {
+        globals.camera.alpha = -Math.PI / 2;
+        globals.camera.beta = 0;
+    } else {
+        globals.camera.alpha = -Math.PI / 2;
+        globals.camera.beta = 0;
+    }
+    globals.camera.radius = 0.5 * dim / Math.tan(globals.camera.fov * 0.5);
+
 }
 
 function createScene() {

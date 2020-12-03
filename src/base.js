@@ -19,6 +19,7 @@ function initKBGB() {
         'testkbs/hy_nova.kle',
         'testkbs/ansi104.kle',
         'testkbs/fc660m.kle',
+        'testkbs/fake_alice.kle',
         'testkbs/kle_atreus.kle',
         'testkbs/basis-mono.kle',
         'testkbs/basis-stagger-3.kle',

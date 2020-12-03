@@ -8,11 +8,11 @@ export default {
     input: 'src/base.js',
     output: {
       file: 'static/src/pack.js',
-      format: 'iife',
+      format: 'umd',
       name: 'base.js',
 
       sourcemap: true,
-      plugins: [terser()]
+      plugins: []//[terser()]
     },
     plugins: [nodeResolve()]
   };

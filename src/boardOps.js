@@ -610,47 +610,49 @@ function getCombinedOutlineFromRDGroup(KG) {
 
 export function addScrewHoles() {
     globals.boardData.screwLocations = [];
-    if(globals.boardData.caseType == "convex") { return; }
+    globals.renderData.screwData = [];
+    if(globals.boardData.caseType != "rect") { return; }
 
     const bounds = globals.boardData.layout.bounds;
     const caseWidth = bounds.maxs[0] - bounds.mins[0];
     const caseHeight = bounds.maxs[1] - bounds.mins[1];
-    const screwSideBuffer = 0;//12;
-    const maxScrewSpan = 150;
+    const screwSideBuffer = tuning.screwSideBuffer;
+    const maxScrewSpan = tuning.maxScrewSpan;
+    const screwBezelBias = tuning.screwBezelBias;
+    const bezelOffset = (tuning.bezelThickness - tuning.screwBossMin * 2.0) * screwBezelBias + tuning.bezelGap + tuning.screwBossMin;
 
 
-    const topScrewLengthToCover = caseWidth+(tuning.bezelThickness+tuning.bezelThickness)*0.5-screwSideBuffer*2.0;
+    const topScrewLengthToCover = caseWidth+bezelOffset*2.0-screwSideBuffer*2.0;
     const topScrews = Math.floor(topScrewLengthToCover / maxScrewSpan) + 1
     const topScrewSpan = topScrewLengthToCover / topScrews
-    const sideScrewLengthToCover = caseHeight+(tuning.bezelThickness+tuning.bezelThickness)*0.5-screwSideBuffer*2.0;
+    const sideScrewLengthToCover = caseHeight+bezelOffset*2.0-screwSideBuffer*2.0;
     const sideScrews = Math.floor(sideScrewLengthToCover / maxScrewSpan) + 1
     const sideScrewSpan = sideScrewLengthToCover / sideScrews
-    console.log(`num top screws: ${topScrews} span ${topScrewSpan} side screws: ${sideScrews} span: ${sideScrewSpan}`)
+    console.log(`bezel offset: ${bezelOffset} num top screws: ${topScrews} span ${topScrewSpan} side screws: ${sideScrews} span: ${sideScrewSpan}`)
     //bottom
     for(let i = 0; i <= topScrews; i++) {
-        let newLoc = [ i*topScrewSpan + screwSideBuffer + bounds.mins[0] - tuning.bezelThickness*0.5,
-                        bounds.mins[1]-tuning.bezelThickness*0.5]
+        let newLoc = [ i*topScrewSpan + screwSideBuffer + bounds.mins[0] - bezelOffset,
+                        bounds.mins[1]-bezelOffset]
         globals.boardData.screwLocations.push(new BABYLON.Vector3(newLoc[0], 0, newLoc[1]));
     }
     // top
     for(let i = 0; i <= topScrews; i++) {
-        let newLoc = [i*topScrewSpan+screwSideBuffer+bounds.mins[0]-tuning.bezelThickness*0.5,
-                        bounds.maxs[1]+tuning.bezelThickness*0.5]
+        let newLoc = [i*topScrewSpan+screwSideBuffer+bounds.mins[0]-bezelOffset,
+                        bounds.maxs[1]+bezelOffset]
         globals.boardData.screwLocations.push(new BABYLON.Vector3(newLoc[0], 0, newLoc[1]));
     }
     // sides (minus ends)
     for(let i = 1; i < sideScrews; i++) {
-        let newLoc = [ bounds.mins[0]-tuning.bezelThickness*0.5,
-                        i*sideScrewSpan + screwSideBuffer + bounds.mins[1] - tuning.bezelThickness*0.5 ]
+        let newLoc = [ bounds.mins[0]-bezelOffset,
+                        i*sideScrewSpan + screwSideBuffer + bounds.mins[1] - bezelOffset ]
         globals.boardData.screwLocations.push(new BABYLON.Vector3(newLoc[0], 0, newLoc[1]));
     }
     for(let i = 1; i < sideScrews; i++) {
-        let newLoc = [ bounds.maxs[0]+tuning.bezelThickness*0.5,
-                        i*sideScrewSpan + screwSideBuffer + bounds.mins[1] - tuning.bezelThickness*0.5 ]
+        let newLoc = [ bounds.maxs[0]+bezelOffset,
+                        i*sideScrewSpan + screwSideBuffer + bounds.mins[1] - bezelOffset ]
         globals.boardData.screwLocations.push(new BABYLON.Vector3(newLoc[0], 0, newLoc[1]));
     }
 
-    globals.renderData.screwData = [];
     for(const loc of globals.boardData.screwLocations) {
         globals.renderData.screwData.push(new coremath.Circle(loc,tuning.screwHoleThruRadius));
     }
