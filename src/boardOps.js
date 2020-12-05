@@ -819,35 +819,31 @@ export function refreshKeyboard() {
     refreshCase();
 }
 
-export function loadKeyboard(path) {
-    fetch(path)
-        .then(response => response.json())
-        .then(data => {
-            // console.log(data);
-            let mats = globals.renderData.mats;
+export function loadKeyboard(data) {
+    // console.log(data);
+    let mats = globals.renderData.mats;
 
-            let bd = {};
-            bd.meta = data.meta;
-            bd.forceSymmetrical = true;
-            bd.forcePCBSymmetrical = true;
-            bd.caseType = "rect";
-            bd.case = data.case;
-            bd.layout = {keys: {}};
-            let kIdx = 0
-            for (let k of data.keys) {
-                k.id = "key" + kIdx++;
-                
-                if(!mats[k.color]) {
-                    gfx.createKeyMaterial(k.color,Color3.FromHexString(k.color));
-                }
-                k.matName = k.color;
-                
-                bd.layout.keys[k.id] = k;
-            }
-            globals.boardData = bd;
-            
-            gfx.createMaterials();
-            refreshKeyboard();
-            gfx.snapCamera("angle");
-        });
+    let bd = {};
+    bd.meta = data.meta;
+    bd.forceSymmetrical = true;
+    bd.forcePCBSymmetrical = true;
+    bd.caseType = "rect";
+    bd.case = data.case;
+    bd.layout = {keys: {}};
+    let kIdx = 0
+    for (let k of data.keys) {
+        k.id = "key" + kIdx++;
+        
+        if(!mats[k.color]) {
+            gfx.createKeyMaterial(k.color,Color3.FromHexString(k.color));
+        }
+        k.matName = k.color;
+        
+        bd.layout.keys[k.id] = k;
+    }
+    globals.boardData = bd;
+    
+    gfx.createMaterials();
+    refreshKeyboard();
+    gfx.snapCamera("angle");
 }

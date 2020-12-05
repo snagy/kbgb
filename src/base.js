@@ -4,6 +4,7 @@ import {kbgbGUI} from './ui.js'
 import * as boardOps from './boardOps.js'
 import * as gfx from './gfx.js'
 import * as dxf from './dxf_export.js'
+import * as kle from '@ijprest/kle-serial';
 
 const hdris = [
     "assets/carpentry_shop.env",
@@ -14,6 +15,21 @@ const hdris = [
 ];
 
 let hdriIdx = 2;
+
+function loadKeyboardFromPath(path) {
+    fetch(path)
+    .then(response => response.json())
+    .then(data => {
+        boardOps.loadKeyboard(data);
+    });
+}
+
+function loadKeyboardFromKLE1(txt) {
+    let old_kle = JSON.parse(txt);
+
+    var new_kle = kle.Serial.deserialize(old_kle);
+    boardOps.loadKeyboard(new_kle);
+}
 
 function initKBGB() {
     gfx.init();
@@ -46,14 +62,32 @@ function initKBGB() {
         'testkbs/keysize_test.kle'
     ]
     let kbdidx = 2;
-
     // load a keyboard
-    boardOps.loadKeyboard(keyboards[kbdidx]);
+    loadKeyboardFromPath(keyboards[kbdidx]);
 
     // the canvas/window resize event handler
     window.addEventListener('resize', function () {
         globals.engine.resize();
     });
+
+    let input = document.getElementById("loadKLE");
+    input.onchange = e => { 
+
+        // getting a hold of the file reference
+        var file = e.target.files[0]; 
+    
+        // setting up the reader
+        var reader = new FileReader();
+        reader.readAsText(file,'UTF-8');
+    
+        // here we tell the reader what to do when it's done reading...
+        reader.onload = readerEvent => {
+            var content = readerEvent.target.result; // this is the content!
+            // console.log(content);
+            loadKeyboardFromKLE1(content);
+        }
+    }
+    //input.click();
 
     window.addEventListener('keydown', event => {
         if( event.key == 'i' ) {
@@ -85,7 +119,7 @@ function initKBGB() {
         }
         if( event.key == 'r' ) {
             kbdidx = (kbdidx+1)%keyboards.length;
-            boardOps.loadKeyboard(keyboards[kbdidx]);
+            loadKeyboardFromPath(keyboards[kbdidx]);
         }
         if( event.key == 'l' ) {
             hdriIdx = (hdriIdx+1)%hdris.length;
