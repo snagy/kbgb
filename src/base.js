@@ -5,8 +5,20 @@ import * as boardOps from './boardOps.js'
 import * as gfx from './gfx.js'
 import * as dxf from './dxf_export.js'
 
+const hdris = [
+    "assets/carpentry_shop.env",
+    "assets/studio_small.env",
+    "assets/photo_studio.env",
+    "assets/sculpture_exhibition.env",
+    "assets/environment.dds"
+];
+
+let hdriIdx = 2;
+
 function initKBGB() {
     gfx.init();
+
+    gfx.setEnvironmentLight(hdris[hdriIdx]);
 
     kbgbGUI.addModeGUI();
 
@@ -74,6 +86,10 @@ function initKBGB() {
         if( event.key == 'r' ) {
             kbdidx = (kbdidx+1)%keyboards.length;
             boardOps.loadKeyboard(keyboards[kbdidx]);
+        }
+        if( event.key == 'l' ) {
+            hdriIdx = (hdriIdx+1)%hdris.length;
+            gfx.setEnvironmentLight(hdris[hdriIdx]);
         }
     })
 }

@@ -197,7 +197,7 @@ export function refreshLayout() {
             scene.removeMesh(rd.keycap);
         }
         if (tuning.keyShape) {
-            rd.keycap = BABYLON.MeshBuilder.CreatePolygon(id, { shape: coremath.genArrayFromOutline(rd.outline,0,0.25), depth: 7, updatable: false }, scene);
+            rd.keycap = BABYLON.MeshBuilder.CreatePolygon(id, { shape: coremath.genArrayFromOutline(rd.outline,0,0.25), depth: 7, smoothingThreshold: 0.1, updatable: false }, scene);
             rd.keycap.translate(new BABYLON.Vector3(0, 10.5, 0), 1, BABYLON.Space.LOCAL);
     
             if(k.matName && globals.renderData.mats[k.matName]) {
@@ -688,7 +688,7 @@ export function refreshCase() {
 
     addScrewHoles();
 
-    let screwHoles = globals.renderData.screwData.map((a) => coremath.genArrayForCircle(a,0,11));
+    let screwHoles = globals.renderData.screwData.map((a) => coremath.genArrayForCircle(a,0,19));
 
 
     if(bd.caseType == "convex") {
@@ -732,7 +732,7 @@ export function refreshCase() {
     if( tuning.drawCase ) {
         cRD.layers["edge"] = {outlines:[caseFrameVec, ...cavityInnerEdgeVec, ...globals.renderData.screwData]};
         cRD.edgeMesh = BABYLON.MeshBuilder.CreatePolygon("edge", 
-                                                         { shape: caseFrame, depth:9, 
+                                                         { shape: caseFrame, depth:9, smoothingThreshold: 0.1, 
                                                            holes: [...screwHoles,...cavityInnerEdgeVec.map((a) => coremath.genPointsFromVectorPath(a,8))],
                                                            updatable: true }, scene);
         cRD.edgeMesh.translate(new BABYLON.Vector3(0, -1.5, 0), 1, BABYLON.Space.LOCAL);
@@ -742,7 +742,7 @@ export function refreshCase() {
 
     if( tuning.drawCase ) {
         cRD.layers["bottom"] = {outlines:[caseFrameVec, ...globals.renderData.screwData]};
-        cRD.bottom = BABYLON.MeshBuilder.CreatePolygon("bottom", { shape: caseFrame, depth:3, holes:screwHoles, updatable: true }, scene);
+        cRD.bottom = BABYLON.MeshBuilder.CreatePolygon("bottom", { shape: caseFrame, depth:3, smoothingThreshold: 0.1, holes:screwHoles, updatable: true }, scene);
         cRD.bottom.translate(new BABYLON.Vector3(0, -9-1.5, 0), 1, BABYLON.Space.LOCAL);
         cRD.bottom.material = mats["case"];
     }
@@ -751,7 +751,7 @@ export function refreshCase() {
         let pcbOutlineVec = coremath.offsetAndFilletOutline(bd.pcbOutline, 0.0, 2.0, false);
         let pcbOutline = coremath.genPointsFromVectorPath(pcbOutlineVec);
         cRD.layers["pcb"] = {outlines:[pcbOutlineVec]};
-        cRD.pcbMesh = BABYLON.MeshBuilder.CreatePolygon("pcbMesh", { shape: pcbOutline, depth:1.6, updatable: true }, scene);
+        cRD.pcbMesh = BABYLON.MeshBuilder.CreatePolygon("pcbMesh", { shape: pcbOutline, depth:1.6, smoothingThreshold: 0.1, updatable: true }, scene);
         cRD.pcbMesh.translate(new BABYLON.Vector3(0, -5.0, 0), 1, BABYLON.Space.LOCAL);
         cRD.pcbMesh.material = mats["fr4"];
     }
@@ -788,7 +788,7 @@ export function refreshCase() {
 
     if( tuning.drawBezel ) {
         cRD.layers["bezel"] = {outlines:[caseFrameVec, ...bezelOutlineVecs, ...globals.renderData.screwData]};
-        cRD.bezel = BABYLON.MeshBuilder.CreatePolygon("bezel", { shape: caseFrame, depth:7.5, holes:[...screwHoles,...bezelOutlines] }, scene);
+        cRD.bezel = BABYLON.MeshBuilder.CreatePolygon("bezel", { shape: caseFrame, depth:7.5, smoothingThreshold: 0.1, holes:[...screwHoles,...bezelOutlines] }, scene);
         cRD.bezel.translate(new BABYLON.Vector3(0, 7.5, 0), 1, BABYLON.Space.LOCAL);
         //cRD.bezel.rotation = new BABYLON.Vector3(-Math.PI/12, 0, 0);
         cRD.bezel.material = mats["case"];
@@ -807,7 +807,7 @@ export function refreshCase() {
     }
     if( tuning.drawPlate ) {
         cRD.layers["plate"] = {outlines:[caseFrameVec, ...switchCutsVec, ...globals.renderData.screwData]};
-        cRD.plateMesh = BABYLON.MeshBuilder.CreatePolygon("plate", { shape: caseFrame, depth:1.5, holes: [...screwHoles,...switchCuts] }, scene);
+        cRD.plateMesh = BABYLON.MeshBuilder.CreatePolygon("plate", { shape: caseFrame, depth:1.5, smoothingThreshold: 0.1, holes: [...screwHoles,...switchCuts] }, scene);
         //cRD.plate.translate()
         cRD.plateMesh.material = mats["plate"];
     }
@@ -848,6 +848,6 @@ export function loadKeyboard(path) {
             
             gfx.createMaterials();
             refreshKeyboard();
-            gfx.snapCamera();
+            gfx.snapCamera("angle");
         });
 }

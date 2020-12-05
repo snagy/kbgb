@@ -10,7 +10,6 @@ export function createKeyMaterial(name,color) {
         mats[name].metallic = 0;
         mats[name].roughness = 0.6;
         mats[name].baseColor = color;
-        mats[name].environmentTexture = globals.hdrTexture;
     }
 }
 
@@ -32,7 +31,6 @@ export function createMaterials() {
         mats[caseMatName].metallic = 0;
         mats[caseMatName].roughness = 0.8;
         mats[caseMatName].baseColor = new BABYLON.Color3(0.6, 0.6, 0.6);
-        mats[caseMatName].environmentTexture = globals.hdrTexture;
     }
 
     let plateMatName = "plate";
@@ -42,7 +40,6 @@ export function createMaterials() {
         mats[plateMatName].metallic = 1;
         mats[plateMatName].roughness = 0.2;
         mats[plateMatName].baseColor = new BABYLON.Color3(0.5, 0.5, 0.5);
-        mats[plateMatName].environmentTexture = globals.hdrTexture;
     }
 
     let pcbMatName = "fr4";
@@ -52,7 +49,6 @@ export function createMaterials() {
         mats[pcbMatName].metallic = 0;
         mats[pcbMatName].roughness = 0.2;
         mats[pcbMatName].baseColor = new BABYLON.Color3(45/255, 90/255, 10/255);
-        mats[pcbMatName].environmentTexture = globals.hdrTexture;
     }
 
     createKeyMaterial("key", new BABYLON.Color3(0.9, 0.9, 0.9));
@@ -131,6 +127,15 @@ export function snapCamera(mode) {
 
 }
 
+export function setEnvironmentLight(path) {
+
+    if(!globals.hdrTextures) globals.hdrTextures = {};
+    if(!globals.hdrTextures[path]) {
+        globals.hdrTextures[path] = BABYLON.CubeTexture.CreateFromPrefilteredData(path, globals.scene);
+    }
+    globals.scene.environmentTexture = globals.hdrTextures[path];
+}
+
 function createScene() {
     const engine = globals.engine;
 
@@ -161,9 +166,7 @@ function createScene() {
     // var light = new BABYLON.HemisphericLight('light1', new BABYLON.Vector3(0, 1, 0), scene);
     // // Default intensity is 1. Let's dim the light a small amount
     // light.intensity = 0.7;
-    var skyboxPath = "assets/studio_small.env";
-    globals.hdrTexture = BABYLON.CubeTexture.CreateFromPrefilteredData(skyboxPath, scene);
-    globals.currentSkybox = scene.createDefaultSkybox(globals.hdrTexture, true, (scene.activeCamera.maxZ - scene.activeCamera.minZ) / 2, 0.3);
+    //globals.currentSkybox = scene.createDefaultSkybox(globals.hdrTexture, true, (scene.activeCamera.maxZ - scene.activeCamera.minZ) / 2, 0.3);
 
     // return the created scene
     return scene;
