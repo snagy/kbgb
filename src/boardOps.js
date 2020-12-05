@@ -2,7 +2,7 @@ import {globals} from './globals.js';
 import {tuning} from './tuning.js';
 import * as coremath from './coremath.js';
 import * as gfx from './gfx.js';
-import * as BABYLON from '@babylonjs/core'
+import {Vector3, Space, MeshBuilder, Matrix, Epsilon, Color3} from '@babylonjs/core'
 
 export function refreshOutlines() {
     let kRD = globals.renderData.keys;
@@ -20,13 +20,13 @@ export function refreshOutlines() {
         else {
             let rd = kRD[id];
 
-            oRD[id] = BABYLON.MeshBuilder.CreateRibbon(id + "outline",
+            oRD[id] = MeshBuilder.CreateRibbon(id + "outline",
                 {
                     pathArray: [coremath.genArrayFromOutline(rd.outline, 0.1, 0.1, true),
                         coremath.genArrayFromOutline(rd.outline, 0.5, 0.5, true)]
                 }, globals.scene);
             oRD[id].material = mats["keySel"];
-            oRD[id].translate(new BABYLON.Vector3(0, 10.5, 0), 1, BABYLON.Space.LOCAL);
+            oRD[id].translate(new Vector3(0, 10.5, 0), 1, Space.LOCAL);
         }
     }
 }
@@ -37,29 +37,29 @@ function getPlateCutsWithStabs(width,height,kXform,plateCuts,pcbBounds) {
 
     // wack ass cherry 6u spacebar
     if(width == 6) {
-        sXform = BABYLON.Matrix.Translation(9.525, 0, 0).multiply(sXform)
+        sXform = Matrix.Translation(9.525, 0, 0).multiply(sXform)
     }
     plateCuts.push([
-        BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(-switchCutDims[0], 0, -switchCutDims[1]), sXform),
-        BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(switchCutDims[0], 0, -switchCutDims[1]), sXform),
-        BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(switchCutDims[0], 0, switchCutDims[1]), sXform),
-        BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(-switchCutDims[0], 0, switchCutDims[1]), sXform)
+        Vector3.TransformCoordinates(new Vector3(-switchCutDims[0], 0, -switchCutDims[1]), sXform),
+        Vector3.TransformCoordinates(new Vector3(switchCutDims[0], 0, -switchCutDims[1]), sXform),
+        Vector3.TransformCoordinates(new Vector3(switchCutDims[0], 0, switchCutDims[1]), sXform),
+        Vector3.TransformCoordinates(new Vector3(-switchCutDims[0], 0, switchCutDims[1]), sXform)
     ]);
 
     // pcb footprint of a hotswap switch: x +/- 9 y +/- 6.75
     // enc: 6.75, 8,5
     let keyPCBBounds = [9,6.75];
     pcbBounds.push([
-        BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(-keyPCBBounds[0], 0, -keyPCBBounds[1]), sXform),
-        BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(keyPCBBounds[0], 0, -keyPCBBounds[1]), sXform),
-        BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(keyPCBBounds[0], 0, keyPCBBounds[1]), sXform),
-        BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(-keyPCBBounds[0], 0, keyPCBBounds[1]), sXform)
+        Vector3.TransformCoordinates(new Vector3(-keyPCBBounds[0], 0, -keyPCBBounds[1]), sXform),
+        Vector3.TransformCoordinates(new Vector3(keyPCBBounds[0], 0, -keyPCBBounds[1]), sXform),
+        Vector3.TransformCoordinates(new Vector3(keyPCBBounds[0], 0, keyPCBBounds[1]), sXform),
+        Vector3.TransformCoordinates(new Vector3(-keyPCBBounds[0], 0, keyPCBBounds[1]), sXform)
     ]);
 
     let span = width;
     if(height >= 1.75) {
         span = height;
-        sXform = BABYLON.Matrix.RotationY(Math.PI / 2.0).multiply(sXform);
+        sXform = Matrix.RotationY(Math.PI / 2.0).multiply(sXform);
     }
 
     let stabCutDims = [7*0.5,15*0.5];
@@ -102,30 +102,30 @@ function getPlateCutsWithStabs(width,height,kXform,plateCuts,pcbBounds) {
             stabOffsetXL = stabOffsetXR = 66.675;
         }
 
-        let stabXforms = [BABYLON.Matrix.Translation(-stabOffsetXL, 0, -2).multiply(sXform),
-                          BABYLON.Matrix.Translation( stabOffsetXR, 0, -2).multiply(sXform)];
-        let stabCut = [new BABYLON.Vector3(-stabCutDims[0], 0, -stabCutDims[1]),
-                       new BABYLON.Vector3(stabCutDims[0], 0, -stabCutDims[1]),
-                       new BABYLON.Vector3(stabCutDims[0], 0, stabCutDims[1]),
-                       new BABYLON.Vector3(-stabCutDims[0], 0, stabCutDims[1])];
+        let stabXforms = [Matrix.Translation(-stabOffsetXL, 0, -2).multiply(sXform),
+                          Matrix.Translation( stabOffsetXR, 0, -2).multiply(sXform)];
+        let stabCut = [new Vector3(-stabCutDims[0], 0, -stabCutDims[1]),
+                       new Vector3(stabCutDims[0], 0, -stabCutDims[1]),
+                       new Vector3(stabCutDims[0], 0, stabCutDims[1]),
+                       new Vector3(-stabCutDims[0], 0, stabCutDims[1])];
 
         // stab foot = 4 wide x 19 h
         let stabPCBFootDims = [3,9.5];
-        let stabFoot = [new BABYLON.Vector3(-stabPCBFootDims[0], 0, -7),
-        new BABYLON.Vector3(stabPCBFootDims[0], 0, -7),
-        new BABYLON.Vector3(stabPCBFootDims[0], 0, 11),
-        new BABYLON.Vector3(-stabPCBFootDims[0], 0, 11)];
+        let stabFoot = [new Vector3(-stabPCBFootDims[0], 0, -7),
+        new Vector3(stabPCBFootDims[0], 0, -7),
+        new Vector3(stabPCBFootDims[0], 0, 11),
+        new Vector3(-stabPCBFootDims[0], 0, 11)];
 
         for(let j = 0; j < stabXforms.length; j++) {
             let xformedCut = [];
             for(let i = 0; i < stabCut.length; i++) {
-                xformedCut.push(BABYLON.Vector3.TransformCoordinates(stabCut[i],stabXforms[j]));
+                xformedCut.push(Vector3.TransformCoordinates(stabCut[i],stabXforms[j]));
             }
             plateCuts.push(xformedCut);
 
             let xformedPCBBounds = [];
             for(let i = 0; i < stabFoot.length; i++) {
-                xformedPCBBounds.push(BABYLON.Vector3.TransformCoordinates(stabFoot[i],stabXforms[j]));
+                xformedPCBBounds.push(Vector3.TransformCoordinates(stabFoot[i],stabXforms[j]));
             }
             pcbBounds.push(xformedPCBBounds);
         }
@@ -173,19 +173,19 @@ export function refreshLayout() {
 
         let kPos = [k.x * tuning.base1U[0] + keycapDim[0],
         -(k.y * tuning.base1U[1] + keycapDim[1])]
-        let kPosition = new BABYLON.Vector3(kPos[0], 0, kPos[1]);
-        let kXform = BABYLON.Matrix.Identity();
-        kXform = kXform.multiply(BABYLON.Matrix.Translation(kPos[0], 0, kPos[1]));
+        let kPosition = new Vector3(kPos[0], 0, kPos[1]);
+        let kXform = Matrix.Identity();
+        kXform = kXform.multiply(Matrix.Translation(kPos[0], 0, kPos[1]));
         if (k.rotation_angle != 0) {
-            kXform = kXform.multiply(BABYLON.Matrix.Translation(-k.rotation_x * tuning.base1U[0], 0, k.rotation_y * tuning.base1U[1]));
-            kXform = kXform.multiply(BABYLON.Matrix.RotationY(k.rotation_angle * Math.PI / 180.0))
-            kXform = kXform.multiply(BABYLON.Matrix.Translation(k.rotation_x * tuning.base1U[0], 0, -k.rotation_y * tuning.base1U[1]));
+            kXform = kXform.multiply(Matrix.Translation(-k.rotation_x * tuning.base1U[0], 0, k.rotation_y * tuning.base1U[1]));
+            kXform = kXform.multiply(Matrix.RotationY(k.rotation_angle * Math.PI / 180.0))
+            kXform = kXform.multiply(Matrix.Translation(k.rotation_x * tuning.base1U[0], 0, -k.rotation_y * tuning.base1U[1]));
         }
         rd.outline = [
-            BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(-keycapDim[0], 0, -keycapDim[1]), kXform),
-            BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(keycapDim[0], 0, -keycapDim[1]), kXform),
-            BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(keycapDim[0], 0, keycapDim[1]), kXform),
-            BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(-keycapDim[0], 0, keycapDim[1]), kXform)
+            Vector3.TransformCoordinates(new Vector3(-keycapDim[0], 0, -keycapDim[1]), kXform),
+            Vector3.TransformCoordinates(new Vector3(keycapDim[0], 0, -keycapDim[1]), kXform),
+            Vector3.TransformCoordinates(new Vector3(keycapDim[0], 0, keycapDim[1]), kXform),
+            Vector3.TransformCoordinates(new Vector3(-keycapDim[0], 0, keycapDim[1]), kXform)
         ];
 
         rd.pcbBoxes = [];
@@ -197,8 +197,8 @@ export function refreshLayout() {
             scene.removeMesh(rd.keycap);
         }
         if (tuning.keyShape) {
-            rd.keycap = BABYLON.MeshBuilder.CreatePolygon(id, { shape: coremath.genArrayFromOutline(rd.outline,0,0.25), depth: 7, smoothingThreshold: 0.1, updatable: false }, scene);
-            rd.keycap.translate(new BABYLON.Vector3(0, 10.5, 0), 1, BABYLON.Space.LOCAL);
+            rd.keycap = MeshBuilder.CreatePolygon(id, { shape: coremath.genArrayFromOutline(rd.outline,0,0.25), depth: 7, smoothingThreshold: 0.1, updatable: false }, scene);
+            rd.keycap.translate(new Vector3(0, 10.5, 0), 1, Space.LOCAL);
     
             if(k.matName && globals.renderData.mats[k.matName]) {
                 rd.keycap.material = globals.renderData.mats[k.matName];
@@ -206,10 +206,10 @@ export function refreshLayout() {
         }
 
         rd.bezelHole = [
-            BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(-keycapDim[0] - tuning.bezelGap, 0, -keycapDim[1] - tuning.bezelGap), kXform),
-            BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(keycapDim[0] + tuning.bezelGap, 0, -keycapDim[1] - tuning.bezelGap), kXform),
-            BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(keycapDim[0] + tuning.bezelGap, 0, keycapDim[1] + tuning.bezelGap), kXform),
-            BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(-keycapDim[0] - tuning.bezelGap, 0, keycapDim[1] + tuning.bezelGap), kXform)
+            Vector3.TransformCoordinates(new Vector3(-keycapDim[0] - tuning.bezelGap, 0, -keycapDim[1] - tuning.bezelGap), kXform),
+            Vector3.TransformCoordinates(new Vector3(keycapDim[0] + tuning.bezelGap, 0, -keycapDim[1] - tuning.bezelGap), kXform),
+            Vector3.TransformCoordinates(new Vector3(keycapDim[0] + tuning.bezelGap, 0, keycapDim[1] + tuning.bezelGap), kXform),
+            Vector3.TransformCoordinates(new Vector3(-keycapDim[0] - tuning.bezelGap, 0, keycapDim[1] + tuning.bezelGap), kXform)
         ];
         bezelHoles.push(rd.bezelHole);
 
@@ -232,8 +232,8 @@ export function refreshLayout() {
         maxs[1] = Math.max(rd.maxs[1], maxs[1]);
 
         let checkOverlap = function(k1, rd1, k2, rd2) {
-            if( rd1.bezelMins[0]+BABYLON.Epsilon > rd2.bezelMaxs[0] || rd2.bezelMins[0]+BABYLON.Epsilon > rd1.bezelMaxs[0] ||
-                rd1.bezelMins[1]+BABYLON.Epsilon > rd2.bezelMaxs[1] || rd2.bezelMins[1]+BABYLON.Epsilon > rd1.bezelMaxs[1] ) {
+            if( rd1.bezelMins[0]+Epsilon > rd2.bezelMaxs[0] || rd2.bezelMins[0]+Epsilon > rd1.bezelMaxs[0] ||
+                rd1.bezelMins[1]+Epsilon > rd2.bezelMaxs[1] || rd2.bezelMins[1]+Epsilon > rd1.bezelMaxs[1] ) {
                 return false
             }
 
@@ -245,9 +245,9 @@ export function refreshLayout() {
                     let allLess = true;
                     let allMore = true;
                     for(let oP = 0; oP < oRD.bezelHole.length; oP++) {
-                        let dot = BABYLON.Vector3.Dot(line,oRD.bezelHole[oP].subtract(pRD.bezelHole[iP]));
-                        allMore &= dot > -BABYLON.Epsilon;
-                        allLess &= dot < BABYLON.Epsilon;
+                        let dot = Vector3.Dot(line,oRD.bezelHole[oP].subtract(pRD.bezelHole[iP]));
+                        allMore &= dot > -Epsilon;
+                        allLess &= dot < Epsilon;
                     }
     
                     if( allMore || allLess ) {
@@ -315,7 +315,7 @@ export function refreshLayout() {
     if(bd.forcePCBSymmetrical) {
         let midPoint = (bd.layout.bounds.maxs[0] - bd.layout.bounds.mins[0]) * 0.5 + bd.layout.bounds.mins[0];
         for(let oP of bd.pcbOutline) {
-            kPs.push(new BABYLON.Vector3(midPoint - (oP.x - midPoint), oP.y, oP.z));
+            kPs.push(new Vector3(midPoint - (oP.x - midPoint), oP.y, oP.z));
         }
         bd.pcbOutline = coremath.convexHull2d(kPs);
     }
@@ -344,19 +344,19 @@ function getCombinedOutlineFromRDGroup(KG) {
     }
 
 
-    let maxOverlapSq = BABYLON.Epsilon;
+    let maxOverlapSq = Epsilon;
 
     let overlapFunc = (primeL, primeLen, otherLen, line, norm, distBetween, lineArray, parseArray) => {
         if(!parseArray[primeL]) {
             let primeToOtherNear = Math.max(distBetween - otherLen,0) / primeLen;
             let primeToOtherFar = distBetween / primeLen;
-            if(primeToOtherNear < 1 - BABYLON.Epsilon && primeToOtherFar > BABYLON.Epsilon) {
+            if(primeToOtherNear < 1 - Epsilon && primeToOtherFar > Epsilon) {
                 // kill O and replace it with any remaining line segments
                 //parseArray[primeL] = true;
-                if (primeToOtherNear > BABYLON.Epsilon) {
+                if (primeToOtherNear > Epsilon) {
                     lineArray.push([line[0],line[0].add(norm.scale(distBetween - otherLen))]);
                 }
-                if (primeToOtherFar < 1 - BABYLON.Epsilon) {
+                if (primeToOtherFar < 1 - Epsilon) {
                     lineArray.push([line[0].add(norm.scale(distBetween)), line[1]]);
                 }
                 lineArray.splice(primeL,1);
@@ -374,22 +374,22 @@ function getCombinedOutlineFromRDGroup(KG) {
                 let lL = rd.outlineLines[iL];
                 let lDir = lL[1].subtract(lL[0]);
                 let lLen = lDir.length()
-                if(lLen < BABYLON.Epsilon) continue;
+                if(lLen < Epsilon) continue;
                 let lineNorm = lDir.normalizeFromLength(lLen);
 
                 for( let jL = otherRD.outlineLines.length-1; jL > 0; jL-- ) {
                     let oL = otherRD.outlineLines[jL];
                     let oDir = oL[1].subtract(oL[0]);
                     let oLen = oDir.length();
-                    if(oLen < BABYLON.Epsilon ) continue;
+                    if(oLen < Epsilon ) continue;
                     let oLNorm = oDir.normalizeFromLength(oLen);
-                    let lineDot = BABYLON.Vector3.Dot(oLNorm,lineNorm)
-                    if( Math.abs(lineDot) > 1-BABYLON.Epsilon) {
+                    let lineDot = Vector3.Dot(oLNorm,lineNorm)
+                    if( Math.abs(lineDot) > 1-Epsilon) {
                         let diff = lL[0].subtract(oL[0]);
-                        if(diff.lengthSquared() < BABYLON.Epsilon) {
+                        if(diff.lengthSquared() < Epsilon) {
                             let d2 = lL[1].subtract(oL[1]);
                             let d2ls = d2.lengthSquared();
-                            if(d2ls< BABYLON.Epsilon || d2ls > lLen*lLen) {
+                            if(d2ls< Epsilon || d2ls > lLen*lLen) {
                                 rd.outlineLines.splice(iL,1);
                                 break;
                             } else {
@@ -397,11 +397,11 @@ function getCombinedOutlineFromRDGroup(KG) {
                                 break;
                             }
                         }
-                        let dd = BABYLON.Vector3.Dot(diff, oLNorm);
+                        let dd = Vector3.Dot(diff, oLNorm);
                         let projPoint = oL[0].add(oLNorm.scale(dd))
                         if( projPoint.subtract(lL[0]).lengthSquared() < maxOverlapSq) {
                             // check to see if these two are facing away from each other
-                            if(lineDot < BABYLON.Epsilon-1) {
+                            if(lineDot < Epsilon-1) {
                                 // at this point, dd is the distance between the two starting points (which are facing each other) 
                                 // erase the overlapping portion of each line
                                 // O ------------> olen
@@ -410,17 +410,17 @@ function getCombinedOutlineFromRDGroup(KG) {
                                 overlapFunc(jL,oLen,lLen,oL,oLNorm,dd,otherRD.outlineLines,otherRD.parsedOutlineLines);
                                 overlapFunc(iL,lLen,oLen,lL,lineNorm,dd,rd.outlineLines,rd.parsedOutlineLines);
                             }
-                            else if( lineDot > 1-BABYLON.Epsilon ) {
-                                if( dd > BABYLON.Epsilon ) {
+                            else if( lineDot > 1-Epsilon ) {
+                                if( dd > Epsilon ) {
                                     // O -------->
                                     //        L ---------->
                                     // O <---> dd
                                     // consume L
                                     let overlapDist = oLen - dd;
                                     if(!rd.parsedOutlineLines[iL]) {
-                                        if(overlapDist > BABYLON.Epsilon) {
+                                        if(overlapDist > Epsilon) {
                                             // console.log(`trimming A ${rd.id} ${iL} vs ${oId} ${jL} len ${lLen} ov ${overlapDist}`)
-                                            if(lLen - overlapDist < BABYLON.Epsilon)
+                                            if(lLen - overlapDist < Epsilon)
                                             {
                                                 // console.log(`SPLICE`);
                                                 rd.outlineLines.splice(iL,1);
@@ -432,16 +432,16 @@ function getCombinedOutlineFromRDGroup(KG) {
                                         }
                                     }
                                 }
-                                if( dd < BABYLON.Epsilon ) {
+                                if( dd < Epsilon ) {
                                     // L -------->
                                     //        O ---------->
                                     // L <---> -dd
                                     // consume L
                                     let d = -dd;
                                     if(!rd.parsedOutlineLines[iL]) {
-                                        if(d < lLen - BABYLON.Epsilon) {
+                                        if(d < lLen - Epsilon) {
                                             // console.log(`trimming B ${rd.id} ${iL} vs ${oId} ${jL} d ${d}`)
-                                            if(d < BABYLON.Epsilon)
+                                            if(d < Epsilon)
                                             {
                                                 // console.log(`SPLICE`);
                                                 rd.outlineLines.splice(iL,1);
@@ -468,7 +468,7 @@ function getCombinedOutlineFromRDGroup(KG) {
             for(let iL = rd.outlineLines.length - 1; iL >= 0; iL--) {
                 let l = rd.outlineLines[iL];
                 let lL = l[1].subtract(l[0]);
-                let lNorm = new BABYLON.Vector3(lL.z,0,-lL.x).normalize();
+                let lNorm = new Vector3(lL.z,0,-lL.x).normalize();
 
                 let intersections = [];
                 let colinear = false;
@@ -505,7 +505,7 @@ function getCombinedOutlineFromRDGroup(KG) {
                     } else {
                         l[1] = intersections[0];
                     }
-                    if(l[1].subtract(l[0]).lengthSquared() < BABYLON.Epsilon) {
+                    if(l[1].subtract(l[0]).lengthSquared() < Epsilon) {
                         rd.outlineLines.splice(iL, 1);
                     }
                 }
@@ -515,19 +515,19 @@ function getCombinedOutlineFromRDGroup(KG) {
                     intersections.sort((a,b) => (a.subtract(l[0]).lengthSquared() - b.subtract(l[0]).lengthSquared()))
                     let tmp = l[1];
                     l[1] = intersections[0];
-                    if(l[1].subtract(l[0]).lengthSquared() < BABYLON.Epsilon) {
+                    if(l[1].subtract(l[0]).lengthSquared() < Epsilon) {
                         // console.log("skipping start length due to shortness");
                         rd.outlineLines.splice(iL, 1);
                     }
                     // console.log(`${rd.id} start is ${l[0]} ${l[1]}`);
                     for(let i = 2; i < intersections.length; i+=2) {
-                        if( intersections[i-1].subtract(intersections[i]).lengthSquared() > BABYLON.Epsilon) {
+                        if( intersections[i-1].subtract(intersections[i]).lengthSquared() > Epsilon) {
                             rd.outlineLines.push([intersections[i-1],intersections[i]]);
                         } 
                         // console.log(`${rd.id} mid is ${intersections[i-1]} ${intersections[i]}`);
                     }
                     if(intersections.length % 2 == 0) {
-                        if( intersections[intersections.length-1].subtract(tmp).lengthSquared() > BABYLON.Epsilon) {
+                        if( intersections[intersections.length-1].subtract(tmp).lengthSquared() > Epsilon) {
                             rd.outlineLines.push([intersections[intersections.length-1],tmp]);
                             // console.log(`${rd.id} end is ${intersections[intersections.length-1]} ${tmp}`);
                         }
@@ -633,24 +633,24 @@ export function addScrewHoles() {
     for(let i = 0; i <= topScrews; i++) {
         let newLoc = [ i*topScrewSpan + screwSideBuffer + bounds.mins[0] - bezelOffset,
                         bounds.mins[1]-bezelOffset]
-        globals.boardData.screwLocations.push(new BABYLON.Vector3(newLoc[0], 0, newLoc[1]));
+        globals.boardData.screwLocations.push(new Vector3(newLoc[0], 0, newLoc[1]));
     }
     // top
     for(let i = 0; i <= topScrews; i++) {
         let newLoc = [i*topScrewSpan+screwSideBuffer+bounds.mins[0]-bezelOffset,
                         bounds.maxs[1]+bezelOffset]
-        globals.boardData.screwLocations.push(new BABYLON.Vector3(newLoc[0], 0, newLoc[1]));
+        globals.boardData.screwLocations.push(new Vector3(newLoc[0], 0, newLoc[1]));
     }
     // sides (minus ends)
     for(let i = 1; i < sideScrews; i++) {
         let newLoc = [ bounds.mins[0]-bezelOffset,
                         i*sideScrewSpan + screwSideBuffer + bounds.mins[1] - bezelOffset ]
-        globals.boardData.screwLocations.push(new BABYLON.Vector3(newLoc[0], 0, newLoc[1]));
+        globals.boardData.screwLocations.push(new Vector3(newLoc[0], 0, newLoc[1]));
     }
     for(let i = 1; i < sideScrews; i++) {
         let newLoc = [ bounds.maxs[0]+bezelOffset,
                         i*sideScrewSpan + screwSideBuffer + bounds.mins[1] - bezelOffset ]
-        globals.boardData.screwLocations.push(new BABYLON.Vector3(newLoc[0], 0, newLoc[1]));
+        globals.boardData.screwLocations.push(new Vector3(newLoc[0], 0, newLoc[1]));
     }
 
     for(const loc of globals.boardData.screwLocations) {
@@ -706,7 +706,7 @@ export function refreshCase() {
         if(bd.forceSymmetrical) {
             let midPoint = (bd.layout.bounds.maxs[0] - bd.layout.bounds.mins[0]) * 0.5 + bd.layout.bounds.mins[0];
             for(let oP of bd.outline) {
-                kPs.push(new BABYLON.Vector3(midPoint - (oP.x - midPoint), oP.y, oP.z));
+                kPs.push(new Vector3(midPoint - (oP.x - midPoint), oP.y, oP.z));
             }
             bd.outline = coremath.convexHull2d(kPs);
         }
@@ -716,10 +716,10 @@ export function refreshCase() {
         let pcbBounds = bd.pcbBounds;
         let bounds = bd.layout.bounds;
         bd.outline = [
-            new BABYLON.Vector3(Math.min(bounds.mins[0],pcbBounds.mins[0]), 0, Math.min(bounds.mins[1],pcbBounds.mins[1])),
-            new BABYLON.Vector3(Math.max(bounds.maxs[0],pcbBounds.maxs[0]), 0, Math.min(bounds.mins[1],pcbBounds.mins[1])),
-            new BABYLON.Vector3(Math.max(bounds.maxs[0],pcbBounds.maxs[0]), 0, Math.max(bounds.maxs[1],pcbBounds.maxs[1])),
-            new BABYLON.Vector3(Math.min(bounds.mins[0],pcbBounds.mins[0]), 0, Math.max(bounds.maxs[1],pcbBounds.maxs[1]))
+            new Vector3(Math.min(bounds.mins[0],pcbBounds.mins[0]), 0, Math.min(bounds.mins[1],pcbBounds.mins[1])),
+            new Vector3(Math.max(bounds.maxs[0],pcbBounds.maxs[0]), 0, Math.min(bounds.mins[1],pcbBounds.mins[1])),
+            new Vector3(Math.max(bounds.maxs[0],pcbBounds.maxs[0]), 0, Math.max(bounds.maxs[1],pcbBounds.maxs[1])),
+            new Vector3(Math.min(bounds.mins[0],pcbBounds.mins[0]), 0, Math.max(bounds.maxs[1],pcbBounds.maxs[1]))
         ];
     }
 
@@ -731,19 +731,19 @@ export function refreshCase() {
 
     if( tuning.drawCase ) {
         cRD.layers["edge"] = {outlines:[caseFrameVec, ...cavityInnerEdgeVec, ...globals.renderData.screwData]};
-        cRD.edgeMesh = BABYLON.MeshBuilder.CreatePolygon("edge", 
+        cRD.edgeMesh = MeshBuilder.CreatePolygon("edge", 
                                                          { shape: caseFrame, depth:9, smoothingThreshold: 0.1, 
                                                            holes: [...screwHoles,...cavityInnerEdgeVec.map((a) => coremath.genPointsFromVectorPath(a,8))],
                                                            updatable: true }, scene);
-        cRD.edgeMesh.translate(new BABYLON.Vector3(0, -1.5, 0), 1, BABYLON.Space.LOCAL);
+        cRD.edgeMesh.translate(new Vector3(0, -1.5, 0), 1, Space.LOCAL);
         cRD.edgeMesh.material = mats["case"];
         //gfx.combineSideVerts(cRD.edgeMesh);
     }
 
     if( tuning.drawCase ) {
         cRD.layers["bottom"] = {outlines:[caseFrameVec, ...globals.renderData.screwData]};
-        cRD.bottom = BABYLON.MeshBuilder.CreatePolygon("bottom", { shape: caseFrame, depth:3, smoothingThreshold: 0.1, holes:screwHoles, updatable: true }, scene);
-        cRD.bottom.translate(new BABYLON.Vector3(0, -9-1.5, 0), 1, BABYLON.Space.LOCAL);
+        cRD.bottom = MeshBuilder.CreatePolygon("bottom", { shape: caseFrame, depth:3, smoothingThreshold: 0.1, holes:screwHoles, updatable: true }, scene);
+        cRD.bottom.translate(new Vector3(0, -9-1.5, 0), 1, Space.LOCAL);
         cRD.bottom.material = mats["case"];
     }
 
@@ -751,8 +751,8 @@ export function refreshCase() {
         let pcbOutlineVec = coremath.offsetAndFilletOutline(bd.pcbOutline, 0.0, 2.0, false);
         let pcbOutline = coremath.genPointsFromVectorPath(pcbOutlineVec);
         cRD.layers["pcb"] = {outlines:[pcbOutlineVec]};
-        cRD.pcbMesh = BABYLON.MeshBuilder.CreatePolygon("pcbMesh", { shape: pcbOutline, depth:1.6, smoothingThreshold: 0.1, updatable: true }, scene);
-        cRD.pcbMesh.translate(new BABYLON.Vector3(0, -5.0, 0), 1, BABYLON.Space.LOCAL);
+        cRD.pcbMesh = MeshBuilder.CreatePolygon("pcbMesh", { shape: pcbOutline, depth:1.6, smoothingThreshold: 0.1, updatable: true }, scene);
+        cRD.pcbMesh.translate(new Vector3(0, -5.0, 0), 1, Space.LOCAL);
         cRD.pcbMesh.material = mats["fr4"];
     }
 
@@ -784,13 +784,13 @@ export function refreshCase() {
     // if( globals.lineSystem ) {
     //     globals.scene.removeMesh(globals.lineSystem)
     // }
-    // globals.lineSystem = BABYLON.MeshBuilder.CreateLineSystem("lineSystem", {lines: dbglines}, globals.scene);
+    // globals.lineSystem = MeshBuilder.CreateLineSystem("lineSystem", {lines: dbglines}, globals.scene);
 
     if( tuning.drawBezel ) {
         cRD.layers["bezel"] = {outlines:[caseFrameVec, ...bezelOutlineVecs, ...globals.renderData.screwData]};
-        cRD.bezel = BABYLON.MeshBuilder.CreatePolygon("bezel", { shape: caseFrame, depth:7.5, smoothingThreshold: 0.1, holes:[...screwHoles,...bezelOutlines] }, scene);
-        cRD.bezel.translate(new BABYLON.Vector3(0, 7.5, 0), 1, BABYLON.Space.LOCAL);
-        //cRD.bezel.rotation = new BABYLON.Vector3(-Math.PI/12, 0, 0);
+        cRD.bezel = MeshBuilder.CreatePolygon("bezel", { shape: caseFrame, depth:7.5, smoothingThreshold: 0.1, holes:[...screwHoles,...bezelOutlines] }, scene);
+        cRD.bezel.translate(new Vector3(0, 7.5, 0), 1, Space.LOCAL);
+        //cRD.bezel.rotation = new Vector3(-Math.PI/12, 0, 0);
         cRD.bezel.material = mats["case"];
     }
 
@@ -807,7 +807,7 @@ export function refreshCase() {
     }
     if( tuning.drawPlate ) {
         cRD.layers["plate"] = {outlines:[caseFrameVec, ...switchCutsVec, ...globals.renderData.screwData]};
-        cRD.plateMesh = BABYLON.MeshBuilder.CreatePolygon("plate", { shape: caseFrame, depth:1.5, smoothingThreshold: 0.1, holes: [...screwHoles,...switchCuts] }, scene);
+        cRD.plateMesh = MeshBuilder.CreatePolygon("plate", { shape: caseFrame, depth:1.5, smoothingThreshold: 0.1, holes: [...screwHoles,...switchCuts] }, scene);
         //cRD.plate.translate()
         cRD.plateMesh.material = mats["plate"];
     }
@@ -838,7 +838,7 @@ export function loadKeyboard(path) {
                 k.id = "key" + kIdx++;
                 
                 if(!mats[k.color]) {
-                    gfx.createKeyMaterial(k.color,BABYLON.Color3.FromHexString(k.color));
+                    gfx.createKeyMaterial(k.color,Color3.FromHexString(k.color));
                 }
                 k.matName = k.color;
                 

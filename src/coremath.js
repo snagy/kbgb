@@ -1,15 +1,15 @@
-import * as BABYLON from '@babylonjs/core'
+import {Epsilon, Vector3} from '@babylonjs/core'
 
 export function lineLineIntersection(p0, d0, p1, d1) {
     let det = d0.x * d1.z - d1.x * d0.z;
-    if (Math.abs(det) < BABYLON.Epsilon) // no collision
+    if (Math.abs(det) < Epsilon) // no collision
     {
         return null;
     }
 
     let prevC = p0.x * d0.x + p0.z * d0.z;
     let nextC = p1.x * d1.x + p1.z * d1.z;
-    let intersection = new BABYLON.Vector3((d1.z * prevC - d0.z * nextC) / det, 0,
+    let intersection = new Vector3((d1.z * prevC - d0.z * nextC) / det, 0,
         (d0.x * nextC - d1.x * prevC) / det);
 
     return intersection;
@@ -18,7 +18,7 @@ export function lineLineIntersection(p0, d0, p1, d1) {
 function pointToLineDistSq(x0, xL, y0) {
     let dir = y0.subtract(x0);
     let xNormalized = xL.normalizeToNew();
-    let dot = BABYLON.Vector3.Dot(dir,xNormalized);
+    let dot = Vector3.Dot(dir,xNormalized);
 
     let nearestPoint = x0.add(xNormalized.scale(dot));
     return y0.subtract(nearestPoint).lengthSquared();
@@ -27,30 +27,30 @@ function pointToLineDistSq(x0, xL, y0) {
 export function segmentToSegment(x0, x1, xL, xNorm, y0, y1) {
     //let xL = x1.subtract(x0);
     let yL = y1.subtract(y0);
-    //let xNorm = (new BABYLON.Vector3(xL.z, 0, -xL.x)).normalize();
-    let yNorm = (new BABYLON.Vector3(yL.z, 0, -yL.x)).normalize();
+    //let xNorm = (new Vector3(xL.z, 0, -xL.x)).normalize();
+    let yNorm = (new Vector3(yL.z, 0, -yL.x)).normalize();
 
     let result = {intersection: lineLineIntersection(x0,xNorm,y0,yNorm),
                   type:"unknown"}
     if(result.intersection) {
-        let y0Dot = BABYLON.Vector3.Dot(result.intersection.subtract(y0),yL);
-        let y1Dot = BABYLON.Vector3.Dot(result.intersection.subtract(y1),yL);
-        let x0Dot = BABYLON.Vector3.Dot(result.intersection.subtract(x0),xL);
-        let x1Dot = BABYLON.Vector3.Dot(result.intersection.subtract(x1),xL);
-        if(y0Dot > -BABYLON.Epsilon && y1Dot < BABYLON.Epsilon &&
-           x0Dot > -BABYLON.Epsilon && x1Dot < BABYLON.Epsilon) {
+        let y0Dot = Vector3.Dot(result.intersection.subtract(y0),yL);
+        let y1Dot = Vector3.Dot(result.intersection.subtract(y1),yL);
+        let x0Dot = Vector3.Dot(result.intersection.subtract(x0),xL);
+        let x1Dot = Vector3.Dot(result.intersection.subtract(x1),xL);
+        if(y0Dot > -Epsilon && y1Dot < Epsilon &&
+           x0Dot > -Epsilon && x1Dot < Epsilon) {
             result.type = "in_segment";
         } else {
             result.type = "off_segment";
         }
     } else {
-        if(pointToLineDistSq(x0,xL,y0) < BABYLON.Epsilon) {
+        if(pointToLineDistSq(x0,xL,y0) < Epsilon) {
             result.type = "colinear"
             // check overlap?
-            // let y0In = (BABYLON.Vector3.Dot(y0.subtract(x0),xL) > -BABYLON.Epsilon && BABYLON.Vector3.Dot(y0.subtract(x1),xL) < BABYLON.Epsilon);
-            // let y1In = (BABYLON.Vector3.Dot(y1.subtract(x0),xL) > -BABYLON.Epsilon && BABYLON.Vector3.Dot(y1.subtract(x1),xL) < BABYLON.Epsilon);
-            // let x0In = (BABYLON.Vector3.Dot(x0.subtract(y0),yL) > -BABYLON.Epsilon && BABYLON.Vector3.Dot(x0.subtract(y1),yL) < BABYLON.Epsilon);
-            // let x1In = (BABYLON.Vector3.Dot(x1.subtract(y0),yL) > -BABYLON.Epsilon && BABYLON.Vector3.Dot(x1.subtract(y1),yL) < BABYLON.Epsilon);
+            // let y0In = (Vector3.Dot(y0.subtract(x0),xL) > -Epsilon && Vector3.Dot(y0.subtract(x1),xL) < Epsilon);
+            // let y1In = (Vector3.Dot(y1.subtract(x0),xL) > -Epsilon && Vector3.Dot(y1.subtract(x1),xL) < Epsilon);
+            // let x0In = (Vector3.Dot(x0.subtract(y0),yL) > -Epsilon && Vector3.Dot(x0.subtract(y1),yL) < Epsilon);
+            // let x1In = (Vector3.Dot(x1.subtract(y0),yL) > -Epsilon && Vector3.Dot(x1.subtract(y1),yL) < Epsilon);
             // if(y0In || x0In || y1In || x1In) {
             //     result.type = "colinear_OVERLAPPING"
             // }
@@ -67,10 +67,10 @@ export function isPointInPoly(p, poly) {
         let point = poly[i];
         let next = poly[(i + 1) % poly.length];
         let nextDir = next.subtract(point).normalize();
-        let nextNorm = new BABYLON.Vector3(nextDir.z, 0, -nextDir.x);
+        let nextNorm = new Vector3(nextDir.z, 0, -nextDir.x);
         let pV = p.subtract(point).normalize();
-        let d = BABYLON.Vector3.Dot(pV,nextNorm)
-        if( d > BABYLON.Epsilon) {
+        let d = Vector3.Dot(pV,nextNorm)
+        if( d > Epsilon) {
             return false;
         }
     }
@@ -84,7 +84,7 @@ export function getRotFromNormal(norm) {
 }
 
 export function getNormalFromRot(rot) {
-    return new BABYLON.Vector3(Math.cos(rot), 0, Math.sin(rot));
+    return new Vector3(Math.cos(rot), 0, Math.sin(rot));
 }
 
 var EPSILON     = 1.1102230246251565e-16
@@ -212,8 +212,8 @@ export function convexHull2d(points) {
 //         let prev = outline[(i - 1 + outline.length) % outline.length];
 //         let nextDir = next.subtract(point).normalize();
 //         let prevDir = point.subtract(prev).normalize();
-//         let nextNorm = new BABYLON.Vector3(nextDir.z, 0, -nextDir.x);
-//         let prevNorm = new BABYLON.Vector3(prevDir.z, 0, -prevDir.x);
+//         let nextNorm = new Vector3(nextDir.z, 0, -nextDir.x);
+//         let prevNorm = new Vector3(prevDir.z, 0, -prevDir.x);
 //         let inPoint = point.add(prevNorm.scale(offset));
 //         let outPoint = point.add(nextNorm.scale(offset));
 
@@ -230,7 +230,7 @@ export function convexHull2d(points) {
 //         }
 //         else {
 //             let fillet = fillets;
-//             let flip = BABYLON.Vector3.Dot(prevNorm,nextDir) > 0;
+//             let flip = Vector3.Dot(prevNorm,nextDir) > 0;
 //             if( flip ) {
 //                 fillet = -fillet;
 //             }
@@ -296,8 +296,8 @@ export function offsetAndFilletOutline(outline, offset, fillets, close) {
         let prev = outline[(i - 1 + outline.length) % outline.length];
         let nextDir = next.subtract(point).normalize();
         let prevDir = point.subtract(prev).normalize();
-        let nextNorm = new BABYLON.Vector3(nextDir.z, 0, -nextDir.x);
-        let prevNorm = new BABYLON.Vector3(prevDir.z, 0, -prevDir.x);
+        let nextNorm = new Vector3(nextDir.z, 0, -nextDir.x);
+        let prevNorm = new Vector3(prevDir.z, 0, -prevDir.x);
         let inPoint = point.add(prevNorm.scale(offset));
         let outPoint = point.add(nextNorm.scale(offset));
 
@@ -314,7 +314,7 @@ export function offsetAndFilletOutline(outline, offset, fillets, close) {
         }
         else {
             let fillet = fillets;
-            let flip = BABYLON.Vector3.Dot(prevNorm,nextDir) > 0;
+            let flip = Vector3.Dot(prevNorm,nextDir) > 0;
             if( flip ) {
                 fillet = -fillet;
             }

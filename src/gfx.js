@@ -1,12 +1,13 @@
 import {globals} from './globals.js'
 import {tuning} from './tuning.js'
-import * as BABYLON from '@babylonjs/core'
+import {Engine, ArcRotateCamera, CubeTexture, Scene, Vector3, VertexBuffer, 
+        VertexData, Color3, StandardMaterial, PBRMetallicRoughnessMaterial} from '@babylonjs/core'
 
 export function createKeyMaterial(name,color) {
     let mats = globals.renderData.mats;
     if(!mats[name])
     {
-        mats[name] = new BABYLON.PBRMetallicRoughnessMaterial(name, globals.scene);
+        mats[name] = new PBRMetallicRoughnessMaterial(name, globals.scene);
         mats[name].metallic = 0;
         mats[name].roughness = 0.6;
         mats[name].baseColor = color;
@@ -18,46 +19,46 @@ export function createMaterials() {
     let name = "keySel";
     if(!mats[name])
     {
-        mats[name] = new BABYLON.StandardMaterial(name, globals.scene);
-        mats[name].diffuseColor = new BABYLON.Color3(0, 0, 0);
-        mats[name].emissiveColor = new BABYLON.Color3(1, 0, 0);
-        mats[name].specularColor = new BABYLON.Color3(0, 0, 0);
+        mats[name] = new StandardMaterial(name, globals.scene);
+        mats[name].diffuseColor = new Color3(0, 0, 0);
+        mats[name].emissiveColor = new Color3(1, 0, 0);
+        mats[name].specularColor = new Color3(0, 0, 0);
     }
 
     let caseMatName = "case";
     if(!mats[caseMatName])
     {
-        mats[caseMatName] = new BABYLON.PBRMetallicRoughnessMaterial(caseMatName, globals.scene);
+        mats[caseMatName] = new PBRMetallicRoughnessMaterial(caseMatName, globals.scene);
         mats[caseMatName].metallic = 0;
         mats[caseMatName].roughness = 0.8;
-        mats[caseMatName].baseColor = new BABYLON.Color3(0.6, 0.6, 0.6);
+        mats[caseMatName].baseColor = new Color3(0.6, 0.6, 0.6);
     }
 
     let plateMatName = "plate";
     if(!mats[plateMatName])
     {
-        mats[plateMatName] = new BABYLON.PBRMetallicRoughnessMaterial(plateMatName, globals.scene);
+        mats[plateMatName] = new PBRMetallicRoughnessMaterial(plateMatName, globals.scene);
         mats[plateMatName].metallic = 1;
         mats[plateMatName].roughness = 0.2;
-        mats[plateMatName].baseColor = new BABYLON.Color3(0.5, 0.5, 0.5);
+        mats[plateMatName].baseColor = new Color3(0.5, 0.5, 0.5);
     }
 
     let pcbMatName = "fr4";
     if(!mats[pcbMatName])
     {
-        mats[pcbMatName] = new BABYLON.PBRMetallicRoughnessMaterial(pcbMatName, globals.scene);
+        mats[pcbMatName] = new PBRMetallicRoughnessMaterial(pcbMatName, globals.scene);
         mats[pcbMatName].metallic = 0;
         mats[pcbMatName].roughness = 0.2;
-        mats[pcbMatName].baseColor = new BABYLON.Color3(45/255, 90/255, 10/255);
+        mats[pcbMatName].baseColor = new Color3(45/255, 90/255, 10/255);
     }
 
-    createKeyMaterial("key", new BABYLON.Color3(0.9, 0.9, 0.9));
+    createKeyMaterial("key", new Color3(0.9, 0.9, 0.9));
 }
 
 export function combineSideVerts(mesh) {
     var _decPlaces = Math.pow(10, 8);
-    var _pdata = mesh.getVerticesData(BABYLON.VertexBuffer.PositionKind);
-    var _ndata = mesh.getVerticesData(BABYLON.VertexBuffer.NormalKind);
+    var _pdata = mesh.getVerticesData(VertexBuffer.PositionKind);
+    var _ndata = mesh.getVerticesData(VertexBuffer.NormalKind);
     var _idata = mesh.getIndices();    
     var _newPdata = []; //new positions array
     var _newIdata =[]; //new indices array
@@ -99,9 +100,9 @@ export function combineSideVerts(mesh) {
         }
     }
     let _newNdata =[]; //new normal data
-    BABYLON.VertexData.ComputeNormals(_newPdata, _newIdata, _newNdata);
+    VertexData.ComputeNormals(_newPdata, _newIdata, _newNdata);
     //create new vertex data object and update
-    var _vertexData = new BABYLON.VertexData();
+    var _vertexData = new VertexData();
     _vertexData.positions = _newPdata;
     _vertexData.indices = _newIdata;
     _vertexData.normals = _newNdata;
@@ -114,14 +115,17 @@ export function snapCamera(mode) {
     const w = bounds.maxs[0] - bounds.mins[0] + tuning.bezelThickness * 2;
     const h = bounds.maxs[1] - bounds.mins[1] + tuning.bezelThickness * 2;
     const dim = Math.max(w,h);
-    globals.camera.setTarget(new BABYLON.Vector3(bounds.mins[0] + (bounds.maxs[0] - bounds.mins[0]) / 2.0,
+    globals.camera.setTarget(new Vector3(bounds.mins[0] + (bounds.maxs[0] - bounds.mins[0]) / 2.0,
         0, bounds.mins[1] + (bounds.maxs[1] - bounds.mins[1]) / 2.0));
     if(mode == "top") {
         globals.camera.alpha = -Math.PI / 2;
         globals.camera.beta = 0;
-    } else {
+    } else if(mode == "front") {
         globals.camera.alpha = -Math.PI / 2;
-        globals.camera.beta = 0;
+        globals.camera.beta = Math.PI / 4;
+    } else {
+        globals.camera.alpha = -Math.PI / 3.5;
+        globals.camera.beta = Math.PI / 3.5;
     }
     globals.camera.radius = 0.5 * dim / Math.tan(globals.camera.fov * 0.5);
 
@@ -131,7 +135,7 @@ export function setEnvironmentLight(path) {
 
     if(!globals.hdrTextures) globals.hdrTextures = {};
     if(!globals.hdrTextures[path]) {
-        globals.hdrTextures[path] = BABYLON.CubeTexture.CreateFromPrefilteredData(path, globals.scene);
+        globals.hdrTextures[path] = CubeTexture.CreateFromPrefilteredData(path, globals.scene);
     }
     globals.scene.environmentTexture = globals.hdrTextures[path];
 }
@@ -140,12 +144,12 @@ function createScene() {
     const engine = globals.engine;
 
     // create a basic BJS Scene object
-    var scene = new BABYLON.Scene(engine);
+    var scene = new Scene(engine);
 
-    var camera = new BABYLON.ArcRotateCamera("Camera", -Math.PI / 2, 0, 10, new BABYLON.Vector3(0, 0, 0), scene);
+    var camera = new ArcRotateCamera("Camera", -Math.PI / 2, 0, 10, new Vector3(0, 0, 0), scene);
 
     // target the camera to scene origin
-    camera.setTarget(BABYLON.Vector3.Zero());
+    camera.setTarget(Vector3.Zero());
 
     camera.fov = 0.3;
     camera.lowerRadiusLimit = 75;
@@ -163,7 +167,7 @@ function createScene() {
     // ssao.falloff = 0.00001;
 
     // create a basic light, aiming 0,1,0 - meaning, to the sky
-    // var light = new BABYLON.HemisphericLight('light1', new BABYLON.Vector3(0, 1, 0), scene);
+    // var light = new BABYLON.HemisphericLight('light1', new Vector3(0, 1, 0), scene);
     // // Default intensity is 1. Let's dim the light a small amount
     // light.intensity = 0.7;
     //globals.currentSkybox = scene.createDefaultSkybox(globals.hdrTexture, true, (scene.activeCamera.maxZ - scene.activeCamera.minZ) / 2, 0.3);
@@ -177,7 +181,7 @@ export function init() {
     globals.canvas = document.getElementById('renderCanvas');
 
     // load the 3D engine
-    globals.engine = new BABYLON.Engine(globals.canvas, true);
+    globals.engine = new Engine(globals.canvas, true);
 
     // call the createScene function
     globals.scene = createScene();

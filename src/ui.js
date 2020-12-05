@@ -2,7 +2,8 @@ import {globals} from './globals.js'
 import {tuning} from './tuning.js'
 import * as boardOps from './boardOps.js'
 import * as svg from './svg_export.js'
-import * as BJSGUI from '@babylonjs/gui'
+import {snapCamera} from './gfx.js'
+import {Button, Control, TextBlock, StackPanel, RadioButton, Checkbox, Slider, AdvancedDynamicTexture} from '@babylonjs/gui'
 
 function download(content, fileName, contentType) {
     var a = document.createElement("a");
@@ -20,7 +21,7 @@ function downloadSVG(layerName) {
 export const kbgbGUI = {
     addButton: function(txt, action, style) {
         style = style?style:{};
-        var button = BJSGUI.Button.CreateSimpleButton("button", txt);
+        var button = Button.CreateSimpleButton("button", txt);
         button.top = "0px";
         button.left = "0px";
         button.width = style.width?style.width:"60px";
@@ -31,14 +32,14 @@ export const kbgbGUI = {
         button.children[0].fontSize = 24;
         button.color = "#101010";
         button.background = "#909090";
-        //button.horizontalAlignment = BJSGUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
+        //button.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
     
         button.onPointerClickObservable.add(action);
     
         return button;
     },
     addLabel: function(txt) {
-        var t = new BJSGUI.TextBlock();
+        var t = new TextBlock();
         t.width = "80px";
         t.height = ".9";
         t.text = txt;
@@ -58,14 +59,15 @@ export const kbgbGUI = {
     },
     modes:{
         "key":{
+            cameraMode:"top",
             add: function() {
-                //let ctrlBar = BJSGUI.Control.AddHeader(control, text, size, options { isHorizontal, controlFirst }):
-                let ctrlBar = new BJSGUI.StackPanel();  
+                //let ctrlBar = Control.AddHeader(control, text, size, options { isHorizontal, controlFirst }):
+                let ctrlBar = new StackPanel();  
                 ctrlBar.height = ".2";
                 ctrlBar.isPointerBlocker = true;
                 ctrlBar.isVertical = false;
-                //ctrlBar.horizontalAlignment = BJSGUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
-                ctrlBar.verticalAlignment = BJSGUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
+                //ctrlBar.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
+                ctrlBar.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
             
                 ctrlBar.addControl(kbgbGUI.addLabel("Pos: "));
                 ctrlBar.addControl(kbgbGUI.addKeyActionButton(`◄`, (k) => k.x -= 0.25 ));
@@ -91,19 +93,20 @@ export const kbgbGUI = {
             }
         },
         "case":{
+            cameraMode:"front",
             add: function() {
-                //let ctrlBar = BJSGUI.Control.AddHeader(control, text, size, options { isHorizontal, controlFirst }):
-                let ctrlBar = new BJSGUI.StackPanel();  
+                //let ctrlBar = Control.AddHeader(control, text, size, options { isHorizontal, controlFirst }):
+                let ctrlBar = new StackPanel();  
                 ctrlBar.height = ".2";
                 ctrlBar.isPointerBlocker = true;
                 ctrlBar.isVertical = false;
-                ctrlBar.verticalAlignment = BJSGUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
+                ctrlBar.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
             
                 ctrlBar.addControl(kbgbGUI.addLabel("Type: "));
 
                 var addRadio = function(text, parent) {
 
-                    var button = new BJSGUI.RadioButton();
+                    var button = new RadioButton();
                     button.width = "20px";
                     button.height = "20px";
                     button.color = "white";
@@ -116,14 +119,14 @@ export const kbgbGUI = {
                         }
                     }); 
             
-                    var header = BJSGUI.Control.AddHeader(button, text, "100px", { isHorizontal: true, controlFirst: true });
+                    var header = Control.AddHeader(button, text, "100px", { isHorizontal: true, controlFirst: true });
                     header.height = "30px";
             
                     parent.addControl(header);    
                 }
             
             
-                let radioCtrl = new BJSGUI.StackPanel();  
+                let radioCtrl = new StackPanel();  
                 radioCtrl.height = "1";
                 radioCtrl.width = "200px";
                 radioCtrl.isVertical = true;
@@ -132,7 +135,7 @@ export const kbgbGUI = {
                 addRadio("concave", radioCtrl);
                 ctrlBar.addControl(radioCtrl);
 
-                var checkbox = new BJSGUI.Checkbox();
+                var checkbox = new Checkbox();
                 checkbox.width = "20px";
                 checkbox.height = "20px";
                 checkbox.isChecked = globals.boardData.forceSymmetrical;
@@ -147,7 +150,7 @@ export const kbgbGUI = {
 
                 let createSlider = function(txt, initialVal, min, max, onChangeFunc) {
                     let label = kbgbGUI.addLabel(txt + initialVal)
-                    var slider = new BJSGUI.Slider();
+                    var slider = new Slider();
                     slider.minimum = min;
                     slider.maximum = max;
                     slider.value = tuning.bezelThickness;
@@ -180,14 +183,14 @@ export const kbgbGUI = {
         },
         "pcb":{
             add: function() {
-                //let ctrlBar = BJSGUI.Control.AddHeader(control, text, size, options { isHorizontal, controlFirst }):
-                let ctrlBar = new BJSGUI.StackPanel();  
+                //let ctrlBar = Control.AddHeader(control, text, size, options { isHorizontal, controlFirst }):
+                let ctrlBar = new StackPanel();  
                 ctrlBar.height = ".2";
                 ctrlBar.isPointerBlocker = true;
                 ctrlBar.isVertical = false;
-                ctrlBar.verticalAlignment = BJSGUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
+                ctrlBar.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
             
-                var checkbox = new BJSGUI.Checkbox();
+                var checkbox = new Checkbox();
                 checkbox.width = "20px";
                 checkbox.height = "20px";
                 checkbox.isChecked = globals.boardData.forcePCBSymmetrical;
@@ -206,13 +209,13 @@ export const kbgbGUI = {
         },
         "details":{
             add: function() {
-                //let ctrlBar = BJSGUI.Control.AddHeader(control, text, size, options { isHorizontal, controlFirst }):
-                let ctrlBar = new BJSGUI.StackPanel();  
+                //let ctrlBar = Control.AddHeader(control, text, size, options { isHorizontal, controlFirst }):
+                let ctrlBar = new StackPanel();  
                 ctrlBar.height = ".2";
                 ctrlBar.isPointerBlocker = true;
                 ctrlBar.isVertical = false;
-                //ctrlBar.horizontalAlignment = BJSGUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
-                ctrlBar.verticalAlignment = BJSGUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
+                //ctrlBar.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
+                ctrlBar.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
             
                 let addSVGButton = function(layerName) {
                     ctrlBar.addControl(kbgbGUI.addButton(layerName, () => {
@@ -244,17 +247,18 @@ export const kbgbGUI = {
         }
         if(kbgbGUI.modes[mode]) {
             kbgbGUI.modes[mode].add();
+            snapCamera(kbgbGUI.modes[mode].cameraMode);
         }
     },
     addModeGUI: function() {
-        globals.screengui = BJSGUI.AdvancedDynamicTexture.CreateFullscreenUI("screenUI");
+        globals.screengui = AdvancedDynamicTexture.CreateFullscreenUI("screenUI");
 
-        let ctrlBar = new BJSGUI.StackPanel();  
+        let ctrlBar = new StackPanel();  
         ctrlBar.height = ".1";
         ctrlBar.isPointerBlocker = true;
         ctrlBar.isVertical = false;
-        //ctrlBar.horizontalAlignment = BJSGUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
-        ctrlBar.verticalAlignment = BJSGUI.Control.VERTICAL_ALIGNMENT_TOP;
+        //ctrlBar.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
+        ctrlBar.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
 
         ctrlBar.addControl(kbgbGUI.addButton("layout", () => {kbgbGUI.setGUIMode("key")}, {height:"1",width:"120px"}));
         ctrlBar.addControl(kbgbGUI.addButton("case", () => {kbgbGUI.setGUIMode("case")}, {height:"1",width:"120px"}));
