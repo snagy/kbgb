@@ -49,7 +49,7 @@ function initKBGB() {
         'testkbs/fc660m.kle',
         'testkbs/fake_alice.kle',
         'testkbs/kle_atreus.kle',
-        'testkbs/basis-mono.kle',
+        'testkbs/basis-mono-og.kle',
         'testkbs/basis-stagger-3.kle',
         'testkbs/kle-ergodox.kle',
         'testkbs/foggy_sp_knobs.kle',
@@ -59,9 +59,10 @@ function initKBGB() {
         'testkbs/twokey.kle',
         'testkbs/threekey.kle',
         'testkbs/threekeyoffset.kle',
+        'testkbs/twoonone.kle',
         'testkbs/keysize_test.kle'
     ]
-    let kbdidx = 2;
+    let kbdidx = 5;
     // load a keyboard
     loadKeyboardFromPath(keyboards[kbdidx]);
 

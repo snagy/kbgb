@@ -31,20 +31,29 @@ export function refreshOutlines() {
     }
 }
 
+let polyID = 0;
+
+function Poly(points) {
+    this.points = points;
+    this.id = polyID++;
+    this.overlappingPolys = {};
+    this.type = "rect";
+}
+
 function getPlateCutsWithStabs(width,height,kXform,plateCuts,pcbBounds) {
     let switchCutDims = [tuning.switchCutout[0]*0.5, tuning.switchCutout[1]*0.5];
     let sXform = kXform;
 
     // wack ass cherry 6u spacebar
     if(width == 6) {
-        sXform = Matrix.Translation(9.525, 0, 0).multiply(sXform)
+        getPlateCutsWithStabs(666,height,Matrix.Translation(9.525, 0, 0).multiply(sXform),plateCuts,pcbBounds);
     }
-    plateCuts.push([
+    plateCuts.push(new Poly([
         Vector3.TransformCoordinates(new Vector3(-switchCutDims[0], 0, -switchCutDims[1]), sXform),
         Vector3.TransformCoordinates(new Vector3(switchCutDims[0], 0, -switchCutDims[1]), sXform),
         Vector3.TransformCoordinates(new Vector3(switchCutDims[0], 0, switchCutDims[1]), sXform),
         Vector3.TransformCoordinates(new Vector3(-switchCutDims[0], 0, switchCutDims[1]), sXform)
-    ]);
+    ]));
 
     // pcb footprint of a hotswap switch: x +/- 9 y +/- 6.75
     // enc: 6.75, 8,5
@@ -81,7 +90,7 @@ function getPlateCutsWithStabs(width,height,kXform,plateCuts,pcbBounds) {
         else if(span <= 5.5) {
             stabOffsetXL = stabOffsetXR = 42.8625;
         }
-        else if(span == 6) {
+        else if(span == 666) {
             // cherry 6u again
             stabOffsetXL = 57.15;
             stabOffsetXR = 38.1
@@ -121,7 +130,7 @@ function getPlateCutsWithStabs(width,height,kXform,plateCuts,pcbBounds) {
             for(let i = 0; i < stabCut.length; i++) {
                 xformedCut.push(Vector3.TransformCoordinates(stabCut[i],stabXforms[j]));
             }
-            plateCuts.push(xformedCut);
+            plateCuts.push(new Poly(xformedCut));
 
             let xformedPCBBounds = [];
             for(let i = 0; i < stabFoot.length; i++) {
@@ -139,8 +148,6 @@ export function refreshLayout() {
     let mins = [100000.0, 100000.0]
     let maxs = [-100000.0, -100000.0];
 
-    let bezelHoles = [];
-
     let kRD = globals.renderData.keys;
     // clear the renderdata (cache this later?)
     for(const [id, rd] of Object.entries(kRD)) {
@@ -157,10 +164,9 @@ export function refreshLayout() {
         // console.log(k);
 
         if (!kRD[id]) {
-            kRD[id] = {keyGroupId:null,id:id,
+            kRD[id] = { id:id,
                         mins:[100000.0, 100000.0], maxs:[-100000.0, -100000.0],
-                        bezelMins:[100000.0, 100000.0], bezelMaxs:[-100000.0, -100000.0],
-                        overlappingKeys:{}
+                        bezelMins:[100000.0, 100000.0], bezelMaxs:[-100000.0, -100000.0]
                     };
         }
         let rd = kRD[id];
@@ -205,15 +211,16 @@ export function refreshLayout() {
             }
         }
 
-        rd.bezelHole = [
+        rd.bezelHoles = []
+        const bezelHole = new Poly([
             Vector3.TransformCoordinates(new Vector3(-keycapDim[0] - tuning.bezelGap, 0, -keycapDim[1] - tuning.bezelGap), kXform),
             Vector3.TransformCoordinates(new Vector3(keycapDim[0] + tuning.bezelGap, 0, -keycapDim[1] - tuning.bezelGap), kXform),
             Vector3.TransformCoordinates(new Vector3(keycapDim[0] + tuning.bezelGap, 0, keycapDim[1] + tuning.bezelGap), kXform),
             Vector3.TransformCoordinates(new Vector3(-keycapDim[0] - tuning.bezelGap, 0, keycapDim[1] + tuning.bezelGap), kXform)
-        ];
-        bezelHoles.push(rd.bezelHole);
+        ]);
+        rd.bezelHoles.push(bezelHole);
 
-        for (let p of rd.bezelHole) {
+        for (let p of bezelHole.points) {
             rd.bezelMins[0] = Math.min(rd.bezelMins[0], p.x);
             rd.bezelMaxs[0] = Math.max(rd.bezelMaxs[0], p.x);
             rd.bezelMins[1] = Math.min(rd.bezelMins[1], p.z);
@@ -230,75 +237,6 @@ export function refreshLayout() {
         maxs[0] = Math.max(rd.maxs[0], maxs[0]);
         mins[1] = Math.min(rd.mins[1], mins[1]);
         maxs[1] = Math.max(rd.maxs[1], maxs[1]);
-
-        let checkOverlap = function(k1, rd1, k2, rd2) {
-            if( rd1.bezelMins[0]+Epsilon > rd2.bezelMaxs[0] || rd2.bezelMins[0]+Epsilon > rd1.bezelMaxs[0] ||
-                rd1.bezelMins[1]+Epsilon > rd2.bezelMaxs[1] || rd2.bezelMins[1]+Epsilon > rd1.bezelMaxs[1] ) {
-                return false
-            }
-
-            // see if any of the lines bisect the other rect  (since it's a rect, we know each line is actually a normal of the previous)
-
-            let checkIntersection = (pRD, oRD) => {
-                for(let iP = 0; iP < pRD.bezelHole.length; iP++) {
-                    let line = pRD.bezelHole[(iP+1)%pRD.bezelHole.length].subtract(pRD.bezelHole[iP]);
-                    let allLess = true;
-                    let allMore = true;
-                    for(let oP = 0; oP < oRD.bezelHole.length; oP++) {
-                        let dot = Vector3.Dot(line,oRD.bezelHole[oP].subtract(pRD.bezelHole[iP]));
-                        allMore &= dot > -Epsilon;
-                        allLess &= dot < Epsilon;
-                    }
-    
-                    if( allMore || allLess ) {
-                        return true;
-                    }
-                }
-                return false;
-            }
-            let confirmedIntersection = checkIntersection(rd1,rd2);
-            if(!confirmedIntersection) {
-                confirmedIntersection = checkIntersection(rd2,rd1);
-            }
-
-            if(confirmedIntersection) {
-                rd1.overlappingKeys[rd2.id] = rd2;
-                rd2.overlappingKeys[rd1.id] = rd1;
-                if(rd1.keyGroupId && rd2.keyGroupId) {
-                    // merge
-                    // console.log(`merging kgIDs ${rd1.keyGroupId} and ${rd2.keyGroupId}`);
-                    let pKG = rd1.keyGroupId;
-                    let oKG = rd2.keyGroupId;
-                    for(const [otherId, oRD] of Object.entries(kRD)) {
-                        if(oRD.keyGroupId == oKG) {
-                            oRD.keyGroupId = pKG;
-                        }
-                    }
-                }
-                else if(rd1.keyGroupId) {
-                    rd2.keyGroupId = rd1.keyGroupId;
-                }
-                else if(rd2.keyGroupId) {
-                    rd1.keyGroupId = rd2.keyGroupId;
-                }
-                else {
-                    rd1.keyGroupId = rd2.keyGroupId = kgID++;
-                }
-            }
-        }
-
-        for (const [otherId, otherRD] of Object.entries(kRD)) {
-            if(otherId == id) {
-                continue;
-            }
-
-            let otherKey = bd.layout.keys[otherId];
-            checkOverlap(k,rd,otherKey,otherRD);
-        }
-
-        if(!rd.keyGroupId) {
-            rd.keyGroupId = kgID++;
-        }
     }
 
     bd.layout.bounds = { mins: mins, maxs: maxs };
@@ -332,17 +270,17 @@ export function refreshLayout() {
     refreshOutlines();
 }
 
-function getCombinedOutlineFromRDGroup(KG) {
-    for( const rd of KG ) {
-        rd.outlineLines = [];
-        rd.parsedOutlineLines = {};
-        for(let p = 0; p < rd.bezelHole.length; p++) {
-            let lStart = rd.bezelHole[p];
-            let lEnd = rd.bezelHole[(p+1)%rd.bezelHole.length]
-            rd.outlineLines.push([lStart,lEnd]);
+function getCombinedOutlineFromPolyGroup(group) {
+    for( const hole of group ) {
+        hole.outlineLines = [];
+        hole.parsedOutlineLines = {};
+        let points = hole.points;
+        for(let p = 0; p < points.length; p++) {
+            let lStart = points[p];
+            let lEnd = points[(p+1)%points.length]
+            hole.outlineLines.push([lStart,lEnd]);
         }
     }
-
 
     let maxOverlapSq = Epsilon;
 
@@ -364,33 +302,29 @@ function getCombinedOutlineFromRDGroup(KG) {
         }
     }
     // clip any overlapping parallel lines against each other (cancel if they face each other)
-    for( const rd of KG ) {
-        // if(true) break;
-        rd.visitedForOutline = true;
-
-        for( const [oId,otherRD] of Object.entries(rd.overlappingKeys) ) {
-            //if(otherRD.visitedForOutline) continue;
-            for(let iL = rd.outlineLines.length-1; iL >= 0; iL--) {
-                let lL = rd.outlineLines[iL];
+    for( const hole of group ) {
+        for( const [oId,otherHole] of Object.entries(hole.overlappingPolys) ) {
+            for(let iL = hole.outlineLines.length-1; iL >= 0; iL--) {
+                let lL = hole.outlineLines[iL];
                 let lDir = lL[1].subtract(lL[0]);
                 let lLen = lDir.length()
                 if(lLen < Epsilon) continue;
                 let lineNorm = lDir.normalizeFromLength(lLen);
 
-                for( let jL = otherRD.outlineLines.length-1; jL > 0; jL-- ) {
-                    let oL = otherRD.outlineLines[jL];
+                for( let jL = otherHole.outlineLines.length-1; jL >= 0; jL-- ) {
+                    let oL = otherHole.outlineLines[jL];
                     let oDir = oL[1].subtract(oL[0]);
                     let oLen = oDir.length();
                     if(oLen < Epsilon ) continue;
                     let oLNorm = oDir.normalizeFromLength(oLen);
                     let lineDot = Vector3.Dot(oLNorm,lineNorm)
-                    if( Math.abs(lineDot) > 1-Epsilon) {
+                    if( Math.abs(lineDot) > 1-Epsilon) {  //parallel
                         let diff = lL[0].subtract(oL[0]);
                         if(diff.lengthSquared() < Epsilon) {
-                            let d2 = lL[1].subtract(oL[1]);
+                            let d2 = lL[0].subtract(oL[1]);
                             let d2ls = d2.lengthSquared();
                             if(d2ls< Epsilon || d2ls > lLen*lLen) {
-                                rd.outlineLines.splice(iL,1);
+                                hole.outlineLines.splice(iL,1);
                                 break;
                             } else {
                                 lL[0] = oL[1];
@@ -407,8 +341,8 @@ function getCombinedOutlineFromRDGroup(KG) {
                                 // O ------------> olen
                                 //      llen <--------- L
                                 // O <----------------> dd
-                                overlapFunc(jL,oLen,lLen,oL,oLNorm,dd,otherRD.outlineLines,otherRD.parsedOutlineLines);
-                                overlapFunc(iL,lLen,oLen,lL,lineNorm,dd,rd.outlineLines,rd.parsedOutlineLines);
+                                overlapFunc(jL,oLen,lLen,oL,oLNorm,dd,otherHole.outlineLines,otherHole.parsedOutlineLines);
+                                overlapFunc(iL,lLen,oLen,lL,lineNorm,dd,hole.outlineLines,hole.parsedOutlineLines);
                             }
                             else if( lineDot > 1-Epsilon ) {
                                 if( dd > Epsilon ) {
@@ -417,17 +351,17 @@ function getCombinedOutlineFromRDGroup(KG) {
                                     // O <---> dd
                                     // consume L
                                     let overlapDist = oLen - dd;
-                                    if(!rd.parsedOutlineLines[iL]) {
+                                    if(!hole.parsedOutlineLines[iL]) {
                                         if(overlapDist > Epsilon) {
-                                            // console.log(`trimming A ${rd.id} ${iL} vs ${oId} ${jL} len ${lLen} ov ${overlapDist}`)
+                                            // console.log(`trimming A ${hole.id} ${iL} vs ${oId} ${jL} len ${lLen} ov ${overlapDist}`)
                                             if(lLen - overlapDist < Epsilon)
                                             {
                                                 // console.log(`SPLICE`);
-                                                rd.outlineLines.splice(iL,1);
+                                                hole.outlineLines.splice(iL,1);
                                                 break;
                                             }
-                                            // rd.parsedOutlineLines[iL] = true;
-                                            // rd.outlineLines.push([lL[0].add(lineNorm.scale(overlapDist)),lL[1]]);
+                                            // hole.parsedOutlineLines[iL] = true;
+                                            // hole.outlineLines.push([lL[0].add(lineNorm.scale(overlapDist)),lL[1]]);
                                             lL[0] = lL[0].add(lineNorm.scale(overlapDist));
                                         }
                                     }
@@ -438,17 +372,17 @@ function getCombinedOutlineFromRDGroup(KG) {
                                     // L <---> -dd
                                     // consume L
                                     let d = -dd;
-                                    if(!rd.parsedOutlineLines[iL]) {
+                                    if(!hole.parsedOutlineLines[iL]) {
                                         if(d < lLen - Epsilon) {
-                                            // console.log(`trimming B ${rd.id} ${iL} vs ${oId} ${jL} d ${d}`)
+                                            // console.log(`trimming B ${hole.id} ${iL} vs ${oId} ${jL} d ${d}`)
                                             if(d < Epsilon)
                                             {
                                                 // console.log(`SPLICE`);
-                                                rd.outlineLines.splice(iL,1);
+                                                hole.outlineLines.splice(iL,1);
                                                 break;
                                             }
-                                            // rd.parsedOutlineLines[iL] = true;
-                                            // rd.outlineLines.push([lL[0],lL[0].add(lineNorm.scale(d))]);
+                                            // hole.parsedOutlineLines[iL] = true;
+                                            // hole.outlineLines.push([lL[0],lL[0].add(lineNorm.scale(d))]);
                                             lL[1] = lL[0].add(lineNorm.scale(d));
                                         }
                                     }
@@ -461,19 +395,18 @@ function getCombinedOutlineFromRDGroup(KG) {
         }
     }
 
-
-    for( const rd of KG ) {
-        // if(true) break;
-        for( const [oId,otherRD] of Object.entries(rd.overlappingKeys) ) {
-            for(let iL = rd.outlineLines.length - 1; iL >= 0; iL--) {
-                let l = rd.outlineLines[iL];
+    for( const hole of group ) {
+        for( const [oId,oHole] of Object.entries(hole.overlappingPolys) ) {
+            for(let iL = hole.outlineLines.length - 1; iL >= 0; iL--) {
+                let l = hole.outlineLines[iL];
                 let lL = l[1].subtract(l[0]);
                 let lNorm = new Vector3(lL.z,0,-lL.x).normalize();
 
                 let intersections = [];
                 let colinear = false;
-                for(let iOP = 0; iOP < otherRD.bezelHole.length; iOP++) {
-                    let segRes = coremath.segmentToSegment(l[0], l[1], lL, lNorm, otherRD.bezelHole[iOP], otherRD.bezelHole[(iOP+1)%otherRD.bezelHole.length]);
+                let oPoints = oHole.points;
+                for(let iOP = 0; iOP < oPoints.length; iOP++) {
+                    let segRes = coremath.segmentToSegment(l[0], l[1], lL, lNorm, oPoints[iOP], oPoints[(iOP+1)%oPoints.length]);
                     if(segRes.type == "in_segment" && segRes.intersection) {
                         // console.log(`intersecting ${rd.id} line ${iL} with ${otherRD.id} line ${iOP}` )
                         // console.log(l)
@@ -488,14 +421,14 @@ function getCombinedOutlineFromRDGroup(KG) {
                 }
                 if(colinear) continue;
 
-                let isStartInPoly = coremath.isPointInPoly(l[0],otherRD.bezelHole);
-                let isEndInPoly = coremath.isPointInPoly(l[1],otherRD.bezelHole);
+                let isStartInPoly = coremath.isPointInPoly(l[0],oPoints);
+                let isEndInPoly = coremath.isPointInPoly(l[1],oPoints);
 
                 // console.log(`${rd.id} line ${iL} with ${otherRD.id} startIn ${isStartInPoly} end ${isEndInPoly} ${intersections.length}`);
                 if(isStartInPoly && isEndInPoly && intersections.length <= 1) {
                     // both are inside the poly, just remove the line
                     // console.log(`removing line ${iL} from ${rd.id}`);
-                    rd.outlineLines.splice(iL, 1);
+                    hole.outlineLines.splice(iL, 1);
                 }
                 else if(intersections.length == 1) {
                     // console.log(`splitting (one intersection) line ${iL} from ${rd.id}`);
@@ -506,7 +439,7 @@ function getCombinedOutlineFromRDGroup(KG) {
                         l[1] = intersections[0];
                     }
                     if(l[1].subtract(l[0]).lengthSquared() < Epsilon) {
-                        rd.outlineLines.splice(iL, 1);
+                        hole.outlineLines.splice(iL, 1);
                     }
                 }
                 else if(intersections.length > 1) {
@@ -517,18 +450,18 @@ function getCombinedOutlineFromRDGroup(KG) {
                     l[1] = intersections[0];
                     if(l[1].subtract(l[0]).lengthSquared() < Epsilon) {
                         // console.log("skipping start length due to shortness");
-                        rd.outlineLines.splice(iL, 1);
+                        hole.outlineLines.splice(iL, 1);
                     }
                     // console.log(`${rd.id} start is ${l[0]} ${l[1]}`);
                     for(let i = 2; i < intersections.length; i+=2) {
                         if( intersections[i-1].subtract(intersections[i]).lengthSquared() > Epsilon) {
-                            rd.outlineLines.push([intersections[i-1],intersections[i]]);
+                            hole.outlineLines.push([intersections[i-1],intersections[i]]);
                         } 
                         // console.log(`${rd.id} mid is ${intersections[i-1]} ${intersections[i]}`);
                     }
                     if(intersections.length % 2 == 0) {
                         if( intersections[intersections.length-1].subtract(tmp).lengthSquared() > Epsilon) {
-                            rd.outlineLines.push([intersections[intersections.length-1],tmp]);
+                            hole.outlineLines.push([intersections[intersections.length-1],tmp]);
                             // console.log(`${rd.id} end is ${intersections[intersections.length-1]} ${tmp}`);
                         }
                     }
@@ -543,13 +476,13 @@ function getCombinedOutlineFromRDGroup(KG) {
     let bestOutline = null;
     let bestOutlineLength = 0;
     while(1) {
-        let nextKeyRd = null;
+        let nextHole = null;
         let nextLineIndex = -1;
         let invertNextLine = false;
-        for( const rd of KG ) {
+        for( const rd of group ) {
             for(let iL = 0; iL < rd.outlineLines.length; iL++) {
                 if(!rd.parsedOutlineLines[iL]) {
-                    nextKeyRd = rd;
+                    nextHole = rd;
                     nextLineIndex = iL;
                     break;
                 }
@@ -562,9 +495,9 @@ function getCombinedOutlineFromRDGroup(KG) {
         
         let outline = [];
         // finally, walk through the list of available outline lines and pick the closest end point for the next line
-        while(nextKeyRd != null && nextLineIndex >= 0) {
-            nextKeyRd.parsedOutlineLines[nextLineIndex] = true;
-            let prevLine = nextKeyRd.outlineLines[nextLineIndex];
+        while(nextHole != null && nextLineIndex >= 0) {
+            nextHole.parsedOutlineLines[nextLineIndex] = true;
+            let prevLine = nextHole.outlineLines[nextLineIndex];
             if(invertNextLine) {
                 let tmp = prevLine[0];
                 prevLine[0] = prevLine[1];
@@ -580,7 +513,7 @@ function getCombinedOutlineFromRDGroup(KG) {
                 let newDistSq = prevLine[1].subtract(n[0]).lengthSquared();
                 if(newDistSq < nextDistSq) {
                     nextDistSq = newDistSq;
-                    nextKeyRd = nRd;
+                    nextHole = nRd;
                     nextLineIndex = i;
                     invertNextLine = false;
                 }
@@ -588,23 +521,23 @@ function getCombinedOutlineFromRDGroup(KG) {
                 newDistSq = prevLine[1].subtract(n[1]).lengthSquared();
                 if(newDistSq < nextDistSq) {
                     nextDistSq = newDistSq;
-                    nextKeyRd = nRd;
+                    nextHole = nRd;
                     nextLineIndex = i;
                     invertNextLine = true;
                 }
             }
             
-            for(let iL = 0; iL < nextKeyRd.outlineLines.length; iL++) {
-                if(!nextKeyRd.parsedOutlineLines[iL]) {
-                    checkNext(nextKeyRd.outlineLines[iL],nextKeyRd,iL);
+            for(let iL = 0; iL < nextHole.outlineLines.length; iL++) {
+                if(!nextHole.parsedOutlineLines[iL]) {
+                    checkNext(nextHole.outlineLines[iL],nextHole,iL);
                 }
             }
     
-            for( const [oId,otherRD] of Object.entries(nextKeyRd.overlappingKeys) ) {
-                for( let jL = 0; jL < otherRD.outlineLines.length; jL++ ) {
-                    if(otherRD.parsedOutlineLines[jL]) continue;
-    
-                    checkNext(otherRD.outlineLines[jL],otherRD,jL);
+            for( const [oId,oHole] of Object.entries(nextHole.overlappingPolys) ) {
+                for( let jL = 0; jL < oHole.outlineLines.length; jL++ ) {
+                    if(!oHole.parsedOutlineLines[jL]) {
+                        checkNext(oHole.outlineLines[jL],oHole,jL);
+                    }
                 }
             }
         }
@@ -615,6 +548,95 @@ function getCombinedOutlineFromRDGroup(KG) {
         }
     }
     return bestOutline;
+}
+
+function findOverlappingGroups(kRD, groupName) {
+    let gID = 0;
+    let groups = {};
+
+    let checkOverlap = function(poly1, poly2) {
+        // see if any of the lines bisect the other rect  (since it's a rect, we know each line is actually a normal of the previous)
+        let checkIntersection = (polyA, polyB) => {
+            const hole = polyA.points;
+            for(let iP = 0; iP < hole.length; iP++) {
+                let line = hole[(iP+1)%hole.length].subtract(hole[iP]);
+                let allLess = true;
+                let allMore = true;
+                const holeO = polyB.points;
+
+                for(let oP = 0; oP < holeO.length; oP++) {
+                    let dot = Vector3.Dot(line,holeO[oP].subtract(hole[iP]));
+                    allMore &= dot > Epsilon;
+                    allLess &= dot < -Epsilon;
+                }
+
+                if( allLess ) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        let confirmedIntersection = checkIntersection(poly1,poly2);
+        if(confirmedIntersection) {
+            confirmedIntersection = checkIntersection(poly2,poly1);
+        }
+
+        if(confirmedIntersection) {
+            poly1.overlappingPolys[poly2.id] = poly2;
+            poly2.overlappingPolys[poly1.id] = poly1;
+            if(poly1.overlapGroupId && poly2.overlapGroupId) {
+                // merge
+                // console.log(`merging kgIDs ${rd1.overlapGroupId} and ${rd2.overlapGroupId}`);
+                let pKG = poly1.overlapGroupId;
+                let oKG = poly2.overlapGroupId;
+                for(const [otherId, oRD] of Object.entries(kRD)) {
+                    for(const poly of oRD[groupName]) {
+                        if(poly.overlapGroupId == oKG) {
+                            poly.overlapGroupId = pKG;
+                        }
+                    }
+                }
+            }
+            else if(poly1.overlapGroupId) {
+                poly2.overlapGroupId = poly1.overlapGroupId;
+            }
+            else if(poly2.overlapGroupId) {
+                poly1.overlapGroupId = poly2.overlapGroupId;
+            }
+            else {
+                poly1.overlapGroupId = poly2.overlapGroupId = gID++;
+            }
+        }
+    }
+
+    for (const [id, rd] of Object.entries(kRD)) {
+        for(const [ip, poly] of rd[groupName].entries()) {
+            for (const [otherId, otherRD] of Object.entries(kRD)) {
+                for(const [op, otherPoly] of otherRD[groupName].entries()) {
+                    if(otherId == id && ip == op) {
+                        continue;
+                    }
+                    checkOverlap(poly,otherPoly);
+                }
+            }
+    
+            if(!poly.overlapGroupId) {
+                poly.overlapGroupId = gID++;
+            }
+        }
+    }
+
+    for (const [id, rd] of Object.entries(kRD)) {
+        for(const [ip, poly] of rd[groupName].entries()) {
+            // console.log(`${otherId} is in kgid: ${oRD.keyGroupId}`);
+            if(!groups[poly.overlapGroupId]) {
+                groups[poly.overlapGroupId] = [];
+            }
+            groups[poly.overlapGroupId].push(poly);
+        }
+    }
+    return groups;
 }
 
 export function addScrewHoles() {
@@ -765,29 +787,28 @@ export function refreshCase() {
         cRD.pcbMesh.material = mats["fr4"];
     }
 
-    let keyGroups = {};
     let bezelOutlineVecs = []
     let bezelOutlines = [];
-    for(const [otherId, oRD] of Object.entries(kRD)) {
-        // console.log(`${otherId} is in kgid: ${oRD.keyGroupId}`);
-        if(!keyGroups[oRD.keyGroupId]) {
-            keyGroups[oRD.keyGroupId] = [];
-        }
-        keyGroups[oRD.keyGroupId].push(oRD);
-    }
+
+    let keyGroups = findOverlappingGroups(kRD, "bezelHoles");
 
     let dbglines = [];
     for(const [kgId, KG] of Object.entries(keyGroups)) {
-        let outline = getCombinedOutlineFromRDGroup(KG);
+        let outline = getCombinedOutlineFromPolyGroup(KG, "bezelHoles");
 
         let bezelOutlineVec = coremath.offsetAndFilletOutline(outline, 0.0, tuning.bezelCornerFillet, false);
         bezelOutlineVecs.push(bezelOutlineVec);
         bezelOutlines.push(coremath.genPointsFromVectorPath(bezelOutlineVec));
         
-        // for( const rd of KG ) {
-        //     for(let iL = 0; iL < rd.outlineLines.length; iL++) {
-        //         dbglines.push(rd.outlineLines[iL])
+        // for( const poly of KG ) {
+        //     for(let iL = 0; iL < poly.outlineLines.length; iL++) {
+        //         dbglines.push(poly.outlineLines[iL])
         //     }
+        // }
+
+                
+        // for(let i = 0; i < outline.length; i++) {
+        //     dbglines.push([outline[i], outline[(i+1)%outline.length]]);
         // }
     }
     // if( globals.lineSystem ) {
@@ -803,17 +824,16 @@ export function refreshCase() {
         cRD.bezel.material = mats["case"];
     }
 
-
-    let switchCuts = [];
+    let plateGroups = findOverlappingGroups(kRD, "switchCut");
     let switchCutsVec = [];
-    for(const [otherId, rd] of Object.entries(kRD)) {
-        for(let cut of rd.switchCut) {
-            let switchOutlineVec = coremath.offsetAndFilletOutline(cut, 0.0, 0.5, false);
-            switchCutsVec.push(switchOutlineVec);
-            switchCuts.push(coremath.genPointsFromVectorPath(switchOutlineVec));
-        }
-        // switchCuts.push(...rd.switchCut);
+    let switchCuts = [];
+    for(const [gId, G] of Object.entries(plateGroups)) {
+        let outline = getCombinedOutlineFromPolyGroup(G, "switchCut");
+        let switchOutlineVec = coremath.offsetAndFilletOutline(outline, 0.0, 0.5, false);
+        switchCutsVec.push(switchOutlineVec);
+        switchCuts.push(coremath.genPointsFromVectorPath(switchOutlineVec));
     }
+
     if( tuning.drawPlate ) {
         cRD.layers["plate"] = {outlines:[caseFrameVec, ...switchCutsVec, ...globals.renderData.screwData]};
         cRD.plateMesh = MeshBuilder.CreatePolygon("plate", { shape: caseFrame, depth:1.5, smoothingThreshold: 0.1, holes: [...screwHoles,...switchCuts] }, scene);
