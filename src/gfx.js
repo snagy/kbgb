@@ -1,7 +1,8 @@
 import {globals} from './globals.js'
 import {tuning} from './tuning.js'
 import {Engine, ArcRotateCamera, CubeTexture, Scene, Vector3, VertexBuffer, 
-        VertexData, Color3, StandardMaterial, PBRMetallicRoughnessMaterial} from '@babylonjs/core'
+        VertexData, Color3, StandardMaterial, PBRMetallicRoughnessMaterial,
+        Animation, QuinticEase, EasingFunction} from '@babylonjs/core'
 
 export function createKeyMaterial(name,color) {
     let mats = globals.renderData.mats;
@@ -115,21 +116,43 @@ export function snapCamera(mode) {
     const w = bounds.maxs[0] - bounds.mins[0] + tuning.bezelThickness * 2;
     const h = bounds.maxs[1] - bounds.mins[1] + tuning.bezelThickness * 2;
     const dim = Math.max(w,h);
-    globals.camera.setTarget(new Vector3(bounds.mins[0] + (bounds.maxs[0] - bounds.mins[0]) / 2.0,
+    let cam = globals.camera;
+    cam.setTarget(new Vector3(bounds.mins[0] + (bounds.maxs[0] - bounds.mins[0]) / 2.0,
         0, bounds.mins[1] + (bounds.maxs[1] - bounds.mins[1]) / 2.0));
+    
+    let nextAlpha = -Math.PI / 3.5;
+    let nextBeta = Math.PI / 3.5;
     if(mode == "top") {
-        globals.camera.alpha = -Math.PI / 2;
-        globals.camera.beta = 0;
+        nextAlpha = -Math.PI / 2;
+        nextBeta = 0;
     } else if(mode == "front") {
-        globals.camera.alpha = -Math.PI / 2;
-        globals.camera.beta = Math.PI / 4;
-    } else {
-        globals.camera.alpha = -Math.PI / 3.5;
-        globals.camera.beta = Math.PI / 3.5;
+        nextAlpha = -Math.PI / 2;
+        nextBeta = Math.PI / 4;
     }
-    globals.camera.radius = 0.5 * dim / Math.tan(globals.camera.fov * 0.5);
+    cam.radius = 0.5 * dim / Math.tan(cam.fov * 0.5);
 
+
+    let simpleAnim = (name,key,start,end,duration) => {
+        let anim = new Animation(name, key, 30, Animation.ANIMATIONTYPE_FLOAT, Animation.ANIMATIONLOOPMODE_CONSTANT);
+        // Animation keys
+        let animKeys = [];
+        animKeys.push({ frame: 0, value: start });
+        animKeys.push({ frame: duration, value: end });
+        anim.setKeys(animKeys);
+        // Creating an easing function
+        let easingFunction = new QuinticEase();
+        // For each easing function, you can choose between EASEIN (default), EASEOUT, EASEINOUT
+        easingFunction.setEasingMode(EasingFunction.EASINGMODE_EASEOUT);
+        // Adding the easing function to the animation
+        anim.setEasingFunction(easingFunction);
+        return anim;
+    }
+    let alphaAnim = simpleAnim("camAlpha", "alpha", cam.alpha, nextAlpha, 12);
+    let betaAnim = simpleAnim("camBeta", "beta", cam.beta, nextBeta, 12);
+
+    globals.scene.beginDirectAnimation(cam, [alphaAnim,betaAnim], 0, 10, false);
 }
+
 
 export function setEnvironmentLight(path) {
 
@@ -151,6 +174,8 @@ function createScene() {
     // target the camera to scene origin
     camera.setTarget(Vector3.Zero());
 
+    camera.alpha = -Math.PI / 3.5;
+    camera.beta  = Math.PI / 3.5;
     camera.fov = 0.3;
     camera.lowerRadiusLimit = 75;
     camera.upperRadiusLimit = 1500;
