@@ -11,8 +11,8 @@ export default {
       file: 'static/src/pack.js',
       format: 'umd',
       name: 'base.js',
-      sourcemap: true,
-      plugins: [terser()]
+      sourcemap: true
+      ,plugins: [terser()]
     },
     // treeshake:false,
     plugins: [nodeResolve(), commonjs()]

@@ -538,74 +538,83 @@ function getCombinedOutlineFromRDGroup(KG) {
     }
 
 
-    let parsedLines = [];
-    let nextKeyRd = null;
-    let nextLineIndex = -1;
-    let invertNextLine = false;
     // pick a line at random.  this could actually pick something on an interior island so we should probably
     // run the loop gen algorithm until all the lines are used up and then pick the polygon with the largest area
-    for( const rd of KG ) {
-        for(let iL = 0; iL < rd.outlineLines.length; iL++) {
-            if(!rd.parsedOutlineLines[iL]) {
-                nextKeyRd = rd;
-                nextLineIndex = iL;
-                break;
+    let bestOutline = null;
+    let bestOutlineLength = 0;
+    while(1) {
+        let nextKeyRd = null;
+        let nextLineIndex = -1;
+        let invertNextLine = false;
+        for( const rd of KG ) {
+            for(let iL = 0; iL < rd.outlineLines.length; iL++) {
+                if(!rd.parsedOutlineLines[iL]) {
+                    nextKeyRd = rd;
+                    nextLineIndex = iL;
+                    break;
+                }
             }
+            if(nextLineIndex >= 0) break;
         }
-        if(nextLineIndex >= 0) break;
-    }
+
+        if(nextLineIndex == -1)
+            break;
+        
+        let outline = [];
+        // finally, walk through the list of available outline lines and pick the closest end point for the next line
+        while(nextKeyRd != null && nextLineIndex >= 0) {
+            nextKeyRd.parsedOutlineLines[nextLineIndex] = true;
+            let prevLine = nextKeyRd.outlineLines[nextLineIndex];
+            if(invertNextLine) {
+                let tmp = prevLine[0];
+                prevLine[0] = prevLine[1];
+                prevLine[1] = tmp;
+            }
+            // console.log(`key rd ${nextKeyRd.id} line idx ${nextLineIndex} s ${prevLine[0]} e ${prevLine[1]}`)
+            outline.push(prevLine[0]);
+
+            nextLineIndex = -1;
+            let nextDistSq = 20.0
     
-    let outline = [];
-    // finally, walk through the list of available outline lines and pick the closest end point for the next line
-    while(nextKeyRd != null && nextLineIndex >= 0) {
-        nextKeyRd.parsedOutlineLines[nextLineIndex] = true;
-        let prevLine = nextKeyRd.outlineLines[nextLineIndex];
-        if(invertNextLine) {
-            let tmp = prevLine[0];
-            prevLine[0] = prevLine[1];
-            prevLine[1] = tmp;
-        }
-        // console.log(`key rd ${nextKeyRd.id} line idx ${nextLineIndex} s ${prevLine[0]} e ${prevLine[1]}`)
-        
-        outline.push(prevLine[0]);
-
-        parsedLines.push(prevLine);
-        nextLineIndex = -1;
-        let nextDistSq = 20.0
-
-        let checkNext = (n,nRd,i) => {
-            let newDistSq = prevLine[1].subtract(n[0]).lengthSquared();
-            if(newDistSq < nextDistSq) {
-                nextDistSq = newDistSq;
-                nextKeyRd = nRd;
-                nextLineIndex = i;
-                invertNextLine = false;
+            let checkNext = (n,nRd,i) => {
+                let newDistSq = prevLine[1].subtract(n[0]).lengthSquared();
+                if(newDistSq < nextDistSq) {
+                    nextDistSq = newDistSq;
+                    nextKeyRd = nRd;
+                    nextLineIndex = i;
+                    invertNextLine = false;
+                }
+    
+                newDistSq = prevLine[1].subtract(n[1]).lengthSquared();
+                if(newDistSq < nextDistSq) {
+                    nextDistSq = newDistSq;
+                    nextKeyRd = nRd;
+                    nextLineIndex = i;
+                    invertNextLine = true;
+                }
             }
-
-            newDistSq = prevLine[1].subtract(n[1]).lengthSquared();
-            if(newDistSq < nextDistSq) {
-                nextDistSq = newDistSq;
-                nextKeyRd = nRd;
-                nextLineIndex = i;
-                invertNextLine = true;
+            
+            for(let iL = 0; iL < nextKeyRd.outlineLines.length; iL++) {
+                if(!nextKeyRd.parsedOutlineLines[iL]) {
+                    checkNext(nextKeyRd.outlineLines[iL],nextKeyRd,iL);
+                }
+            }
+    
+            for( const [oId,otherRD] of Object.entries(nextKeyRd.overlappingKeys) ) {
+                for( let jL = 0; jL < otherRD.outlineLines.length; jL++ ) {
+                    if(otherRD.parsedOutlineLines[jL]) continue;
+    
+                    checkNext(otherRD.outlineLines[jL],otherRD,jL);
+                }
             }
         }
-        
-        for(let iL = 0; iL < nextKeyRd.outlineLines.length; iL++) {
-            if(!nextKeyRd.parsedOutlineLines[iL]) {
-                checkNext(nextKeyRd.outlineLines[iL],nextKeyRd,iL);
-            }
-        }
-
-        for( const [oId,otherRD] of Object.entries(nextKeyRd.overlappingKeys) ) {
-            for( let jL = 0; jL < otherRD.outlineLines.length; jL++ ) {
-                if(otherRD.parsedOutlineLines[jL]) continue;
-
-                checkNext(otherRD.outlineLines[jL],otherRD,jL);
-            }
+        // yeah this isn't exactly correct.
+        if(outline.length > bestOutlineLength) {
+            bestOutline = outline;
+            bestOutlineLength = outline.length;
         }
     }
-    return outline;
+    return bestOutline;
 }
 
 export function addScrewHoles() {
