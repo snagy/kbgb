@@ -13,6 +13,8 @@ export function refreshOutlines() {
         globals.scene.removeMesh(o);
     }
 
+    oRD.length = 0;
+
     for (const id of globals.pickedKeys) {
         if (!kRD[id]) {
             console.log("picked nonexistant key");

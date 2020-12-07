@@ -69,6 +69,10 @@ export const kbgbGUI = {
                 //ctrlBar.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
                 ctrlBar.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
             
+                ctrlBar.addControl(kbgbGUI.addButton("load kle", (e) => {
+                    document.getElementById("loadKLE").click();
+                }, {height:"60px", width:"120px"}));
+
                 ctrlBar.addControl(kbgbGUI.addLabel("Pos: "));
                 ctrlBar.addControl(kbgbGUI.addKeyActionButton(`◄`, (k) => k.x -= 0.25 ));
                 ctrlBar.addControl(kbgbGUI.addKeyActionButton(`▲`, (k) => k.y -= 0.25 ));
@@ -90,6 +94,11 @@ export const kbgbGUI = {
                 
                 globals.screengui.addControl(ctrlBar);
                 kbgbGUI.activeModeCtrl = ctrlBar;
+            },
+            remove: () => {
+                globals.screengui.removeControl(kbgbGUI.activeModeCtrl);
+                globals.pickedKeys = [];
+                boardOps.refreshOutlines();
             }
         },
         "case":{
@@ -179,6 +188,9 @@ export const kbgbGUI = {
                 
                 globals.screengui.addControl(ctrlBar);
                 kbgbGUI.activeModeCtrl = ctrlBar;
+            },
+            remove: () => {
+                globals.screengui.removeControl(kbgbGUI.activeModeCtrl);
             }
         },
         "pcb":{
@@ -205,6 +217,9 @@ export const kbgbGUI = {
 
                 globals.screengui.addControl(ctrlBar);
                 kbgbGUI.activeModeCtrl = ctrlBar;
+            },
+            remove: () => {
+                globals.screengui.removeControl(kbgbGUI.activeModeCtrl);
             }
         },
         "details":{
@@ -238,17 +253,23 @@ export const kbgbGUI = {
                 
 
                 kbgbGUI.activeModeCtrl = ctrlBar;
+            },
+            remove: () => {
+                globals.screengui.removeControl(kbgbGUI.activeModeCtrl);
             }
         },
     },
     setGUIMode: function(mode) {
-        if(kbgbGUI.activeModeCtrl) {
-            globals.screengui.removeControl(kbgbGUI.activeModeCtrl);
+        if(mode == kbgbGUI.activeMode) return;
+
+        if(kbgbGUI.modes[kbgbGUI.activeMode]) {
+            kbgbGUI.modes[mode].remove();
         }
         if(kbgbGUI.modes[mode]) {
             kbgbGUI.modes[mode].add();
             snapCamera(kbgbGUI.modes[mode].cameraMode);
         }
+        kbgbGUI.activeMode = mode;
     },
     addModeGUI: function() {
         globals.screengui = AdvancedDynamicTexture.CreateFullscreenUI("screenUI");
