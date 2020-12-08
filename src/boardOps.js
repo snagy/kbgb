@@ -691,6 +691,14 @@ export function addScrewHoles() {
     }
 }
 
+let layerDefs = {
+    "bottom":{num:1,height:3,offset:-7.5,stackOrder:-2,visFilter:"drawCase",shape:"caseFrame",holes:["screwHoles"],mat:"case"},
+    "pcbMesh":{num:1,height:1.6,offset:-5,stackOrder:null,visFilter:"drawPCB",shape:"pcbOutline",holes:[],mat:"fr4"},
+    "bezel":{num:1,height:7.8,offset:7.8,stackOrder:1,visFilter:"drawBezel",shape:"caseFrame",holes:["bezel","screwHoles"],mat:"case"},
+    "plate":{num:1,height:1.5,offset:0,stackOrder:0,visFilter:"drawPlate",shape:"caseFrame",holes:["screwHoles","switchCuts"],mat:"plate"},
+    "edge":{num:1,height:9,offset:-1.5,stackOrder:-1,visFilter:"drawCase",shape:"caseFrame",holes:["screwHoles","cavityInnerEdge"],mat:"case"}
+}
+
 export function refreshCase() {
     const scene = globals.scene;
     const bd = globals.boardData;
@@ -698,31 +706,19 @@ export function refreshCase() {
     const mats = globals.renderData.mats;
 
     let cRD = globals.renderData.case;
+    
+    for(const [layerName, layerDef] of Object.entries(layerDefs)) {
+        if (cRD.layers[layerName] && cRD.layers[layerName].mesh) {
+            console.log("removing layer "+layerName);
+            scene.removeMesh(cRD.layers[layerName].mesh);
+        }
+    }
+    
     cRD.layers = {};
-    if (cRD.bottom) {
-        scene.removeMesh(cRD.bottom);
-    }
-    if (cRD.pcbMesh) {
-        scene.removeMesh(cRD.pcbMesh);
-    }
-    if (cRD.bezel) {
-        scene.removeMesh(cRD.bezel);
-    }
-    if (cRD.plateMesh) {
-        scene.removeMesh(cRD.plateMesh);
-    }
-    if (cRD.edgeMesh) {
-        scene.removeMesh(cRD.edgeMesh);
-    }
 
     if(Object.keys(bd.layout.keys).length < 1) {
         return;
     }
-
-    addScrewHoles();
-
-    let screwHoles = globals.renderData.screwData.map((a) => coremath.genArrayForCircle(a,0,19));
-
 
     if(bd.caseType == "convex") {
         let kPs = [];
@@ -757,90 +753,79 @@ export function refreshCase() {
     }
 
 
-    let cavityInnerEdgeVec = [coremath.offsetAndFilletOutline(bd.outline, tuning.bezelGap, tuning.bezelCornerFillet, false)];
-    // let cavityInnerEdge = [coremath.genArrayFromOutline(bd.outline, tuning.bezelGap, tuning.bezelCornerFillet, false)];
-    let caseFrameVec = coremath.offsetAndFilletOutline(bd.outline, tuning.bezelGap + tuning.bezelThickness, tuning.caseCornerFillet, false);
-    let caseFrame = coremath.genPointsFromVectorPath(caseFrameVec,8);
+    let vectorGeo = {};
+    let tesselatedGeo = {};
+    let cavityInnerEdgeVec = 
+    vectorGeo["cavityInnerEdge"] = [coremath.offsetAndFilletOutline(bd.outline, tuning.bezelGap, tuning.bezelCornerFillet, false)];
+    tesselatedGeo["cavityInnerEdge"] = cavityInnerEdgeVec.map((a) => coremath.genPointsFromVectorPath(a,8));
+    vectorGeo["caseFrame"] = coremath.offsetAndFilletOutline(bd.outline, tuning.bezelGap + tuning.bezelThickness, tuning.caseCornerFillet, false);
+    tesselatedGeo["caseFrame"] = coremath.genPointsFromVectorPath(vectorGeo["caseFrame"],8);
 
-    if( tuning.drawCase ) {
-        cRD.layers["edge"] = {outlines:[caseFrameVec, ...cavityInnerEdgeVec, ...globals.renderData.screwData]};
-        cRD.edgeMesh = MeshBuilder.CreatePolygon("edge", 
-                                                         { shape: caseFrame, depth:9, smoothingThreshold: 0.1, 
-                                                           holes: [...screwHoles,...cavityInnerEdgeVec.map((a) => coremath.genPointsFromVectorPath(a,8))],
-                                                           updatable: true }, scene);
-        cRD.edgeMesh.translate(new Vector3(0, -1.5, 0), 1, Space.LOCAL);
-        cRD.edgeMesh.material = mats["case"];
-        //gfx.combineSideVerts(cRD.edgeMesh);
-    }
+    addScrewHoles();
 
-    if( tuning.drawCase ) {
-        cRD.layers["bottom"] = {outlines:[caseFrameVec, ...globals.renderData.screwData]};
-        cRD.bottom = MeshBuilder.CreatePolygon("bottom", { shape: caseFrame, depth:3, smoothingThreshold: 0.1, holes:screwHoles, updatable: true }, scene);
-        cRD.bottom.translate(new Vector3(0, -9-1.5, 0), 1, Space.LOCAL);
-        cRD.bottom.material = mats["case"];
-    }
+    vectorGeo["screwHoles"] = globals.renderData.screwData;
+    tesselatedGeo["screwHoles"] = vectorGeo["screwHoles"].map((a) => coremath.genArrayForCircle(a,0,19));
 
-    if( tuning.drawPCB ) {
-        let pcbOutlineVec = coremath.offsetAndFilletOutline(bd.pcbOutline, 0.0, 2.0, false);
-        let pcbOutline = coremath.genPointsFromVectorPath(pcbOutlineVec);
-        cRD.layers["pcb"] = {outlines:[pcbOutlineVec]};
-        cRD.pcbMesh = MeshBuilder.CreatePolygon("pcbMesh", { shape: pcbOutline, depth:1.6, smoothingThreshold: 0.1, updatable: true }, scene);
-        cRD.pcbMesh.translate(new Vector3(0, -5.0, 0), 1, Space.LOCAL);
-        cRD.pcbMesh.material = mats["fr4"];
-    }
-
-    let bezelOutlineVecs = []
-    let bezelOutlines = [];
+    vectorGeo["bezel"] = []
+    tesselatedGeo["bezel"] = [];
+    
 
     let keyGroups = findOverlappingGroups(kRD, "bezelHoles");
 
-    let dbglines = [];
+    // let dbglines = [];
     for(const [kgId, KG] of Object.entries(keyGroups)) {
         let outline = getCombinedOutlineFromPolyGroup(KG, "bezelHoles");
 
         let bezelOutlineVec = coremath.offsetAndFilletOutline(outline, 0.0, tuning.bezelCornerFillet, false);
-        bezelOutlineVecs.push(bezelOutlineVec);
-        bezelOutlines.push(coremath.genPointsFromVectorPath(bezelOutlineVec));
+        vectorGeo["bezel"].push(bezelOutlineVec);
+        tesselatedGeo["bezel"].push(coremath.genPointsFromVectorPath(bezelOutlineVec));
         
         // for( const poly of KG ) {
         //     for(let iL = 0; iL < poly.outlineLines.length; iL++) {
         //         dbglines.push(poly.outlineLines[iL])
         //     }
-        // }
-
-                
+        // } 
         // for(let i = 0; i < outline.length; i++) {
         //     dbglines.push([outline[i], outline[(i+1)%outline.length]]);
         // }
     }
+
     // if( globals.lineSystem ) {
     //     globals.scene.removeMesh(globals.lineSystem)
     // }
     // globals.lineSystem = MeshBuilder.CreateLineSystem("lineSystem", {lines: dbglines}, globals.scene);
 
-    if( tuning.drawBezel ) {
-        cRD.layers["bezel"] = {outlines:[caseFrameVec, ...bezelOutlineVecs, ...globals.renderData.screwData]};
-        cRD.bezel = MeshBuilder.CreatePolygon("bezel", { shape: caseFrame, depth:7.5, smoothingThreshold: 0.1, holes:[...screwHoles,...bezelOutlines] }, scene);
-        cRD.bezel.translate(new Vector3(0, 7.5, 0), 1, Space.LOCAL);
-        //cRD.bezel.rotation = new Vector3(-Math.PI/12, 0, 0);
-        cRD.bezel.material = mats["case"];
-    }
-
     let plateGroups = findOverlappingGroups(kRD, "switchCut");
-    let switchCutsVec = [];
-    let switchCuts = [];
+    vectorGeo["switchCuts"] = [];
+    tesselatedGeo["switchCuts"] = [];
     for(const [gId, G] of Object.entries(plateGroups)) {
         let outline = getCombinedOutlineFromPolyGroup(G, "switchCut");
         let switchOutlineVec = coremath.offsetAndFilletOutline(outline, 0.0, 0.5, false);
-        switchCutsVec.push(switchOutlineVec);
-        switchCuts.push(coremath.genPointsFromVectorPath(switchOutlineVec));
+        vectorGeo["switchCuts"].push(switchOutlineVec);
+        tesselatedGeo["switchCuts"].push(coremath.genPointsFromVectorPath(switchOutlineVec));
     }
 
-    if( tuning.drawPlate ) {
-        cRD.layers["plate"] = {outlines:[caseFrameVec, ...switchCutsVec, ...globals.renderData.screwData]};
-        cRD.plateMesh = MeshBuilder.CreatePolygon("plate", { shape: caseFrame, depth:1.5, smoothingThreshold: 0.1, holes: [...screwHoles,...switchCuts] }, scene);
-        //cRD.plate.translate()
-        cRD.plateMesh.material = mats["plate"];
+    vectorGeo["pcbOutline"] = coremath.offsetAndFilletOutline(bd.pcbOutline, 0.0, 2.0, false);
+    tesselatedGeo["pcbOutline"] = coremath.genPointsFromVectorPath(vectorGeo["pcbOutline"]);
+
+    for(const [layerName, layerDef] of Object.entries(layerDefs)) {
+        if( tuning[layerDef.visFilter] ) {
+            cRD.layers[layerName] = {outlines:[vectorGeo[layerDef.shape]]};
+            const polyShape = tesselatedGeo[layerDef.shape];
+            let polyHoles = [];//[...screwHoles,...bezelOutlines];
+            for(const holeLayer of layerDef.holes) {
+                if(vectorGeo[holeLayer] != null) {
+                    cRD.layers[layerName].outlines = cRD.layers[layerName].outlines.concat(vectorGeo[holeLayer]);
+                }
+                if(tesselatedGeo[holeLayer] != null) {
+                    polyHoles = polyHoles.concat(tesselatedGeo[holeLayer]);
+                }
+            }
+            console.log("adding layer "+layerName);
+            cRD.layers[layerName].mesh = MeshBuilder.CreatePolygon(layerName, { shape: polyShape, depth:layerDef.height, smoothingThreshold: 0.1, holes:polyHoles }, scene);
+            cRD.layers[layerName].mesh.translate(new Vector3(0, layerDef.offset, 0), 1, Space.LOCAL);
+            cRD.layers[layerName].mesh.material = mats[layerDef.mat];
+        }
     }
 }
 

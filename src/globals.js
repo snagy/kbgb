@@ -1,5 +1,5 @@
 export const globals = {
     pickedKeys: [],
-    renderData: { keys: {}, case: {}, mats: {}, outlines: {} },
+    renderData: { keys: {}, case: {layers:{}}, mats: {}, outlines: {} },
     boardData: {}
 }
