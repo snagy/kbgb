@@ -131,26 +131,12 @@ export function snapCamera(mode) {
     }
     cam.radius = 0.5 * dim / Math.tan(cam.fov * 0.5);
 
+    let easingFunction = new QuinticEase();
+    // For each easing function, you can choose between EASEIN (default), EASEOUT, EASEINOUT
+    easingFunction.setEasingMode(EasingFunction.EASINGMODE_EASEOUT);
+    Animation.CreateAndStartAnimation("camAlpha", cam, "alpha", 30, 12, cam.alpha, nextAlpha, Animation.ANIMATIONLOOPMODE_CONSTANT,easingFunction);
+    Animation.CreateAndStartAnimation("camBeta", cam, "beta", 30, 12, cam.beta, nextBeta, Animation.ANIMATIONLOOPMODE_CONSTANT,easingFunction);
 
-    let simpleAnim = (name,key,start,end,duration) => {
-        let anim = new Animation(name, key, 30, Animation.ANIMATIONTYPE_FLOAT, Animation.ANIMATIONLOOPMODE_CONSTANT);
-        // Animation keys
-        let animKeys = [];
-        animKeys.push({ frame: 0, value: start });
-        animKeys.push({ frame: duration, value: end });
-        anim.setKeys(animKeys);
-        // Creating an easing function
-        let easingFunction = new QuinticEase();
-        // For each easing function, you can choose between EASEIN (default), EASEOUT, EASEINOUT
-        easingFunction.setEasingMode(EasingFunction.EASINGMODE_EASEOUT);
-        // Adding the easing function to the animation
-        anim.setEasingFunction(easingFunction);
-        return anim;
-    }
-    let alphaAnim = simpleAnim("camAlpha", "alpha", cam.alpha, nextAlpha, 12);
-    let betaAnim = simpleAnim("camBeta", "beta", cam.beta, nextBeta, 12);
-
-    globals.scene.beginDirectAnimation(cam, [alphaAnim,betaAnim], 0, 10, false);
 }
 
 

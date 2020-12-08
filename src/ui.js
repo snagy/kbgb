@@ -253,8 +253,10 @@ export const kbgbGUI = {
                 
 
                 kbgbGUI.activeModeCtrl = ctrlBar;
+                boardOps.expandLayers();
             },
             remove: () => {
+                boardOps.collapseLayers();
                 globals.screengui.removeControl(kbgbGUI.activeModeCtrl);
             }
         },
@@ -263,7 +265,7 @@ export const kbgbGUI = {
         if(mode == kbgbGUI.activeMode) return;
 
         if(kbgbGUI.modes[kbgbGUI.activeMode]) {
-            kbgbGUI.modes[mode].remove();
+            kbgbGUI.modes[kbgbGUI.activeMode].remove();
         }
         if(kbgbGUI.modes[mode]) {
             kbgbGUI.modes[mode].add();

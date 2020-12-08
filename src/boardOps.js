@@ -2,7 +2,8 @@ import {globals} from './globals.js';
 import {tuning} from './tuning.js';
 import * as coremath from './coremath.js';
 import * as gfx from './gfx.js';
-import {Vector3, Space, MeshBuilder, Matrix, Epsilon, Color3} from '@babylonjs/core'
+import {Vector3, Space, MeshBuilder, Matrix, Epsilon, Color3,
+        Animation, EasingFunction, QuinticEase} from '@babylonjs/core'
 
 export function refreshOutlines() {
     let kRD = globals.renderData.keys;
@@ -708,11 +709,14 @@ export function addScrewHoles() {
 }
 
 let layerDefs = {
-    "bottom":{num:1,height:3,offset:-7.5,stackOrder:-2,visFilter:"drawCase",shape:"caseFrame",holes:["screwHoles"],mat:"case"},
+    "bottom":{num:1,height:3,offset:-7.5,stackOrder:-4,visFilter:"drawCase",shape:"caseFrame",holes:["screwHoles"],mat:"case"},
     "pcbMesh":{num:1,height:1.6,offset:-5,stackOrder:null,visFilter:"drawPCB",shape:"pcbOutline",holes:[],mat:"fr4"},
-    "bezel":{num:1,height:7.8,offset:7.8,stackOrder:1,visFilter:"drawBezel",shape:"caseFrame",holes:["bezel","screwHoles"],mat:"case"},
+    "bezel":{num:1,height:3,offset:6,stackOrder:2,visFilter:"drawBezel",shape:"caseFrame",holes:["bezel","screwHoles"],mat:"case"},
+    "bezelmid":{num:1,height:3,offset:3,stackOrder:1,visFilter:"drawBezel",shape:"caseFrame",holes:["bezel","screwHoles"],mat:"case"},
     "plate":{num:1,height:1.5,offset:0,stackOrder:0,visFilter:"drawPlate",shape:"caseFrame",holes:["screwHoles","switchCuts"],mat:"plate"},
-    "edge":{num:1,height:9,offset:-1.5,stackOrder:-1,visFilter:"drawCase",shape:"caseFrame",holes:["screwHoles","cavityInnerEdge"],mat:"case"}
+    "edge":{num:1,height:3,offset:-1.5,stackOrder:-1,visFilter:"drawCase",shape:"caseFrame",holes:["screwHoles","cavityInnerEdge"],mat:"case"},
+    "edge2":{num:1,height:3,offset:-4.5,stackOrder:-2,visFilter:"drawCase",shape:"caseFrame",holes:["screwHoles","cavityInnerEdge"],mat:"case"},
+    "edge3":{num:1,height:3,offset:-7.5,stackOrder:-3,visFilter:"drawCase",shape:"caseFrame",holes:["screwHoles","cavityInnerEdge"],mat:"case"}
 }
 
 export function refreshCase() {
@@ -839,7 +843,7 @@ export function refreshCase() {
             }
             console.log("adding layer "+layerName);
             cRD.layers[layerName].mesh = MeshBuilder.CreatePolygon(layerName, { shape: polyShape, depth:layerDef.height, smoothingThreshold: 0.1, holes:polyHoles }, scene);
-            cRD.layers[layerName].mesh.translate(new Vector3(0, layerDef.offset, 0), 1, Space.LOCAL);
+            cRD.layers[layerName].mesh.position.y = layerDef.offset;
             cRD.layers[layerName].mesh.material = mats[layerDef.mat];
         }
     }
@@ -849,6 +853,39 @@ export function refreshKeyboard() {
     refreshLayout();
 
     refreshCase();
+}
+
+
+export function expandLayers() {
+    let cRDL = globals.renderData.case.layers;
+    let easingFunction = new QuinticEase();
+    // For each easing function, you can choose between EASEIN (default), EASEOUT, EASEINOUT
+    easingFunction.setEasingMode(EasingFunction.EASINGMODE_EASEINOUT);
+    for(const [layerName, layerDef] of Object.entries(layerDefs)) {
+        if (cRDL[layerName] && cRDL[layerName].mesh) {
+            const mesh = cRDL[layerName].mesh;
+
+            Animation.CreateAndStartAnimation("expand", mesh, "position.y", 30, 20,
+                                              mesh.position.y, (layerDef.offset + layerDef.stackOrder * 15),
+                                              Animation.ANIMATIONLOOPMODE_CONSTANT, easingFunction); 
+        }
+    }
+}
+
+export function collapseLayers() {
+    let cRDL = globals.renderData.case.layers;
+    let easingFunction = new QuinticEase();
+    // For each easing function, you can choose between EASEIN (default), EASEOUT, EASEINOUT
+    easingFunction.setEasingMode(EasingFunction.EASINGMODE_EASEINOUT);
+    for(const [layerName, layerDef] of Object.entries(layerDefs)) {
+        if (cRDL[layerName] && cRDL[layerName].mesh) {
+            const mesh = cRDL[layerName].mesh;
+
+            Animation.CreateAndStartAnimation("collapse", mesh, "position.y", 30, 20,
+                                              mesh.position.y, layerDef.offset,
+                                              Animation.ANIMATIONLOOPMODE_CONSTANT, easingFunction); 
+        }
+    }
 }
 
 export function loadKeyboard(data) {
