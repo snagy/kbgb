@@ -159,16 +159,12 @@ export function refreshLayout() {
     }
     kRD = globals.renderData.keys = [];
     
-    let outlines = [];
-
-    let kgID = 0;
     for (const [id, k] of Object.entries(bd.layout.keys)) {
         // console.log(k);
 
         if (!kRD[id]) {
             kRD[id] = { id:id,
-                        mins:[100000.0, 100000.0], maxs:[-100000.0, -100000.0],
-                        bezelMins:[100000.0, 100000.0], bezelMaxs:[-100000.0, -100000.0]
+                        mins:[100000.0, 100000.0], maxs:[-100000.0, -100000.0]
                     };
         }
         let rd = kRD[id];
@@ -180,7 +176,7 @@ export function refreshLayout() {
         // (tuning.base1U[1] + tuning.base1U[1] * (k.height - 1)) / 2];
 
         let kPos = [k.x * tuning.base1U[0] + keycapDim[0],
-        -(k.y * tuning.base1U[1] + keycapDim[1])]
+                  -(k.y * tuning.base1U[1] + keycapDim[1])]
         let kPosition = new Vector3(kPos[0], 0, kPos[1]);
         let kXform = Matrix.Identity();
         kXform = kXform.multiply(Matrix.Translation(kPos[0], 0, kPos[1]));
@@ -189,12 +185,48 @@ export function refreshLayout() {
             kXform = kXform.multiply(Matrix.RotationY(k.rotation_angle * Math.PI / 180.0))
             kXform = kXform.multiply(Matrix.Translation(k.rotation_x * tuning.base1U[0], 0, -k.rotation_y * tuning.base1U[1]));
         }
-        rd.outline = [
+        let keyOutlines = [new Poly([
             Vector3.TransformCoordinates(new Vector3(-keycapDim[0], 0, -keycapDim[1]), kXform),
             Vector3.TransformCoordinates(new Vector3(keycapDim[0], 0, -keycapDim[1]), kXform),
             Vector3.TransformCoordinates(new Vector3(keycapDim[0], 0, keycapDim[1]), kXform),
             Vector3.TransformCoordinates(new Vector3(-keycapDim[0], 0, keycapDim[1]), kXform)
-        ];
+        ])];
+
+        rd.bezelHoles = []
+        const bezelHole = new Poly([
+            Vector3.TransformCoordinates(new Vector3(-keycapDim[0] - tuning.bezelGap, 0, -keycapDim[1] - tuning.bezelGap), kXform),
+            Vector3.TransformCoordinates(new Vector3(keycapDim[0] + tuning.bezelGap, 0, -keycapDim[1] - tuning.bezelGap), kXform),
+            Vector3.TransformCoordinates(new Vector3(keycapDim[0] + tuning.bezelGap, 0, keycapDim[1] + tuning.bezelGap), kXform),
+            Vector3.TransformCoordinates(new Vector3(-keycapDim[0] - tuning.bezelGap, 0, keycapDim[1] + tuning.bezelGap), kXform)
+        ]);
+        rd.bezelHoles.push(bezelHole);
+
+        if(k.width2 > 0 && k.height2 > 0 && !(k.width == k.width2 && k.height == k.height2 && k.x2 == 0 && k.y2 == 0)) {  
+            let k2Dim = [(tuning.keyDims[0] + tuning.base1U[0] * (k.width2 - 1)) / 2,
+                        (tuning.keyDims[1] + tuning.base1U[1] * (k.height2 - 1)) / 2];
+            let k2Pos = [k.x2 * tuning.base1U[0] - keycapDim[0] + k2Dim[0],
+                        -(k.y2 * tuning.base1U[1] - keycapDim[1] + k2Dim[1])];
+
+            let k2Xform = Matrix.Translation(k2Pos[0], 0, k2Pos[1]).multiply(kXform);
+            keyOutlines.push(new Poly([
+                Vector3.TransformCoordinates(new Vector3(-k2Dim[0], 0, -k2Dim[1]), k2Xform),
+                Vector3.TransformCoordinates(new Vector3(k2Dim[0], 0, -k2Dim[1]), k2Xform),
+                Vector3.TransformCoordinates(new Vector3(k2Dim[0], 0, k2Dim[1]), k2Xform),
+                Vector3.TransformCoordinates(new Vector3(-k2Dim[0], 0, k2Dim[1]), k2Xform)
+            ]));
+            keyOutlines[0].overlappingPolys[keyOutlines[1].id] = keyOutlines[1];
+            keyOutlines[1].overlappingPolys[keyOutlines[0].id] = keyOutlines[0];
+
+            const bezelHole2 = new Poly([
+                Vector3.TransformCoordinates(new Vector3(-k2Dim[0] - tuning.bezelGap, 0, -k2Dim[1] - tuning.bezelGap), k2Xform),
+                Vector3.TransformCoordinates(new Vector3(k2Dim[0] + tuning.bezelGap, 0, -k2Dim[1] - tuning.bezelGap), k2Xform),
+                Vector3.TransformCoordinates(new Vector3(k2Dim[0] + tuning.bezelGap, 0, k2Dim[1] + tuning.bezelGap), k2Xform),
+                Vector3.TransformCoordinates(new Vector3(-k2Dim[0] - tuning.bezelGap, 0, k2Dim[1] + tuning.bezelGap), k2Xform)
+            ]);
+            rd.bezelHoles.push(bezelHole2);
+        }
+        
+        rd.outline = getCombinedOutlineFromPolyGroup(keyOutlines);
 
         rd.pcbBoxes = [];
         rd.switchCut = [];
@@ -211,22 +243,6 @@ export function refreshLayout() {
             if(k.matName && globals.renderData.mats[k.matName]) {
                 rd.keycap.material = globals.renderData.mats[k.matName];
             }
-        }
-
-        rd.bezelHoles = []
-        const bezelHole = new Poly([
-            Vector3.TransformCoordinates(new Vector3(-keycapDim[0] - tuning.bezelGap, 0, -keycapDim[1] - tuning.bezelGap), kXform),
-            Vector3.TransformCoordinates(new Vector3(keycapDim[0] + tuning.bezelGap, 0, -keycapDim[1] - tuning.bezelGap), kXform),
-            Vector3.TransformCoordinates(new Vector3(keycapDim[0] + tuning.bezelGap, 0, keycapDim[1] + tuning.bezelGap), kXform),
-            Vector3.TransformCoordinates(new Vector3(-keycapDim[0] - tuning.bezelGap, 0, keycapDim[1] + tuning.bezelGap), kXform)
-        ]);
-        rd.bezelHoles.push(bezelHole);
-
-        for (let p of bezelHole.points) {
-            rd.bezelMins[0] = Math.min(rd.bezelMins[0], p.x);
-            rd.bezelMaxs[0] = Math.max(rd.bezelMaxs[0], p.x);
-            rd.bezelMins[1] = Math.min(rd.bezelMins[1], p.z);
-            rd.bezelMaxs[1] = Math.max(rd.bezelMaxs[1], p.z);
         }
 
         for (let p of rd.outline) {

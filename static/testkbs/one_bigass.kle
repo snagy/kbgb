@@ -1,0 +1,44 @@
+{
+  "meta": {
+    "author": "",
+    "backcolor": "#ffffff",
+    "background": null,
+    "name": "basis-mono",
+    "notes": "",
+    "radii": "",
+    "switchBrand": "",
+    "switchMount": "",
+    "switchType": ""
+  },
+  "keys": [
+    {
+      "color": "#cccccc",
+      "labels": [],
+      "textColor": [],
+      "textSize": [],
+      "default": {
+        "textColor": "#000000",
+        "textSize": 3
+      },
+      "x": 8.5,
+      "y": 0,
+      "width": 1.5,
+      "height": 2,
+      "x2": -0.75,
+      "y2": 1,
+      "width2": 2.25,
+      "height2": 1,
+      "rotation_x": 0,
+      "rotation_y": 0,
+      "rotation_angle": 0,
+      "decal": false,
+      "ghost": false,
+      "stepped": false,
+      "nub": false,
+      "profile": "",
+      "sm": "",
+      "sb": "",
+      "st": ""
+    }
+  ]
+}
