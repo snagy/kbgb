@@ -29,10 +29,14 @@ export function createMaterials() {
     let caseMatName = "case";
     if(!mats[caseMatName])
     {
-        mats[caseMatName] = new PBRMetallicRoughnessMaterial(caseMatName, globals.scene);
-        mats[caseMatName].metallic = 0;
-        mats[caseMatName].roughness = 0.8;
-        mats[caseMatName].baseColor = new Color3(0.6, 0.6, 0.6);
+        const mat = new PBRMetallicRoughnessMaterial(caseMatName, globals.scene);
+        mat.metallic = 0;
+        mat.roughness = 0.8;
+        mat.baseColor = new Color3(0.6, 0.6, 0.6);
+        // mat.subSurface.isTranslucencyEnabled = true;
+        // mat.subSurface.isScatteringEnabled = true;
+        // mat.subSurface.isRefractionEnabled = true;
+        mats[caseMatName] = mat;
     }
 
     let plateMatName = "plate";

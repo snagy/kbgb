@@ -63,7 +63,7 @@ function initKBGB() {
         'testkbs/twoonone.kle',
         'testkbs/keysize_test.kle'
     ]
-    let kbdidx = 1;
+    let kbdidx = 0;
     // load a keyboard
     loadKeyboardFromPath(keyboards[kbdidx]);
 
