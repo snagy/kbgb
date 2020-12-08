@@ -2,7 +2,7 @@ import {globals} from './globals.js'
 import {tuning} from './tuning.js'
 import {Engine, ArcRotateCamera, CubeTexture, Scene, Vector3, VertexBuffer, 
         VertexData, Color3, StandardMaterial, PBRMetallicRoughnessMaterial,
-        Animation, QuinticEase, EasingFunction} from '@babylonjs/core'
+        Animation, QuinticEase, EasingFunction, Texture} from '@babylonjs/core'
 
 export function createKeyMaterial(name,color) {
     let mats = globals.renderData.mats;
@@ -155,12 +155,20 @@ export function snapCamera(mode) {
 
 
 export function setEnvironmentLight(path) {
-
     if(!globals.hdrTextures) globals.hdrTextures = {};
     if(!globals.hdrTextures[path]) {
         globals.hdrTextures[path] = CubeTexture.CreateFromPrefilteredData(path, globals.scene);
     }
     globals.scene.environmentTexture = globals.hdrTextures[path];
+
+    if(globals.currentSkybox) {
+        globals.currentSkybox.material.reflectionTexture = globals.hdrTextures[path].clone();
+        if (globals.currentSkybox.material.reflectionTexture) {
+            globals.currentSkybox.material.reflectionTexture.coordinatesMode = Texture.SKYBOX_MODE;
+        }
+    } else {
+        globals.currentSkybox = globals.scene.createDefaultSkybox(globals.hdrTextures[path], true, (globals.scene.activeCamera.maxZ - globals.scene.activeCamera.minZ) / 2, 0.3);
+    }
 }
 
 function createScene() {
@@ -190,12 +198,6 @@ function createScene() {
     // ssao.radius = 0.001;
     // ssao.area = 0.003;
     // ssao.falloff = 0.00001;
-
-    // create a basic light, aiming 0,1,0 - meaning, to the sky
-    // var light = new BABYLON.HemisphericLight('light1', new Vector3(0, 1, 0), scene);
-    // // Default intensity is 1. Let's dim the light a small amount
-    // light.intensity = 0.7;
-    //globals.currentSkybox = scene.createDefaultSkybox(globals.hdrTexture, true, (scene.activeCamera.maxZ - scene.activeCamera.minZ) / 2, 0.3);
 
     // return the created scene
     return scene;
