@@ -878,9 +878,16 @@ function addUSBPort() {
     let portDim = [15 / 2,
                     tuning.bezelThickness*2];
 
+    let portPos = globals.boardData.usbPortPos * tuning.base1U[0];
+
+    const boardBounds = globals.boardData.layout.bounds;
     
-    let kPos = [globals.boardData.usbPortPos * tuning.base1U[0] + portDim[0],
-                globals.boardData.layout.bounds.maxs[1]+tuning.bezelThickness/2]
+    if(globals.boardData.usbPortCentered) {
+        portPos = boardBounds.mins[0] + (boardBounds.maxs[0] - boardBounds.mins[0])/2;
+    }
+    
+    let kPos = [portPos,
+                boardBounds.maxs[1]+tuning.bezelThickness/2]
     let kXform = Matrix.Translation(kPos[0], 0, kPos[1]);
     // if (k.rotation_angle != 0) {
     //     kXform = kXform.multiply(Matrix.Translation(-k.rotation_x * tuning.base1U[0], 0, k.rotation_y * tuning.base1U[1]));
@@ -1109,6 +1116,7 @@ export function loadKeyboard(data) {
     bd.forcePCBSymmetrical = true;
     bd.hasUSBPort = false;
     bd.usbPortPos = 1.85;
+    bd.usbPortCentered = false;
     bd.caseType = "rect";
     bd.case = data.case;
     bd.layout = {keys: {}};

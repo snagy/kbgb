@@ -242,6 +242,8 @@ export const kbgbGUI = {
                 ctrlBar.addControl(createCheckbox("hasUSBPort"));
                 ctrlBar.addControl(kbgbGUI.addLabel("LOC: "));
                 ctrlBar.addControl(createTextInput("usbPortPos"))
+                ctrlBar.addControl(kbgbGUI.addLabel("Center? "));
+                ctrlBar.addControl(createCheckbox("usbPortCentered"));
 
                 globals.screengui.addControl(ctrlBar);
                 kbgbGUI.activeModeCtrl = ctrlBar;
