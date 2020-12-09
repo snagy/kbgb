@@ -5,6 +5,7 @@ import * as boardOps from './boardOps.js'
 import * as gfx from './gfx.js'
 import * as dxf from './dxf_export.js'
 import * as kle from '@ijprest/kle-serial';
+import * as inspectorStub from './inspectorstub.js'
 
 const hdris = [
     "assets/carpentry_shop.env",
@@ -93,11 +94,7 @@ function initKBGB() {
 
     window.addEventListener('keydown', event => {
         if( event.key == 'i' ) {
-            if(globals.scene.debugLayer.isVisible()) {
-                globals.scene.debugLayer.hide();
-            } else {
-                globals.scene.debugLayer.show();
-            }
+            inspectorStub.showInspector();
         }
         if( event.key == 'k' ) {
             tuning.keyShape = tuning.keyShape?null:"square";

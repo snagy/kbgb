@@ -191,7 +191,11 @@ export function convexHull2d(points) {
 
     let pList = [];
     for( const i of result ) {
-        pList.unshift(points[i])
+        if(pList.length < 1 || points[i].subtract(pList[0]).lengthSquared() > Epsilon*Epsilon ) {
+            pList.unshift(points[i])
+        } else {
+            console.log(`skipping point ${points[i]} too close to ${pList[0]}`)
+        }
     }
 
     //Return result
@@ -286,9 +290,9 @@ export function Circle(center, radius) {
     this.radius = radius;
 }
 
-// offset is + to the left, - to right (right won't work right now)
-export function offsetAndFilletOutline(outline, offset, fillets, close) {
-    let vectorOutline = [];
+// offset is + to the left, - to right
+export function offsetOutlinePoints(outline, offset) {
+    let newOutline = [];
     //todo turn fillets into array if it's just a value
     for (let i = 0; i < outline.length; i++) {
         let point = outline[i];
@@ -304,8 +308,37 @@ export function offsetAndFilletOutline(outline, offset, fillets, close) {
         let intersection = lineLineIntersection(inPoint, prevNorm,
             outPoint, nextNorm);
         if (intersection === null) {
-            vectorOutline.push(new Point(inPoint));
-            vectorOutline.push(new Point(outPoint));
+            // console.log("Skipping colinear point");
+            continue;
+        }
+
+        newOutline.push(intersection);
+    }
+    return newOutline;
+}
+
+// offset is + to the left, - to right
+export function offsetAndFilletOutline(outline, offset, fillets, close) {
+    let vectorOutline = [];
+    //todo turn fillets into array if it's just a value
+    if(!Array.isArray(fillets)) {
+        fillets = (new Array(outline.length)).fill(fillets)
+    }
+    for (let i = 0; i < outline.length; i++) {
+        let point = outline[i];
+        let next = outline[(i + 1) % outline.length];
+        let prev = outline[(i - 1 + outline.length) % outline.length];
+        let nextDir = next.subtract(point).normalize();
+        let prevDir = point.subtract(prev).normalize();
+        let nextNorm = new Vector3(nextDir.z, 0, -nextDir.x);
+        let prevNorm = new Vector3(prevDir.z, 0, -prevDir.x);
+        let inPoint = point.add(prevNorm.scale(offset));
+        let outPoint = point.add(nextNorm.scale(offset));
+
+        let intersection = lineLineIntersection(inPoint, prevNorm,
+            outPoint, nextNorm);
+        if (intersection === null) {
+            // console.log("Skipping colinear point");
             continue;
         }
 
@@ -313,7 +346,7 @@ export function offsetAndFilletOutline(outline, offset, fillets, close) {
             vectorOutline.push(new Point(intersection));
         }
         else {
-            let fillet = fillets;
+            let fillet = fillets[i];
             let flip = Vector3.Dot(prevNorm,nextDir) > 0;
             if( flip ) {
                 fillet = -fillet;

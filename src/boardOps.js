@@ -345,7 +345,100 @@ export function refreshLayout() {
     refreshOutlines();
 }
 
-function getCombinedOutlineFromPolyGroup(group) {
+function combineOutlines(primary, primaryFillets, secondary, secondaryFillets, intersectionFillet, outputFillets, subtraction) {
+    let output = [];
+    let walkingShape = primary;
+    let walkingFillets = primaryFillets;
+    let targetShape = secondary;
+    let targetFillets = secondaryFillets;
+    output.push(walkingShape[0]);
+    outputFillets.push(primaryFillets[0])
+    let curr = walkingShape[0];
+    let currFillet = walkingFillets[0];
+    let targ = walkingShape[1];
+    let targFillet = walkingFillets[1];
+    let nextWalkingIdx = 2;
+    do {
+        let tL = targ.subtract(curr);
+        const tNorm = new Vector3(tL.z,0,-tL.x).normalize();
+        let closestEntry = 1000000000.0;
+        let entry = null;
+        let entryNextIdx = 0;
+        let closestExit = 1000000000.0;
+        let exit = null;
+
+        for(let j = 0; j < targetShape.length; j++) {
+            const sLine = [targetShape[j], targetShape[(j+1)%targetShape.length]];
+            const sL = sLine[1].subtract(sLine[0]);
+            const sNorm = new Vector3(sL.z,0,-sL.x).normalize();
+            
+            let segRes = coremath.segmentToSegment(curr, targ, tL, tNorm, sLine[0], sLine[1]);
+            if(segRes.type == "in_segment" && segRes.intersection) {
+                let dist = segRes.intersection.subtract(curr).lengthSquared();
+                if( dist > Epsilon*Epsilon) {
+                    let isEntry = (Vector3.Dot(sNorm, tL) < 0) ^ subtraction;
+                    if(isEntry) {
+                        if( dist < closestEntry ) {
+                            closestEntry = dist;
+                            entry = segRes.intersection;
+                            entryNextIdx = (j+1)%targetShape.length;
+                        }
+                    } else {
+                        if( dist < closestExit ) {
+                            closestExit = dist;
+                            exit = segRes.intersection;
+                        }
+                    }
+                }
+            }
+        }
+        if( entry || exit ) {
+            if(closestExit < closestEntry) {
+                // console.log("started inside");
+                // we're in it.  uhhhh.
+                // target remains the same and push the entry point on the stack
+                output.pop();
+                outputFillets.pop();
+                curr = exit;
+                currFillet = intersectionFillet;
+            } else {
+                // console.log(`swapping at ${entry}`);
+                curr = entry;
+                currFillet = intersectionFillet;
+                let tmp = targetShape;
+                targetShape = walkingShape;
+                walkingShape = tmp;
+                tmp = targetFillets;
+                targetFillets = walkingFillets;
+                walkingFillets = tmp;
+                nextWalkingIdx = entryNextIdx;
+                targ = walkingShape[nextWalkingIdx];
+                targFillet = walkingFillets[nextWalkingIdx];
+                nextWalkingIdx = (nextWalkingIdx+1)%walkingShape.length;
+            }
+        }
+        else {
+            // console.log(`walking to ${targ}`);
+            curr = targ;
+            currFillet = targFillet;
+            targ = walkingShape[nextWalkingIdx];
+            targFillet = walkingFillets[nextWalkingIdx];
+            nextWalkingIdx = (nextWalkingIdx+1)%walkingShape.length;
+        }
+        output.push(curr);
+        outputFillets.push(currFillet);
+        // console.log(`len ${curr.subtract(output[0]).lengthSquared()}`)
+        if(output.length > 10000) {
+            console.log("boolean output overflow");
+            break;
+        }
+    }  while(curr.subtract(output[0]).lengthSquared() > Epsilon*Epsilon);
+    output.pop();
+    outputFillets.pop();
+    return output;
+}
+
+function getCombinedOutlineFromPolyGroup(group, ignoreOverlapping) {
     for( const hole of group ) {
         hole.outlineLines = [];
         hole.parsedOutlineLines = {};
@@ -378,7 +471,9 @@ function getCombinedOutlineFromPolyGroup(group) {
     }
     // clip any overlapping parallel lines against each other (cancel if they face each other)
     for( const hole of group ) {
-        for( const [oId,otherHole] of Object.entries(hole.overlappingPolys) ) {
+        let polyList = ignoreOverlapping?group:hole.overlappingPolys;
+        for( const [oId,otherHole] of Object.entries(polyList) ) {
+            if(otherHole.id == hole.id) continue;
             for(let iL = hole.outlineLines.length-1; iL >= 0; iL--) {
                 let lL = hole.outlineLines[iL];
                 let lDir = lL[1].subtract(lL[0]);
@@ -471,7 +566,9 @@ function getCombinedOutlineFromPolyGroup(group) {
     }
 
     for( const hole of group ) {
-        for( const [oId,oHole] of Object.entries(hole.overlappingPolys) ) {
+        let polyList = ignoreOverlapping?group:hole.overlappingPolys;
+        for( const [oId,oHole] of Object.entries(polyList) ) {
+            if(hole.id == oHole.id) continue;
             for(let iL = hole.outlineLines.length - 1; iL >= 0; iL--) {
                 let l = hole.outlineLines[iL];
                 let lL = l[1].subtract(l[0]);
@@ -608,7 +705,9 @@ function getCombinedOutlineFromPolyGroup(group) {
                 }
             }
     
-            for( const [oId,oHole] of Object.entries(nextHole.overlappingPolys) ) {
+            let polyList = ignoreOverlapping?group:nextHole.overlappingPolys;
+            for( const [oId,oHole] of Object.entries(polyList) ) {
+                if(nextHole.id == oHole.id) continue;
                 for( let jL = 0; jL < oHole.outlineLines.length; jL++ ) {
                     if(!oHole.parsedOutlineLines[jL]) {
                         checkNext(oHole.outlineLines[jL],oHole,jL);
@@ -765,14 +864,35 @@ export function addScrewHoles() {
 }
 
 let layerDefs = {
-    "bottom":{num:1,height:3,offset:-7.5,stackOrder:-4,visFilter:"drawCase",shape:"caseFrame",holes:["screwHoles"],mat:"case"},
+    "bottom":{num:1,height:3,offset:-10.5,stackOrder:-4,visFilter:"drawCase",shape:"caseFrame",holes:["screwHoles"],mat:"case"},
     "pcbMesh":{num:1,height:1.6,offset:-5,stackOrder:null,visFilter:"drawPCB",shape:"pcbOutline",holes:[],mat:"fr4"},
     "bezel":{num:1,height:3,offset:6,stackOrder:2,visFilter:"drawBezel",shape:"caseFrame",holes:["bezel","screwHoles"],mat:"case"},
     "bezelmid":{num:1,height:3,offset:3,stackOrder:1,visFilter:"drawBezel",shape:"caseFrame",holes:["bezel","screwHoles"],mat:"case"},
     "plate":{num:1,height:1.5,offset:0,stackOrder:0,visFilter:"drawPlate",shape:"caseFrame",holes:["screwHoles","switchCuts"],mat:"plate"},
-    "edge":{num:1,height:3,offset:-1.5,stackOrder:-1,visFilter:"drawCase",shape:"caseFrame",holes:["screwHoles","cavityInnerEdge"],mat:"case"},
-    "edge2":{num:1,height:3,offset:-4.5,stackOrder:-2,visFilter:"drawCase",shape:"caseFrame",holes:["screwHoles","cavityInnerEdge"],mat:"case"},
-    "edge3":{num:1,height:3,offset:-7.5,stackOrder:-3,visFilter:"drawCase",shape:"caseFrame",holes:["screwHoles","cavityInnerEdge"],mat:"case"}
+    "edge":{num:1,height:3,offset:-1.5,stackOrder:-1,visFilter:"drawCase",shape:"caseFrameWithPortCut",holes:["screwHoles", "cavityInnerEdge"],mat:"case"},
+    "edge2":{num:1,height:3,offset:-4.5,stackOrder:-2,visFilter:"drawCase",shape:"caseFrameWithPortCut",holes:["screwHoles", "cavityInnerEdge"],mat:"case"},
+    "edge3":{num:1,height:3,offset:-7.5,stackOrder:-3,visFilter:"drawCase",shape:"caseFrameWithPortCut",holes:["screwHoles", "cavityInnerEdge"],mat:"case"}
+}
+
+function addUSBPort() {
+    let portDim = [15 / 2,
+                    tuning.bezelThickness*2];
+
+    
+    let kPos = [globals.boardData.usbPortPos * tuning.base1U[0] + portDim[0],
+                globals.boardData.layout.bounds.maxs[1]+tuning.bezelThickness/2]
+    let kXform = Matrix.Translation(kPos[0], 0, kPos[1]);
+    // if (k.rotation_angle != 0) {
+    //     kXform = kXform.multiply(Matrix.Translation(-k.rotation_x * tuning.base1U[0], 0, k.rotation_y * tuning.base1U[1]));
+    //     kXform = kXform.multiply(Matrix.RotationY(k.rotation_angle * Math.PI / 180.0))
+    //     kXform = kXform.multiply(Matrix.Translation(k.rotation_x * tuning.base1U[0], 0, -k.rotation_y * tuning.base1U[1]));
+    // }
+    globals.boardData.portCut = [new Poly([
+        Vector3.TransformCoordinates(new Vector3(-portDim[0], 0, -portDim[1]), kXform),
+        Vector3.TransformCoordinates(new Vector3(portDim[0], 0, -portDim[1]), kXform),
+        Vector3.TransformCoordinates(new Vector3(portDim[0], 0, portDim[1]), kXform),
+        Vector3.TransformCoordinates(new Vector3(-portDim[0], 0, portDim[1]), kXform)
+    ])];
 }
 
 export function refreshCase() {
@@ -785,7 +905,7 @@ export function refreshCase() {
     
     for(const [layerName, layerDef] of Object.entries(layerDefs)) {
         if (cRD.layers[layerName] && cRD.layers[layerName].mesh) {
-            console.log("removing layer "+layerName);
+            // console.log("removing layer "+layerName);
             scene.removeMesh(cRD.layers[layerName].mesh);
         }
     }
@@ -828,14 +948,49 @@ export function refreshCase() {
         ];
     }
 
-
     let vectorGeo = {};
     let tesselatedGeo = {};
-    let cavityInnerEdgeVec = 
     vectorGeo["cavityInnerEdge"] = [coremath.offsetAndFilletOutline(bd.outline, tuning.bezelGap, tuning.bezelCornerFillet, false)];
-    tesselatedGeo["cavityInnerEdge"] = cavityInnerEdgeVec.map((a) => coremath.genPointsFromVectorPath(a,8));
+    tesselatedGeo["cavityInnerEdge"] = vectorGeo["cavityInnerEdge"].map((a) => coremath.genPointsFromVectorPath(a,8));
     vectorGeo["caseFrame"] = coremath.offsetAndFilletOutline(bd.outline, tuning.bezelGap + tuning.bezelThickness, tuning.caseCornerFillet, false);
     tesselatedGeo["caseFrame"] = coremath.genPointsFromVectorPath(vectorGeo["caseFrame"],8);
+
+    if(bd.hasUSBPort) {
+        addUSBPort();
+        let portCut = globals.boardData.portCut;
+        let portOutline = getCombinedOutlineFromPolyGroup(portCut);
+        let portFillets = (new Array(portOutline.length)).fill(0);
+        let interiorShape = coremath.offsetOutlinePoints(bd.outline,tuning.bezelGap);
+        let interiorFillets = (new Array(interiorShape.length)).fill(tuning.bezelCornerFillet);
+        let comboFillets = [];
+        let intersectionFillet = 1.0;
+        let combo = combineOutlines(interiorShape,interiorFillets, portOutline, portFillets, intersectionFillet, comboFillets);
+        combo.reverse();
+        comboFillets.reverse();
+        let outlineFillets = (new Array(bd.outline.length)).fill(tuning.caseCornerFillet);
+        let exteriorShape = coremath.offsetOutlinePoints(bd.outline,tuning.bezelGap+tuning.bezelThickness);
+        let finFillets = [];
+        combo = combineOutlines(exteriorShape,outlineFillets,combo,comboFillets, intersectionFillet, finFillets, true);
+
+        vectorGeo["caseFrameWithPortCut"] = coremath.offsetAndFilletOutline(combo, 0, finFillets, false);
+        tesselatedGeo["caseFrameWithPortCut"] = coremath.genPointsFromVectorPath(vectorGeo["caseFrameWithPortCut"],8);
+        vectorGeo["cavityInnerEdge"].length = 0;
+        tesselatedGeo["cavityInnerEdge"].length = 0;
+    } else {
+        vectorGeo["caseFrameWithPortCut"] = vectorGeo["caseFrame"];
+        tesselatedGeo["caseFrameWithPortCut"] = tesselatedGeo["caseFrame"];
+    }
+    
+    // let dbglines = [];
+    // for(let i = 0; i < combo.length; i++) {
+    //     dbglines.push([combo[i], combo[(i+1)%combo.length]]);
+    // }
+    // if( globals.lineSystem ) {
+    //     globals.scene.removeMesh(globals.lineSystem)
+    // }
+    // globals.lineSystem = MeshBuilder.CreateLineSystem("lineSystem", {lines: dbglines}, globals.scene);
+
+
 
     addScrewHoles();
 
@@ -850,7 +1005,7 @@ export function refreshCase() {
 
     // let dbglines = [];
     for(const [kgId, KG] of Object.entries(keyGroups)) {
-        let outline = getCombinedOutlineFromPolyGroup(KG, "bezelHoles");
+        let outline = getCombinedOutlineFromPolyGroup(KG);
 
         let bezelOutlineVec = coremath.offsetAndFilletOutline(outline, 0.0, tuning.bezelCornerFillet, false);
         vectorGeo["bezel"].push(bezelOutlineVec);
@@ -875,7 +1030,7 @@ export function refreshCase() {
     vectorGeo["switchCuts"] = [];
     tesselatedGeo["switchCuts"] = [];
     for(const [gId, G] of Object.entries(plateGroups)) {
-        let outline = getCombinedOutlineFromPolyGroup(G, "switchCut");
+        let outline = getCombinedOutlineFromPolyGroup(G);
         let switchOutlineVec = coremath.offsetAndFilletOutline(outline, 0.0, 0.5, false);
         vectorGeo["switchCuts"].push(switchOutlineVec);
         tesselatedGeo["switchCuts"].push(coremath.genPointsFromVectorPath(switchOutlineVec));
@@ -897,7 +1052,7 @@ export function refreshCase() {
                     polyHoles = polyHoles.concat(tesselatedGeo[holeLayer]);
                 }
             }
-            console.log("adding layer "+layerName);
+            // console.log("adding layer "+layerName);
             cRD.layers[layerName].mesh = MeshBuilder.CreatePolygon(layerName, { shape: polyShape, depth:layerDef.height, smoothingThreshold: 0.1, holes:polyHoles }, scene);
             cRD.layers[layerName].mesh.position.y = layerDef.offset;
             cRD.layers[layerName].mesh.material = mats[layerDef.mat];
@@ -952,6 +1107,8 @@ export function loadKeyboard(data) {
     bd.meta = data.meta;
     bd.forceSymmetrical = true;
     bd.forcePCBSymmetrical = true;
+    bd.hasUSBPort = false;
+    bd.usbPortPos = 1.85;
     bd.caseType = "rect";
     bd.case = data.case;
     bd.layout = {keys: {}};

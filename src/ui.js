@@ -3,7 +3,7 @@ import {tuning} from './tuning.js'
 import * as boardOps from './boardOps.js'
 import * as svg from './svg_export.js'
 import {snapCamera} from './gfx.js'
-import {Button, Control, TextBlock, StackPanel, RadioButton, Checkbox, Slider, AdvancedDynamicTexture} from '@babylonjs/gui'
+import {Button, Control, TextBlock, InputText, StackPanel, RadioButton, Checkbox, Slider, AdvancedDynamicTexture} from '@babylonjs/gui'
 
 function download(content, fileName, contentType) {
     var a = document.createElement("a");
@@ -194,6 +194,7 @@ export const kbgbGUI = {
             }
         },
         "pcb":{
+            cameraMode:"rear",
             add: function() {
                 //let ctrlBar = Control.AddHeader(control, text, size, options { isHorizontal, controlFirst }):
                 let ctrlBar = new StackPanel();  
@@ -202,18 +203,45 @@ export const kbgbGUI = {
                 ctrlBar.isVertical = false;
                 ctrlBar.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
             
-                var checkbox = new Checkbox();
-                checkbox.width = "20px";
-                checkbox.height = "20px";
-                checkbox.isChecked = globals.boardData.forcePCBSymmetrical;
-                checkbox.color = "green";
-                checkbox.onIsCheckedChangedObservable.add(function(value) {
-                    globals.boardData.forcePCBSymmetrical = value;
-                    boardOps.refreshLayout();
-                });
+                let createCheckbox = (prop) => {
+                    var checkbox = new Checkbox()
+                    checkbox.width = "20px";
+                    checkbox.height = "20px";
+                    checkbox.isChecked = globals.boardData[prop];
+                    checkbox.color = "orange";
+                    checkbox.onIsCheckedChangedObservable.add(function(value) {
+                        globals.boardData[prop] = value;
+                        boardOps.refreshCase();
+                    });
+                    return checkbox;
+                }
+
+                let createTextInput = (prop) => {
+                    var input = new InputText();
+                    input.width = "80px";
+                    input.maxWidth = "80px";
+                    input.height = "40px";
+                    input.text = ""+globals.boardData[prop];
+                    input.color = "white";
+                    input.background = "green";
+                    input.onBlurObservable.add((v) => {
+                        console.log(`usb port moving to ${v.text}`);
+                        let f = parseFloat(v.text);
+                        if(f) {
+                            globals.boardData[prop] = f;
+                        }
+                        input.text = ""+globals.boardData[prop];
+                        boardOps.refreshCase();
+                    });
+                    return input;
+                } 
 
                 ctrlBar.addControl(kbgbGUI.addLabel("SYM: "));
-                ctrlBar.addControl(checkbox);
+                ctrlBar.addControl(createCheckbox("forcePCBSymmetrical"));
+                ctrlBar.addControl(kbgbGUI.addLabel("USB: "));
+                ctrlBar.addControl(createCheckbox("hasUSBPort"));
+                ctrlBar.addControl(kbgbGUI.addLabel("LOC: "));
+                ctrlBar.addControl(createTextInput("usbPortPos"))
 
                 globals.screengui.addControl(ctrlBar);
                 kbgbGUI.activeModeCtrl = ctrlBar;

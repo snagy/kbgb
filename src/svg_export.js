@@ -60,8 +60,9 @@ export function exportLayerString(layerName) {
                             case 1: // arc
                                 isL = false;
                                 let endPoint = p.center.add(coremath.getNormalFromRot(p.endRot).scale(p.radius));
+                                let sweepFlag = (p.rotDegrees > 0)?0:1;
                                 //(rx ry x-axis-rotation large-arc-flag sweep-flag x y)
-                                pathStr += `A${f(p.radius)},${f(p.radius)} 0 0,0 ${f(endPoint.x)},${f(-endPoint.z)} `
+                                pathStr += `A${f(p.radius)},${f(p.radius)} 0 0,${sweepFlag} ${f(endPoint.x)},${f(-endPoint.z)} `
                                 break;
                         }
                     }
