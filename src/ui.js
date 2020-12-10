@@ -3,7 +3,7 @@ import {tuning} from './tuning.js'
 import * as boardOps from './boardOps.js'
 import * as svg from './svg_export.js'
 import {snapCamera} from './gfx.js'
-import {Button, Control, TextBlock, InputText, StackPanel, RadioButton, Checkbox, Slider, AdvancedDynamicTexture} from '@babylonjs/gui'
+import {Button, Control, TextBlock, InputText, StackPanel, RadioButton, Checkbox, Slider, ScrollViewer, AdvancedDynamicTexture} from '@babylonjs/gui'
 
 function download(content, fileName, contentType) {
     var a = document.createElement("a");
@@ -84,6 +84,14 @@ export const kbgbGUI = {
                 ctrlBar.addControl(kbgbGUI.addKeyActionButton(`⤹`, (k) => k.rotation_angle -= 5 ));
                 ctrlBar.addControl(kbgbGUI.addKeyActionButton(`⤸`, (k) => k.rotation_angle += 5 ));
             
+                // ctrlBar.addControl(kbgbGUI.addButton("Size", (e) => {
+                //     var sv = new ScrollViewer();
+                //     sv.width = "500px";
+                //     sv.height = "400px";
+                //     sv.background = "orange";
+                
+                //     globals.screengui.addControl(sv);
+                // }))
                 ctrlBar.addControl(kbgbGUI.addLabel("W: "));
                 ctrlBar.addControl(kbgbGUI.addKeyActionButton(`⬌`, (k) => k.width += 0.25 ));
                 ctrlBar.addControl(kbgbGUI.addKeyActionButton(`⬄`, (k) => k.width -= 0.25 ));
@@ -179,7 +187,7 @@ export const kbgbGUI = {
                 createSlider("Bezel Fillet: ", tuning.caseCornerFillet, 0.5, 30, (v) => {
                     tuning.caseCornerFillet = v; boardOps.refreshCase();
                 }); 
-                createSlider("Screw span: ", tuning.maxScrewSpan, 80, 300, (v) => {
+                createSlider("Screw span: ", tuning.maxScrewSpan, 40, 300, (v) => {
                     tuning.maxScrewSpan = v; boardOps.refreshCase();
                 }); 
                 createSlider("Screw offset: ", tuning.screwBezelBias, 0.0, 1.0, (v) => {

@@ -345,6 +345,8 @@ export function refreshLayout() {
     refreshOutlines();
 }
 
+// combine two outlines.  'subtract' assumes one is being cut from the other, the other assumes they are being added
+// they must intersect (todo: fix that assumption)
 function combineOutlines(primary, primaryFillets, secondary, secondaryFillets, intersectionFillet, outputFillets, subtraction) {
     let output = [];
     let walkingShape = primary;
@@ -813,52 +815,76 @@ function findOverlappingGroups(kRD, groupName) {
     return groups;
 }
 
-export function addScrewHoles() {
-    globals.boardData.screwLocations = [];
+export function addScrewHoles(outline) {
+    const bezelOffset = (tuning.bezelThickness - tuning.screwBossMin * 2.0) * tuning.screwBezelBias + tuning.bezelGap + tuning.screwBossMin;
+    let screwLocs = coremath.offsetOutlinePoints(outline,bezelOffset);
     globals.renderData.screwData = [];
-    if(globals.boardData.caseType != "rect") { return; }
 
-    const bounds = globals.boardData.layout.bounds;
-    const caseWidth = bounds.maxs[0] - bounds.mins[0];
-    const caseHeight = bounds.maxs[1] - bounds.mins[1];
-    const screwSideBuffer = tuning.screwSideBuffer;
-    const maxScrewSpan = tuning.maxScrewSpan;
-    const screwBezelBias = tuning.screwBezelBias;
-    const bezelOffset = (tuning.bezelThickness - tuning.screwBossMin * 2.0) * screwBezelBias + tuning.bezelGap + tuning.screwBossMin;
+    let minDist =  tuning.screwHoleThruRadius + tuning.screwBossMin;
+    if(minDist > Epsilon) {
+        let remSet = [];
+        for(let i = screwLocs.length-1; i >= 0; i--) {
+            let loc = screwLocs[i];
+            let nexti = (i+screwLocs.length-1)%screwLocs.length;
+            let nextLoc = screwLocs[nexti];
+            if(loc.subtract(nextLoc).lengthSquared() < minDist*minDist) {
+                if(!remSet.includes(i)) {
+                    remSet.push(i);
+                }
+                if(!remSet.includes(nexti)) {
+                    remSet.push(nexti);
+                }
+            } else {
+                if(remSet.length) {
+                    let distDiffs = {};
+                    let startP = (remSet[0]+1)%screwLocs.length;
+                    let startLoc = screwLocs[startP];
+                    let endP = (remSet[remSet.length-1]+screwLocs.length-1)%screwLocs.length;
+                    let endLoc = screwLocs[endP];
+                    let minDiff = 100000000.0;
+                    let bestPoint = 0;
+                    for(const j of remSet) {
+                        let midPoint = screwLocs[j]
+                        let diff = Math.abs(startLoc.subtract(midPoint).lengthSquared()-endLoc.subtract(midPoint).lengthSquared());
+                        if(diff < minDiff) {
+                            minDiff = diff;
+                            bestPoint = j;
+                        }
+                    }
 
+                    for(const j of remSet) {
+                        if(j != bestPoint) {
+                            screwLocs.splice(j,1);
+                        }
+                    }
 
-    const topScrewLengthToCover = caseWidth+bezelOffset*2.0-screwSideBuffer*2.0;
-    const topScrews = Math.floor(topScrewLengthToCover / maxScrewSpan) + 1
-    const topScrewSpan = topScrewLengthToCover / topScrews
-    const sideScrewLengthToCover = caseHeight+bezelOffset*2.0-screwSideBuffer*2.0;
-    const sideScrews = Math.floor(sideScrewLengthToCover / maxScrewSpan) + 1
-    const sideScrewSpan = sideScrewLengthToCover / sideScrews
-    console.log(`bezel offset: ${bezelOffset} num top screws: ${topScrews} span ${topScrewSpan} side screws: ${sideScrews} span: ${sideScrewSpan}`)
-    //bottom
-    for(let i = 0; i <= topScrews; i++) {
-        let newLoc = [ i*topScrewSpan + screwSideBuffer + bounds.mins[0] - bezelOffset,
-                        bounds.mins[1]-bezelOffset]
-        globals.boardData.screwLocations.push(new Vector3(newLoc[0], 0, newLoc[1]));
-    }
-    // top
-    for(let i = 0; i <= topScrews; i++) {
-        let newLoc = [i*topScrewSpan+screwSideBuffer+bounds.mins[0]-bezelOffset,
-                        bounds.maxs[1]+bezelOffset]
-        globals.boardData.screwLocations.push(new Vector3(newLoc[0], 0, newLoc[1]));
-    }
-    // sides (minus ends)
-    for(let i = 1; i < sideScrews; i++) {
-        let newLoc = [ bounds.mins[0]-bezelOffset,
-                        i*sideScrewSpan + screwSideBuffer + bounds.mins[1] - bezelOffset ]
-        globals.boardData.screwLocations.push(new Vector3(newLoc[0], 0, newLoc[1]));
-    }
-    for(let i = 1; i < sideScrews; i++) {
-        let newLoc = [ bounds.maxs[0]+bezelOffset,
-                        i*sideScrewSpan + screwSideBuffer + bounds.mins[1] - bezelOffset ]
-        globals.boardData.screwLocations.push(new Vector3(newLoc[0], 0, newLoc[1]));
+                    remSet.length = 0;
+                }
+            }
+        }
     }
 
-    for(const loc of globals.boardData.screwLocations) {
+    const maxSpan = tuning.maxScrewSpan;
+    for(let i = screwLocs.length-1; i >= 0; i--) {
+        let loc = screwLocs[i];
+        let nexti = (i+screwLocs.length-1)%screwLocs.length;
+        let nextLoc = screwLocs[nexti];
+        let nextDir = loc.subtract(nextLoc);
+        let nextSpan = nextDir.length();
+        if(nextSpan > maxSpan) {
+            nextDir = nextDir.normalizeFromLength(nextSpan);
+            const additionalScrews = Math.floor(nextSpan / maxSpan);
+            const additionalSpan = nextSpan / (additionalScrews+1);
+            for(let j = additionalScrews; j > 0; j--) {
+                let newLoc = nextLoc.add(nextDir.scale(j*additionalSpan));
+                // splice puts in front of i
+                screwLocs.splice(i,0,newLoc);
+            }
+        }
+    }
+
+    globals.boardData.screwLocations = screwLocs;
+    for(const loc of screwLocs) {
         globals.renderData.screwData.push(new coremath.Circle(loc,tuning.screwHoleThruRadius));
     }
 }
@@ -962,6 +988,11 @@ export function refreshCase() {
     vectorGeo["caseFrame"] = coremath.offsetAndFilletOutline(bd.outline, tuning.bezelGap + tuning.bezelThickness, tuning.caseCornerFillet, false);
     tesselatedGeo["caseFrame"] = coremath.genPointsFromVectorPath(vectorGeo["caseFrame"],8);
 
+    addScrewHoles(bd.outline);
+
+    vectorGeo["screwHoles"] = globals.renderData.screwData;
+    tesselatedGeo["screwHoles"] = vectorGeo["screwHoles"].map((a) => coremath.genArrayForCircle(a,0,19));
+
     if(bd.hasUSBPort) {
         addUSBPort();
         let portCut = globals.boardData.portCut;
@@ -996,13 +1027,6 @@ export function refreshCase() {
     //     globals.scene.removeMesh(globals.lineSystem)
     // }
     // globals.lineSystem = MeshBuilder.CreateLineSystem("lineSystem", {lines: dbglines}, globals.scene);
-
-
-
-    addScrewHoles();
-
-    vectorGeo["screwHoles"] = globals.renderData.screwData;
-    tesselatedGeo["screwHoles"] = vectorGeo["screwHoles"].map((a) => coremath.genArrayForCircle(a,0,19));
 
     vectorGeo["bezel"] = []
     tesselatedGeo["bezel"] = [];
@@ -1117,7 +1141,7 @@ export function loadKeyboard(data) {
     bd.hasUSBPort = false;
     bd.usbPortPos = 1.85;
     bd.usbPortCentered = false;
-    bd.caseType = "rect";
+    bd.caseType = "convex";
     bd.case = data.case;
     bd.layout = {keys: {}};
     let kIdx = 0
