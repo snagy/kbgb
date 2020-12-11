@@ -321,7 +321,7 @@ export function offsetOutlinePoints(outline, offset) {
 export function offsetAndFilletOutline(outline, offset, fillets, close) {
     let vectorOutline = [];
     //todo turn fillets into array if it's just a value
-    if(!Array.isArray(fillets)) {
+    if(fillets && !Array.isArray(fillets)) {
         fillets = (new Array(outline.length)).fill(fillets)
     }
     for (let i = 0; i < outline.length; i++) {
@@ -421,7 +421,7 @@ export function genArrayForCircle(circle, offset, segments) {
 
     let rotStep = Math.PI * 2 / segments;
     for (let i = 0; i <= segments; i++) {
-        outPoints.push(circle.center.add(getNormalFromRot(rotStep * i).scale(circle.radius)));
+        outPoints.push(circle.center.add(getNormalFromRot(rotStep * i).scale(circle.radius+offset)));
     }
 
     return outPoints;

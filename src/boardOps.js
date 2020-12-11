@@ -75,7 +75,7 @@ function getPlateCutsWithStabs(width,height,kXform,plateCuts,pcbBounds) {
     }
 
     let stabCutDims = [7*0.5,15*0.5];
-    if( span >= 2 ) {
+    if( span >= 2 && span != 666 ) {
         let stabOffsetXL = 0.0;
         let stabOffsetXR = 0.0;
         if(span <= 2.75) {
@@ -230,12 +230,62 @@ export function refreshLayout() {
                 }
             }
         }
-        else { //normal keycap
-            let keycapDim = [(tuning.keyDims[0] + tuning.base1U[0] * (k.width - 1)) / 2,
-            (tuning.keyDims[1] + tuning.base1U[1] * (k.height - 1)) / 2];
+        else if(k.type == "ec11") {
+            let rad = k.encoder_knob_size / 2;
     
-            let kPos = [k.x * tuning.base1U[0] + keycapDim[0],
-                      -(k.y * tuning.base1U[1] + keycapDim[1])]
+            let kPos = [(k.x+0.5) * tuning.base1U[0],
+                      -((k.y+0.5) * tuning.base1U[1])]
+                      
+            let kXform = Matrix.Identity();
+            kXform = kXform.multiply(Matrix.Translation(kPos[0], 0, kPos[1]));
+            if (k.rotation_angle != 0) {
+                kXform = kXform.multiply(Matrix.Translation(-k.rotation_x * tuning.base1U[0], 0, k.rotation_y * tuning.base1U[1]));
+                kXform = kXform.multiply(Matrix.RotationY(k.rotation_angle * Math.PI / 180.0))
+                kXform = kXform.multiply(Matrix.Translation(k.rotation_x * tuning.base1U[0], 0, -k.rotation_y * tuning.base1U[1]));
+            }
+            let circCenter = Vector3.TransformCoordinates(new Vector3(0, 0, 0), kXform)
+            let keyOutlines = [new Poly(coremath.genArrayForCircle(new coremath.Circle(circCenter, rad), 0, 19))];
+    
+            const bezelHole = new Poly(coremath.genArrayForCircle(new coremath.Circle(circCenter, rad), tuning.bezelGap, 19));
+            rd.bezelHoles.push(bezelHole);
+            
+            let switchCutDims = [15*0.5, 15.5*0.5];
+            rd.switchCut.push(new Poly([
+                Vector3.TransformCoordinates(new Vector3(-switchCutDims[0], 0, -switchCutDims[1]), kXform),
+                Vector3.TransformCoordinates(new Vector3(switchCutDims[0], 0, -switchCutDims[1]), kXform),
+                Vector3.TransformCoordinates(new Vector3(switchCutDims[0], 0, switchCutDims[1]), kXform),
+                Vector3.TransformCoordinates(new Vector3(-switchCutDims[0], 0, switchCutDims[1]), kXform)
+            ]));
+            let keyPCBBounds = [15,12];
+            rd.pcbBoxes.push([
+                Vector3.TransformCoordinates(new Vector3(-keyPCBBounds[0], 0, -keyPCBBounds[1]), kXform),
+                Vector3.TransformCoordinates(new Vector3(keyPCBBounds[0], 0, -keyPCBBounds[1]), kXform),
+                Vector3.TransformCoordinates(new Vector3(keyPCBBounds[0], 0, keyPCBBounds[1]), kXform),
+                Vector3.TransformCoordinates(new Vector3(-keyPCBBounds[0], 0, keyPCBBounds[1]), kXform)
+            ]);
+            
+            rd.outline = getCombinedOutlineFromPolyGroup(keyOutlines);
+            if (rd.keycap) {
+                scene.removeMesh(rd.keycap);
+            }
+    
+            if (tuning.keyShape) {
+                rd.keycap = MeshBuilder.CreatePolygon(id, { shape: coremath.genArrayFromOutline(rd.outline,0,0), depth: 9, smoothingThreshold: 0.1, updatable: false }, scene);
+                rd.keycap.translate(new Vector3(0, 10.5, 0), 1, Space.LOCAL);
+        
+                if(k.matName && globals.renderData.mats[k.matName]) {
+                    rd.keycap.material = globals.renderData.mats[k.matName];
+                }
+            }
+        }
+        else { //normal keycap
+            let kCenter = [(tuning.base1U[0] + tuning.base1U[0] * (k.width - 1)) / 2,
+                            (tuning.base1U[1] + tuning.base1U[1] * (k.height - 1)) / 2];
+            let keycapDim = [(tuning.keyDims[0] + tuning.base1U[0] * (k.width - 1)) / 2,
+                            (tuning.keyDims[1] + tuning.base1U[1] * (k.height - 1)) / 2];
+    
+            let kPos = [k.x * tuning.base1U[0] + kCenter[0],
+                      -(k.y * tuning.base1U[1] + kCenter[1])]
             let kPosition = new Vector3(kPos[0], 0, kPos[1]);
             let kXform = Matrix.Identity();
             kXform = kXform.multiply(Matrix.Translation(kPos[0], 0, kPos[1]));
@@ -480,22 +530,18 @@ function getCombinedOutlineFromPolyGroup(group, ignoreOverlapping) {
                 let lL = hole.outlineLines[iL];
                 let lDir = lL[1].subtract(lL[0]);
                 let lLen = lDir.length()
-                if(lLen < Epsilon) continue;
                 let lineNorm = lDir.normalizeFromLength(lLen);
 
                 for( let jL = otherHole.outlineLines.length-1; jL >= 0; jL-- ) {
                     let oL = otherHole.outlineLines[jL];
                     let oDir = oL[1].subtract(oL[0]);
                     let oLen = oDir.length();
-                    if(oLen < Epsilon ) continue;
                     let oLNorm = oDir.normalizeFromLength(oLen);
                     let lineDot = Vector3.Dot(oLNorm,lineNorm)
                     if( Math.abs(lineDot) > 1-Epsilon) {  //parallel
                         let diff = lL[0].subtract(oL[0]);
-                        if(diff.lengthSquared() < Epsilon) {
-                            let d2 = lL[0].subtract(oL[1]);
-                            let d2ls = d2.lengthSquared();
-                            if(d2ls< Epsilon || d2ls > lLen*lLen) {
+                        if(diff.lengthSquared() < Epsilon && lineDot > 0) { // same(ish) start point
+                            if(oLen >= lLen-Epsilon) { //same or further end point
                                 hole.outlineLines.splice(iL,1);
                                 break;
                             } else {
@@ -526,7 +572,7 @@ function getCombinedOutlineFromPolyGroup(group, ignoreOverlapping) {
                                     if(!hole.parsedOutlineLines[iL]) {
                                         if(overlapDist > Epsilon) {
                                             // console.log(`trimming A ${hole.id} ${iL} vs ${oId} ${jL} len ${lLen} ov ${overlapDist}`)
-                                            if(lLen - overlapDist < Epsilon)
+                                            if((lLen - overlapDist) < Epsilon)
                                             {
                                                 // console.log(`SPLICE`);
                                                 hole.outlineLines.splice(iL,1);
@@ -612,7 +658,7 @@ function getCombinedOutlineFromPolyGroup(group, ignoreOverlapping) {
                     } else {
                         l[1] = intersections[0];
                     }
-                    if(l[1].subtract(l[0]).lengthSquared() < Epsilon) {
+                    if(l[1].subtract(l[0]).lengthSquared() < Epsilon*Epsilon) {
                         hole.outlineLines.splice(iL, 1);
                     }
                 }
@@ -622,19 +668,19 @@ function getCombinedOutlineFromPolyGroup(group, ignoreOverlapping) {
                     intersections.sort((a,b) => (a.subtract(l[0]).lengthSquared() - b.subtract(l[0]).lengthSquared()))
                     let tmp = l[1];
                     l[1] = intersections[0];
-                    if(l[1].subtract(l[0]).lengthSquared() < Epsilon) {
+                    if(l[1].subtract(l[0]).lengthSquared() < Epsilon*Epsilon) {
                         // console.log("skipping start length due to shortness");
                         hole.outlineLines.splice(iL, 1);
                     }
                     // console.log(`${rd.id} start is ${l[0]} ${l[1]}`);
                     for(let i = 2; i < intersections.length; i+=2) {
-                        if( intersections[i-1].subtract(intersections[i]).lengthSquared() > Epsilon) {
+                        if( intersections[i-1].subtract(intersections[i]).lengthSquared() > Epsilon*Epsilon) {
                             hole.outlineLines.push([intersections[i-1],intersections[i]]);
                         } 
                         // console.log(`${rd.id} mid is ${intersections[i-1]} ${intersections[i]}`);
                     }
                     if(intersections.length % 2 == 0) {
-                        if( intersections[intersections.length-1].subtract(tmp).lengthSquared() > Epsilon) {
+                        if( intersections[intersections.length-1].subtract(tmp).lengthSquared() > Epsilon*Epsilon) {
                             hole.outlineLines.push([intersections[intersections.length-1],tmp]);
                             // console.log(`${rd.id} end is ${intersections[intersections.length-1]} ${tmp}`);
                         }
@@ -1052,10 +1098,6 @@ export function refreshCase() {
         // }
     }
 
-    // if( globals.lineSystem ) {
-    //     globals.scene.removeMesh(globals.lineSystem)
-    // }
-    // globals.lineSystem = MeshBuilder.CreateLineSystem("lineSystem", {lines: dbglines}, globals.scene);
 
     let plateGroups = findOverlappingGroups(kRD, "switchCut");
     vectorGeo["switchCuts"] = [];
@@ -1064,8 +1106,25 @@ export function refreshCase() {
         let outline = getCombinedOutlineFromPolyGroup(G);
         let switchOutlineVec = coremath.offsetAndFilletOutline(outline, 0.0, 0.5, false);
         vectorGeo["switchCuts"].push(switchOutlineVec);
-        tesselatedGeo["switchCuts"].push(coremath.genPointsFromVectorPath(switchOutlineVec));
+        const genPoints = coremath.genPointsFromVectorPath(switchOutlineVec);
+        tesselatedGeo["switchCuts"].push(genPoints);
+
+        // for(let i = 0; i < genPoints.length; i++) {
+        //     dbglines.push([genPoints[i], genPoints[(i+1)%genPoints.length]]);
+        // }
+
+
+        // for( const poly of KG ) {
+        //     for(let iL = 0; iL < poly.outlineLines.length; iL++) {
+        //         dbglines.push(poly.outlineLines[iL])
+        //     }
+        // } 
     }
+
+    // if( globals.lineSystem ) {
+    //     globals.scene.removeMesh(globals.lineSystem)
+    // }
+    // globals.lineSystem = MeshBuilder.CreateLineSystem("lineSystem", {lines: dbglines}, globals.scene);
 
     vectorGeo["pcbOutline"] = coremath.offsetAndFilletOutline(bd.pcbOutline, 0.0, 2.0, false);
     tesselatedGeo["pcbOutline"] = coremath.genPointsFromVectorPath(vectorGeo["pcbOutline"]);
