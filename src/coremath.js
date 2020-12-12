@@ -198,77 +198,8 @@ export function convexHull2d(points) {
         }
     }
 
-    //Return result
     return pList
 }
-
-// offset is + to the left, - to right (right won't work right now)
-// export function genArrayFromOutline(outline, offset, fillets, close, segments) {
-//     let outPoints = [];
-//     //todo turn fillets into array if it's just a value
-//     if (!segments) {
-//         segments = 4;
-//     }
-
-//     for (let i = 0; i < outline.length; i++) {
-//         let point = outline[i];
-//         let next = outline[(i + 1) % outline.length];
-//         let prev = outline[(i - 1 + outline.length) % outline.length];
-//         let nextDir = next.subtract(point).normalize();
-//         let prevDir = point.subtract(prev).normalize();
-//         let nextNorm = new Vector3(nextDir.z, 0, -nextDir.x);
-//         let prevNorm = new Vector3(prevDir.z, 0, -prevDir.x);
-//         let inPoint = point.add(prevNorm.scale(offset));
-//         let outPoint = point.add(nextNorm.scale(offset));
-
-//         let intersection = lineLineIntersection(inPoint, prevNorm,
-//             outPoint, nextNorm);
-//         if (intersection === null) {
-//             outPoints.push(inPoint);
-//             outPoints.push(outPoint);
-//             continue;
-//         }
-
-//         if (!fillets) {
-//             outPoints.push(intersection);
-//         }
-//         else {
-//             let fillet = fillets;
-//             let flip = Vector3.Dot(prevNorm,nextDir) > 0;
-//             if( flip ) {
-//                 fillet = -fillet;
-//             }
-//             let filletCenter = lineLineIntersection(inPoint.add(prevNorm.scale(-fillet)), prevNorm,
-//                 outPoint.add(nextNorm.scale(-fillet)), nextNorm);
-
-
-//             let startRot = getRotFromNormal(prevNorm)+ Math.PI * 2;
-//             let endRot = getRotFromNormal(nextNorm)+ Math.PI * 2;
-//             if(flip) {
-//                 startRot += Math.PI;
-//                 endRot += Math.PI;
-//                 fillet = -fillet;
-//                 if (startRot < endRot) {
-//                     startRot += Math.PI * 2;
-//                 }
-//             }
-//             else if (endRot < startRot) {
-//                 endRot += Math.PI * 2;
-//             }
-//             let rotStep = (endRot - startRot) / segments;
-//             for (let i = 0; i <= segments; i++) {
-//                 outPoints.push(filletCenter.add(getNormalFromRot(startRot + rotStep * i).scale(fillet)));
-//             }
-//         }
-//     }
-
-//     if (close) {
-//         outPoints.push(outPoints[0]);
-//     }
-
-//     return outPoints;
-// }
-
 
 function Point(point) {
     this.type = 0;

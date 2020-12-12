@@ -181,10 +181,10 @@ export const kbgbGUI = {
                     ctrlBar.addControl(slider); 
                 }
 
-                createSlider("Bezel Thickness: ", tuning.bezelThickness, 5.5, 50, (v) => {
+                createSlider("Thickness: ", tuning.bezelThickness, 5.5, 50, (v) => {
                     tuning.bezelThickness = v; boardOps.refreshCase();
                 });
-                createSlider("Bezel Fillet: ", tuning.caseCornerFillet, 0.5, 30, (v) => {
+                createSlider("Fillet: ", tuning.caseCornerFillet, 0.5, 30, (v) => {
                     tuning.caseCornerFillet = v; boardOps.refreshCase();
                 }); 
                 createSlider("Screw span: ", tuning.maxScrewSpan, 40, 300, (v) => {

@@ -43,6 +43,15 @@ function Poly(points) {
     this.type = "rect";
 }
 
+function createRectPoly(w, h, xform) {
+   return (new Poly([
+        Vector3.TransformCoordinates(new Vector3(-w, 0, -h), xform),
+        Vector3.TransformCoordinates(new Vector3(w, 0, -h), xform),
+        Vector3.TransformCoordinates(new Vector3(w, 0, h), xform),
+        Vector3.TransformCoordinates(new Vector3(-w, 0, h), xform)
+    ]));
+}
+
 function getPlateCutsWithStabs(width,height,kXform,plateCuts,pcbBounds) {
     let switchCutDims = [tuning.switchCutout[0]*0.5, tuning.switchCutout[1]*0.5];
     let sXform = kXform;
@@ -51,12 +60,7 @@ function getPlateCutsWithStabs(width,height,kXform,plateCuts,pcbBounds) {
     if(width == 6) {
         getPlateCutsWithStabs(666,height,Matrix.Translation(9.525, 0, 0).multiply(sXform),plateCuts,pcbBounds);
     }
-    plateCuts.push(new Poly([
-        Vector3.TransformCoordinates(new Vector3(-switchCutDims[0], 0, -switchCutDims[1]), sXform),
-        Vector3.TransformCoordinates(new Vector3(switchCutDims[0], 0, -switchCutDims[1]), sXform),
-        Vector3.TransformCoordinates(new Vector3(switchCutDims[0], 0, switchCutDims[1]), sXform),
-        Vector3.TransformCoordinates(new Vector3(-switchCutDims[0], 0, switchCutDims[1]), sXform)
-    ]));
+    plateCuts.push(createRectPoly(switchCutDims[0], switchCutDims[1], sXform));
 
     // pcb footprint of a hotswap switch: x +/- 9 y +/- 6.75
     // enc: 6.75, 8,5
@@ -116,24 +120,16 @@ function getPlateCutsWithStabs(width,height,kXform,plateCuts,pcbBounds) {
 
         let stabXforms = [Matrix.Translation(-stabOffsetXL, 0, -2).multiply(sXform),
                           Matrix.Translation( stabOffsetXR, 0, -2).multiply(sXform)];
-        let stabCut = [new Vector3(-stabCutDims[0], 0, -stabCutDims[1]),
-                       new Vector3(stabCutDims[0], 0, -stabCutDims[1]),
-                       new Vector3(stabCutDims[0], 0, stabCutDims[1]),
-                       new Vector3(-stabCutDims[0], 0, stabCutDims[1])];
 
         // stab foot = 4 wide x 19 h
         let stabPCBFootDims = [3,9.5];
         let stabFoot = [new Vector3(-stabPCBFootDims[0], 0, -7),
-        new Vector3(stabPCBFootDims[0], 0, -7),
-        new Vector3(stabPCBFootDims[0], 0, 11),
-        new Vector3(-stabPCBFootDims[0], 0, 11)];
+                        new Vector3(stabPCBFootDims[0], 0, -7),
+                        new Vector3(stabPCBFootDims[0], 0, 11),
+                        new Vector3(-stabPCBFootDims[0], 0, 11)];
 
         for(let j = 0; j < stabXforms.length; j++) {
-            let xformedCut = [];
-            for(let i = 0; i < stabCut.length; i++) {
-                xformedCut.push(Vector3.TransformCoordinates(stabCut[i],stabXforms[j]));
-            }
-            plateCuts.push(new Poly(xformedCut));
+            plateCuts.push(createRectPoly(stabCutDims[0], stabCutDims[1], stabXforms[j]));
 
             let xformedPCBBounds = [];
             for(let i = 0; i < stabFoot.length; i++) {
@@ -187,27 +183,12 @@ export function refreshLayout() {
                 kXform = kXform.multiply(Matrix.RotationY(k.rotation_angle * Math.PI / 180.0))
                 kXform = kXform.multiply(Matrix.Translation(k.rotation_x * tuning.base1U[0], 0, -k.rotation_y * tuning.base1U[1]));
             }
-            let keyOutlines = [new Poly([
-                Vector3.TransformCoordinates(new Vector3(-oledDim[0], 0, -oledDim[1]), kXform),
-                Vector3.TransformCoordinates(new Vector3(oledDim[0], 0, -oledDim[1]), kXform),
-                Vector3.TransformCoordinates(new Vector3(oledDim[0], 0, oledDim[1]), kXform),
-                Vector3.TransformCoordinates(new Vector3(-oledDim[0], 0, oledDim[1]), kXform)
-            ])];
+            let keyOutlines = [createRectPoly(oledDim[0], oledDim[1], kXform)];
     
-            const bezelHole = new Poly([
-                Vector3.TransformCoordinates(new Vector3(-oledDim[0] - tuning.bezelGap, 0, -oledDim[1] - tuning.bezelGap), kXform),
-                Vector3.TransformCoordinates(new Vector3(oledDim[0] + tuning.bezelGap, 0, -oledDim[1] - tuning.bezelGap), kXform),
-                Vector3.TransformCoordinates(new Vector3(oledDim[0] + tuning.bezelGap, 0, oledDim[1] + tuning.bezelGap), kXform),
-                Vector3.TransformCoordinates(new Vector3(-oledDim[0] - tuning.bezelGap, 0, oledDim[1] + tuning.bezelGap), kXform)
-            ]);
-            rd.bezelHoles.push(bezelHole);
+            rd.bezelHoles.push(createRectPoly(oledDim[0] + tuning.bezelGap, oledDim[1] + tuning.bezelGap, kXform));
             
-            rd.switchCut.push(new Poly([
-                Vector3.TransformCoordinates(new Vector3(-oledDim[0] - tuning.bezelGap, 0, -oledDim[1] - tuning.bezelGap), kXform),
-                Vector3.TransformCoordinates(new Vector3(oledDim[0] + tuning.bezelGap, 0, -oledDim[1] - tuning.bezelGap), kXform),
-                Vector3.TransformCoordinates(new Vector3(oledDim[0] + tuning.bezelGap, 0, oledDim[1] + tuning.bezelGap), kXform),
-                Vector3.TransformCoordinates(new Vector3(-oledDim[0] - tuning.bezelGap, 0, oledDim[1] + tuning.bezelGap), kXform)
-            ]));
+            rd.switchCut.push(createRectPoly(oledDim[0] + tuning.bezelGap, oledDim[1] + tuning.bezelGap, kXform));
+
             let keyPCBBounds = [15,6.75];
             rd.pcbBoxes.push([
                 Vector3.TransformCoordinates(new Vector3(-keyPCBBounds[0], 0, -keyPCBBounds[1]), kXform),
@@ -250,12 +231,8 @@ export function refreshLayout() {
             rd.bezelHoles.push(bezelHole);
             
             let switchCutDims = [15*0.5, 15.5*0.5];
-            rd.switchCut.push(new Poly([
-                Vector3.TransformCoordinates(new Vector3(-switchCutDims[0], 0, -switchCutDims[1]), kXform),
-                Vector3.TransformCoordinates(new Vector3(switchCutDims[0], 0, -switchCutDims[1]), kXform),
-                Vector3.TransformCoordinates(new Vector3(switchCutDims[0], 0, switchCutDims[1]), kXform),
-                Vector3.TransformCoordinates(new Vector3(-switchCutDims[0], 0, switchCutDims[1]), kXform)
-            ]));
+            
+            rd.switchCut.push(createRectPoly(switchCutDims[0], switchCutDims[1], kXform));
             let keyPCBBounds = [15,12];
             rd.pcbBoxes.push([
                 Vector3.TransformCoordinates(new Vector3(-keyPCBBounds[0], 0, -keyPCBBounds[1]), kXform),
@@ -294,20 +271,10 @@ export function refreshLayout() {
                 kXform = kXform.multiply(Matrix.RotationY(k.rotation_angle * Math.PI / 180.0))
                 kXform = kXform.multiply(Matrix.Translation(k.rotation_x * tuning.base1U[0], 0, -k.rotation_y * tuning.base1U[1]));
             }
-            let keyOutlines = [new Poly([
-                Vector3.TransformCoordinates(new Vector3(-keycapDim[0], 0, -keycapDim[1]), kXform),
-                Vector3.TransformCoordinates(new Vector3(keycapDim[0], 0, -keycapDim[1]), kXform),
-                Vector3.TransformCoordinates(new Vector3(keycapDim[0], 0, keycapDim[1]), kXform),
-                Vector3.TransformCoordinates(new Vector3(-keycapDim[0], 0, keycapDim[1]), kXform)
-            ])];
-    
-            const bezelHole = new Poly([
-                Vector3.TransformCoordinates(new Vector3(-keycapDim[0] - tuning.bezelGap, 0, -keycapDim[1] - tuning.bezelGap), kXform),
-                Vector3.TransformCoordinates(new Vector3(keycapDim[0] + tuning.bezelGap, 0, -keycapDim[1] - tuning.bezelGap), kXform),
-                Vector3.TransformCoordinates(new Vector3(keycapDim[0] + tuning.bezelGap, 0, keycapDim[1] + tuning.bezelGap), kXform),
-                Vector3.TransformCoordinates(new Vector3(-keycapDim[0] - tuning.bezelGap, 0, keycapDim[1] + tuning.bezelGap), kXform)
-            ]);
-            rd.bezelHoles.push(bezelHole);
+
+            let keyOutlines = [createRectPoly(keycapDim[0], keycapDim[1], kXform)];
+
+            rd.bezelHoles.push(createRectPoly(keycapDim[0] + tuning.bezelGap, keycapDim[1] + tuning.bezelGap, kXform));
     
             if(k.width2 > 0 && k.height2 > 0 && !(k.width == k.width2 && k.height == k.height2 && k.x2 == 0 && k.y2 == 0)) {  
                 let k2Dim = [(tuning.keyDims[0] + tuning.base1U[0] * (k.width2 - 1)) / 2,
@@ -316,21 +283,11 @@ export function refreshLayout() {
                             -(k.y2 * tuning.base1U[1] - keycapDim[1] + k2Dim[1])];
     
                 let k2Xform = Matrix.Translation(k2Pos[0], 0, k2Pos[1]).multiply(kXform);
-                keyOutlines.push(new Poly([
-                    Vector3.TransformCoordinates(new Vector3(-k2Dim[0], 0, -k2Dim[1]), k2Xform),
-                    Vector3.TransformCoordinates(new Vector3(k2Dim[0], 0, -k2Dim[1]), k2Xform),
-                    Vector3.TransformCoordinates(new Vector3(k2Dim[0], 0, k2Dim[1]), k2Xform),
-                    Vector3.TransformCoordinates(new Vector3(-k2Dim[0], 0, k2Dim[1]), k2Xform)
-                ]));
+                keyOutlines.push(createRectPoly(k2Dim[0], k2Dim[1], k2Xform));
                 keyOutlines[0].overlappingPolys[keyOutlines[1].id] = keyOutlines[1];
                 keyOutlines[1].overlappingPolys[keyOutlines[0].id] = keyOutlines[0];
     
-                const bezelHole2 = new Poly([
-                    Vector3.TransformCoordinates(new Vector3(-k2Dim[0] - tuning.bezelGap, 0, -k2Dim[1] - tuning.bezelGap), k2Xform),
-                    Vector3.TransformCoordinates(new Vector3(k2Dim[0] + tuning.bezelGap, 0, -k2Dim[1] - tuning.bezelGap), k2Xform),
-                    Vector3.TransformCoordinates(new Vector3(k2Dim[0] + tuning.bezelGap, 0, k2Dim[1] + tuning.bezelGap), k2Xform),
-                    Vector3.TransformCoordinates(new Vector3(-k2Dim[0] - tuning.bezelGap, 0, k2Dim[1] + tuning.bezelGap), k2Xform)
-                ]);
+                const bezelHole2 = createRectPoly(k2Dim[0]+ tuning.bezelGap, k2Dim[1] + tuning.bezelGap, k2Xform);
                 rd.bezelHoles.push(bezelHole2);
             }
             
@@ -521,6 +478,7 @@ function getCombinedOutlineFromPolyGroup(group, ignoreOverlapping) {
             }
         }
     }
+
     // clip any overlapping parallel lines against each other (cancel if they face each other)
     for( const hole of group ) {
         let polyList = ignoreOverlapping?group:hole.overlappingPolys;
@@ -629,7 +587,6 @@ function getCombinedOutlineFromPolyGroup(group, ignoreOverlapping) {
                     let segRes = coremath.segmentToSegment(l[0], l[1], lL, lNorm, oPoints[iOP], oPoints[(iOP+1)%oPoints.length]);
                     if(segRes.type == "in_segment" && segRes.intersection) {
                         // console.log(`intersecting ${rd.id} line ${iL} with ${otherRD.id} line ${iOP}` )
-                        // console.log(l)
                         intersections.push(segRes.intersection);
                     }
                     else if(segRes.type == "colinear") {
@@ -777,22 +734,24 @@ function findOverlappingGroups(kRD, groupName) {
     let groups = {};
 
     let checkOverlap = function(poly1, poly2) {
-        // see if any of the lines bisect the other rect  (since it's a rect, we know each line is actually a normal of the previous)
+        // see if any of the lines bisect the other poly
         let checkIntersection = (polyA, polyB) => {
             const hole = polyA.points;
             for(let iP = 0; iP < hole.length; iP++) {
-                let line = hole[(iP+1)%hole.length].subtract(hole[iP]);
+                const line = hole[(iP+1)%hole.length].subtract(hole[iP]);
+                const norm = new Vector3(line.z, 0, -line.x);
                 let allLess = true;
                 let allMore = true;
                 const holeO = polyB.points;
 
                 for(let oP = 0; oP < holeO.length; oP++) {
-                    let dot = Vector3.Dot(line,holeO[oP].subtract(hole[iP]));
+                    const oL = holeO[oP].subtract(hole[iP]);
+                    let dot = Vector3.Dot(norm,oL);
                     allMore &= dot > Epsilon;
                     allLess &= dot < -Epsilon;
                 }
 
-                if( allLess ) {
+                if( allMore ) {
                     return false;
                 }
             }
@@ -974,6 +933,20 @@ function addUSBPort() {
     ])];
 }
 
+function getFeet(bd) {
+    let screwLocs = bd.screwLocations;
+    let feet = [];
+    let bounds = bd.layout.bounds;
+    let midZ = bounds.mins[1] + (bounds.maxs[1]-bounds.mins[1])/2;
+    for(const l of screwLocs) {
+        if(l.z > midZ) {
+            const foot = new coremath.Circle(l, tuning.bezelThickness/2);
+            feet.push(foot);
+        }
+    }
+    return feet;
+}
+
 export function refreshCase() {
     const scene = globals.scene;
     const bd = globals.boardData;
@@ -982,10 +955,15 @@ export function refreshCase() {
 
     let cRD = globals.renderData.case;
     
-    for(const [layerName, layerDef] of Object.entries(layerDefs)) {
-        if (cRD.layers[layerName] && cRD.layers[layerName].mesh) {
-            // console.log("removing layer "+layerName);
-            scene.removeMesh(cRD.layers[layerName].mesh);
+    for(const [layerName, layer] of Object.entries(cRD.layers)) {
+        if(layer.mesh) {
+            scene.removeMesh(layer.mesh);
+        }
+        if(layer.meshes) {
+            for(const m of layer.meshes) {
+                scene.removeMesh(m);
+            }
+            layer.meshes.length = 0;
         }
     }
     
@@ -1129,6 +1107,20 @@ export function refreshCase() {
     vectorGeo["pcbOutline"] = coremath.offsetAndFilletOutline(bd.pcbOutline, 0.0, 2.0, false);
     tesselatedGeo["pcbOutline"] = coremath.genPointsFromVectorPath(vectorGeo["pcbOutline"]);
 
+    if(bd.hasFeet) {
+        let feet = getFeet(bd);
+        let layerName = "feet";
+        cRD.layers[layerName] = {outlines:[],meshes:[]};
+        for(const foot of feet) {
+            cRD.layers[layerName].outlines.push(foot)
+            let shape = coremath.genArrayForCircle(foot,0,44);
+            const mesh = MeshBuilder.CreatePolygon(layerName, { shape: shape, depth:9, smoothingThreshold: 0.1, holes:null }, scene);
+            mesh.position.y = -13.5;
+            mesh.material = mats["case"];
+            cRD.layers[layerName].meshes.push(mesh);
+        }
+    }
+
     for(const [layerName, layerDef] of Object.entries(layerDefs)) {
         if( tuning[layerDef.visFilter] ) {
             cRD.layers[layerName] = {outlines:[vectorGeo[layerDef.shape]]};
@@ -1202,6 +1194,7 @@ export function loadKeyboard(data) {
     bd.usbPortCentered = false;
     bd.caseType = "convex";
     bd.case = data.case;
+    bd.hasFeet = true;
     bd.layout = {keys: {}};
     let kIdx = 0
     for (let k of data.keys) {
