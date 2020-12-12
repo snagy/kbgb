@@ -233,7 +233,7 @@ export function refreshLayout() {
             let switchCutDims = [15*0.5, 15.5*0.5];
             
             rd.switchCut.push(createRectPoly(switchCutDims[0], switchCutDims[1], kXform));
-            let keyPCBBounds = [15,12];
+            let keyPCBBounds = [15/2,12/2];
             rd.pcbBoxes.push([
                 Vector3.TransformCoordinates(new Vector3(-keyPCBBounds[0], 0, -keyPCBBounds[1]), kXform),
                 Vector3.TransformCoordinates(new Vector3(keyPCBBounds[0], 0, -keyPCBBounds[1]), kXform),
@@ -897,7 +897,7 @@ export function addScrewHoles(outline) {
 let layerDefs = {
     "bottom":{num:1,height:3,offset:-10.5,stackOrder:-4,visFilter:"drawCase",shape:"caseFrame",holes:["screwHoles"],mat:"case"},
     "pcbMesh":{num:1,height:1.6,offset:-5,stackOrder:null,visFilter:"drawPCB",shape:"pcbOutline",holes:[],mat:"fr4"},
-    "bezel":{num:1,height:3,offset:6,stackOrder:2,visFilter:"drawBezel",shape:"caseFrame",holes:["bezel","screwHoles"],mat:"case"},
+    "bezel":{num:1,height:3,offset:6,stackOrder:2,visFilter:"drawBezel",shape:"caseFrameTaper",holes:["bezel","screwHoles"],mat:"case"},
     "bezelmid":{num:1,height:3,offset:3,stackOrder:1,visFilter:"drawBezel",shape:"caseFrame",holes:["bezel","screwHoles"],mat:"case"},
     "plate":{num:1,height:1.5,offset:0,stackOrder:0,visFilter:"drawPlate",shape:"caseFrame",holes:["screwHoles","switchCuts"],mat:"plate"},
     "edge":{num:1,height:3,offset:-1.5,stackOrder:-1,visFilter:"drawCase",shape:"caseFrameWithPortCut",holes:["screwHoles", "cavityInnerEdge"],mat:"case"},
@@ -938,11 +938,35 @@ function getFeet(bd) {
     let feet = [];
     let bounds = bd.layout.bounds;
     let midZ = bounds.mins[1] + (bounds.maxs[1]-bounds.mins[1])/2;
+    let maxLoc = -10000.0;
     for(const l of screwLocs) {
-        if(l.z > midZ) {
-            const foot = new coremath.Circle(l, tuning.bezelThickness/2);
-            feet.push(foot);
+        if(l.z > maxLoc) {
+            maxLoc = l.z;
         }
+    }
+
+    let candidates = [];
+    for(const l of screwLocs) {
+        if(maxLoc - l.z < 20) {
+            candidates.push(l);
+        }
+    }
+
+    if(candidates.length % 2) {
+        candidates.splice(Math.floor(candidates.length / 2),1)
+    }
+    
+    for(let i = 0; i < candidates.length; i+=2) {
+        const p0 = candidates[i];
+        const p1 = candidates[i+1];
+        const offset = tuning.bezelThickness/2;
+        const z_line = Math.min(p0.z, p1.z)-offset; // double offset for aesthetics
+        const foot = coremath.offsetAndFilletOutline([  new Vector3(p0.x+offset,0,z_line-offset),
+                                                        new Vector3(p0.x+offset,0,p0.z+offset),
+                                                        new Vector3(p1.x-offset,0,p1.z+offset),
+                                                        new Vector3(p1.x-offset,0,z_line-offset)],
+                                            0, Math.min(tuning.caseCornerFillet,tuning.bezelThickness/2), false);
+        feet.push(foot);
     }
     return feet;
 }
@@ -1011,6 +1035,8 @@ export function refreshCase() {
     tesselatedGeo["cavityInnerEdge"] = vectorGeo["cavityInnerEdge"].map((a) => coremath.genPointsFromVectorPath(a,8));
     vectorGeo["caseFrame"] = coremath.offsetAndFilletOutline(bd.outline, tuning.bezelGap + tuning.bezelThickness, tuning.caseCornerFillet, false);
     tesselatedGeo["caseFrame"] = coremath.genPointsFromVectorPath(vectorGeo["caseFrame"],8);
+    vectorGeo["caseFrameTaper"] = coremath.offsetAndFilletOutline(bd.outline, tuning.bezelGap + tuning.bezelThickness*.9, tuning.caseCornerFillet, false);
+    tesselatedGeo["caseFrameTaper"] = coremath.genPointsFromVectorPath(vectorGeo["caseFrameTaper"],8);
 
     addScrewHoles(bd.outline);
 
@@ -1113,7 +1139,8 @@ export function refreshCase() {
         cRD.layers[layerName] = {outlines:[],meshes:[]};
         for(const foot of feet) {
             cRD.layers[layerName].outlines.push(foot)
-            let shape = coremath.genArrayForCircle(foot,0,44);
+            // let shape = coremath.genArrayForCircle(foot,0,44);
+            let shape = coremath.genPointsFromVectorPath(foot,8);
             const mesh = MeshBuilder.CreatePolygon(layerName, { shape: shape, depth:9, smoothingThreshold: 0.1, holes:null }, scene);
             mesh.position.y = -13.5;
             mesh.material = mats["case"];
@@ -1189,9 +1216,9 @@ export function loadKeyboard(data) {
     bd.meta = data.meta;
     bd.forceSymmetrical = true;
     bd.forcePCBSymmetrical = true;
-    bd.hasUSBPort = false;
+    bd.hasUSBPort = true;
     bd.usbPortPos = 1.85;
-    bd.usbPortCentered = false;
+    bd.usbPortCentered = true;
     bd.caseType = "convex";
     bd.case = data.case;
     bd.hasFeet = true;

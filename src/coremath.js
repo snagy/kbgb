@@ -201,13 +201,13 @@ export function convexHull2d(points) {
     return pList
 }
 
-function Point(point) {
+export function Point(point) {
     this.type = 0;
     this.point = point;
 }
 
 
-function Arc(center, radius, rotDegrees, endRot) {
+export function Arc(center, radius, rotDegrees, endRot) {
     this.type = 1;
     this.center = center;
     this.radius = radius;

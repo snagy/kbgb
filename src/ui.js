@@ -24,8 +24,8 @@ export const kbgbGUI = {
         var button = Button.CreateSimpleButton("button", txt);
         button.top = "0px";
         button.left = "0px";
-        button.width = style.width?style.width:"60px";
-        button.height = style.height?style.height:".4";
+        button.width = style.width?style.width:"50px";
+        button.height = style.height?style.height:"50px";
         button.cornerRadius = 5;
         button.thickness = 2;
         button.children[0].color = "#FFFFFF";
@@ -81,8 +81,8 @@ export const kbgbGUI = {
             
             
                 ctrlBar.addControl(kbgbGUI.addLabel("Rot: "));
-                ctrlBar.addControl(kbgbGUI.addKeyActionButton(`⤹`, (k) => k.rotation_angle -= 5 ));
-                ctrlBar.addControl(kbgbGUI.addKeyActionButton(`⤸`, (k) => k.rotation_angle += 5 ));
+                ctrlBar.addControl(kbgbGUI.addKeyActionButton(`⤹`, (k) => k.rotation_angle -= 2 ));
+                ctrlBar.addControl(kbgbGUI.addKeyActionButton(`⤸`, (k) => k.rotation_angle += 2 ));
             
                 // ctrlBar.addControl(kbgbGUI.addButton("Size", (e) => {
                 //     var sv = new ScrollViewer();
@@ -92,13 +92,25 @@ export const kbgbGUI = {
                 
                 //     globals.screengui.addControl(sv);
                 // }))
+
+                let keyWidths = [1,1.25,1.5,1.75,2,2.25,2.5,2.75,3,4,4.5,5.5,6,6.25,6.5,7,8,9,10];
                 ctrlBar.addControl(kbgbGUI.addLabel("W: "));
-                ctrlBar.addControl(kbgbGUI.addKeyActionButton(`⬌`, (k) => k.width += 0.25 ));
-                ctrlBar.addControl(kbgbGUI.addKeyActionButton(`⬄`, (k) => k.width -= 0.25 ));
+                ctrlBar.addControl(kbgbGUI.addKeyActionButton(`⬌`, (k) => {
+                    const currIdx = keyWidths.indexOf(k.width);
+                    if(currIdx != -1 && currIdx > 1) {
+                        k.width = keyWidths[currIdx-1];
+                    }
+                }));
+                ctrlBar.addControl(kbgbGUI.addKeyActionButton(`⬄`, (k) => {
+                    const currIdx = keyWidths.indexOf(k.width);
+                    if(currIdx != -1 && currIdx < keyWidths.length-1) {
+                        k.width = keyWidths[currIdx+1];
+                    }
+                }));
             
-                ctrlBar.addControl(kbgbGUI.addLabel("H: "));
-                ctrlBar.addControl(kbgbGUI.addKeyActionButton(`⬍`, (k) => k.height += 0.25 ));
-                ctrlBar.addControl(kbgbGUI.addKeyActionButton(`⇳`, (k) => k.height -= 0.25 ));
+                // ctrlBar.addControl(kbgbGUI.addLabel("H: "));
+                // ctrlBar.addControl(kbgbGUI.addKeyActionButton(`⬍`, (k) => k.height += 0.25 ));
+                // ctrlBar.addControl(kbgbGUI.addKeyActionButton(`⇳`, (k) => k.height -= 0.25 ));
                 
                 globals.screengui.addControl(ctrlBar);
                 kbgbGUI.activeModeCtrl = ctrlBar;
@@ -261,6 +273,7 @@ export const kbgbGUI = {
             }
         },
         "details":{
+            cameraMode:"split",
             add: function() {
                 //let ctrlBar = Control.AddHeader(control, text, size, options { isHorizontal, controlFirst }):
                 let ctrlBar = new StackPanel();  
@@ -270,16 +283,16 @@ export const kbgbGUI = {
                 //ctrlBar.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
                 ctrlBar.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
             
-                let addSVGButton = function(layerName) {
-                    ctrlBar.addControl(kbgbGUI.addButton(layerName, () => {
-                        downloadSVG(layerName);
-                    }, {height:"60px",width:"120px"}));
-                }
-                addSVGButton("bezel");
-                addSVGButton("plate");
-                addSVGButton("edge");
-                addSVGButton("bottom");
-                addSVGButton("pcb");
+                // let addSVGButton = function(layerName) {
+                //     ctrlBar.addControl(kbgbGUI.addButton(layerName, () => {
+                //         downloadSVG(layerName);
+                //     }, {height:"60px",width:"120px"}));
+                // }
+                // addSVGButton("bezel");
+                // addSVGButton("plate");
+                // addSVGButton("edge");
+                // addSVGButton("bottom");
+                // addSVGButton("pcb");
 
                 let txt = kbgbGUI.addLabel("WORK IN PROGRESS.");
 
@@ -289,6 +302,22 @@ export const kbgbGUI = {
 
                 globals.screengui.addControl(ctrlBar);
                 
+                let rtBar = new StackPanel();  
+                rtBar.width = ".2";
+                rtBar.isPointerBlocker = true;
+                rtBar.isVertical = true;
+                rtBar.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
+                let addSVGButton = function(layerName) {
+                    rtBar.addControl(kbgbGUI.addButton(layerName, () => {
+                        downloadSVG(layerName);
+                    }, {height:"60px",width:"120px"}));
+                }
+                addSVGButton("bezel");
+                addSVGButton("plate");
+                addSVGButton("edge");
+                addSVGButton("bottom");
+                addSVGButton("pcb");
+                globals.screengui.addControl(rtBar);
 
                 kbgbGUI.activeModeCtrl = ctrlBar;
                 boardOps.expandLayers();

@@ -133,8 +133,11 @@ export function snapCamera(mode) {
         nextAlpha = -Math.PI / 2;
         nextBeta = Math.PI / 4;
     } else if(mode == "rear") {
-        let nextBeta = Math.PI / 2.3;
         nextAlpha = -Math.PI / 3.5 + Math.PI;
+        nextBeta = Math.PI / 2.3;
+    } else if(mode == "split") {
+        nextAlpha = -Math.PI / 3.5;
+        nextBeta = Math.PI / 2.25;
     }
     cam.radius = 0.5 * dim / Math.tan(cam.fov * 0.5);
 
