@@ -178,6 +178,19 @@ export const kbgbGUI = {
                 ctrlBar.addControl(kbgbGUI.addLabel("SYM: "));
                 ctrlBar.addControl(checkbox);
 
+                var ftbx = new Checkbox();
+                ftbx.width = "20px";
+                ftbx.height = "20px";
+                ftbx.isChecked = globals.boardData.hasFeet;
+                ftbx.color = "green";
+                ftbx.onIsCheckedChangedObservable.add(function(value) {
+                    globals.boardData.hasFeet = value;
+                    boardOps.refreshCase();
+                });
+
+                ctrlBar.addControl(kbgbGUI.addLabel("FEET: "));
+                ctrlBar.addControl(ftbx);
+
                 let createSlider = function(txt, initialVal, min, max, onChangeFunc) {
                     let label = kbgbGUI.addLabel(txt + initialVal)
                     var slider = new Slider();

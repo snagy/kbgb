@@ -934,6 +934,11 @@ function addUSBPort() {
 function getFeet(bd) {
     let screwLocs = bd.screwLocations;
     let feet = [];
+
+    if(!bd.hasFeet) {
+        return feet;
+    }
+
     let bounds = bd.layout.bounds;
     let midZ = bounds.mins[1] + (bounds.maxs[1]-bounds.mins[1])/2;
     let maxLoc = -10000.0;
@@ -976,8 +981,6 @@ export function refreshCase() {
     const kRD = globals.renderData.keys;
     const mats = globals.renderData.mats;
     const root = globals.renderData.rootXform;
-
-    root.rotation = new Vector3();
 
     let cRD = globals.renderData.case;
     
@@ -1163,7 +1166,6 @@ export function refreshCase() {
     }
     
     if(bd.hasFeet) {
-        let feet = getFeet(bd);
         let footMinY = 1000000.0;
         let footMinZ = 1000000.0;
         let footDepth = 9;
