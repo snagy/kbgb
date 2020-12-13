@@ -207,11 +207,11 @@ export function Point(point) {
 }
 
 
-export function Arc(center, radius, rotDegrees, endRot) {
+export function Arc(center, radius, rotRadians, endRot) {
     this.type = 1;
     this.center = center;
     this.radius = radius;
-    this.rotDegrees = rotDegrees;
+    this.rotRadians = rotRadians;
     this.endRot = endRot;
 }
 
@@ -326,7 +326,7 @@ export function genPointsFromVectorPath(vectorPath, segmentsPerFillet) {
                 outPoints.push(nextItem.point)
                 break;
             case 1:
-                let rotStep = nextItem.rotDegrees / segmentsPerFillet;
+                let rotStep = nextItem.rotRadians / segmentsPerFillet;
                 let endRot = nextItem.endRot;
                 for (let i = segmentsPerFillet-1; i >= 0; i--) {
                     outPoints.push(nextItem.center.add(getNormalFromRot(endRot - rotStep * i).scale(nextItem.radius)));

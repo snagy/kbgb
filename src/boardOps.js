@@ -3,7 +3,7 @@ import {tuning} from './tuning.js';
 import * as coremath from './coremath.js';
 import * as gfx from './gfx.js';
 import {Vector3, Space, MeshBuilder, Matrix, Epsilon, Color3,
-        Animation, EasingFunction, QuinticEase} from '@babylonjs/core'
+        Animation, EasingFunction, QuinticEase, TransformNode} from '@babylonjs/core'
 
 export function refreshOutlines() {
     let kRD = globals.renderData.keys;
@@ -65,12 +65,7 @@ function getPlateCutsWithStabs(width,height,kXform,plateCuts,pcbBounds) {
     // pcb footprint of a hotswap switch: x +/- 9 y +/- 6.75
     // enc: 6.75, 8,5
     let keyPCBBounds = [9,6.75];
-    pcbBounds.push([
-        Vector3.TransformCoordinates(new Vector3(-keyPCBBounds[0], 0, -keyPCBBounds[1]), sXform),
-        Vector3.TransformCoordinates(new Vector3(keyPCBBounds[0], 0, -keyPCBBounds[1]), sXform),
-        Vector3.TransformCoordinates(new Vector3(keyPCBBounds[0], 0, keyPCBBounds[1]), sXform),
-        Vector3.TransformCoordinates(new Vector3(-keyPCBBounds[0], 0, keyPCBBounds[1]), sXform)
-    ]);
+    pcbBounds.push(createRectPoly(keyPCBBounds[0], keyPCBBounds[1], sXform));
 
     let span = width;
     if(height >= 1.75) {
@@ -120,22 +115,16 @@ function getPlateCutsWithStabs(width,height,kXform,plateCuts,pcbBounds) {
 
         let stabXforms = [Matrix.Translation(-stabOffsetXL, 0, -2).multiply(sXform),
                           Matrix.Translation( stabOffsetXR, 0, -2).multiply(sXform)];
+        let stabPCBXforms = [Matrix.Translation(-stabOffsetXL, 0, 0).multiply(sXform),
+                             Matrix.Translation( stabOffsetXR, 0, 0).multiply(sXform)];
 
         // stab foot = 4 wide x 19 h
-        let stabPCBFootDims = [3,9.5];
-        let stabFoot = [new Vector3(-stabPCBFootDims[0], 0, -7),
-                        new Vector3(stabPCBFootDims[0], 0, -7),
-                        new Vector3(stabPCBFootDims[0], 0, 11),
-                        new Vector3(-stabPCBFootDims[0], 0, 11)];
+        let stabPCBFootDims = [3,9];
 
         for(let j = 0; j < stabXforms.length; j++) {
             plateCuts.push(createRectPoly(stabCutDims[0], stabCutDims[1], stabXforms[j]));
 
-            let xformedPCBBounds = [];
-            for(let i = 0; i < stabFoot.length; i++) {
-                xformedPCBBounds.push(Vector3.TransformCoordinates(stabFoot[i],stabXforms[j]));
-            }
-            pcbBounds.push(xformedPCBBounds);
+            pcbBounds.push(createRectPoly(stabPCBFootDims[0],stabPCBFootDims[1],stabPCBXforms[j]));
         }
     }
 }
@@ -143,6 +132,7 @@ function getPlateCutsWithStabs(width,height,kXform,plateCuts,pcbBounds) {
 export function refreshLayout() {
     const scene = globals.scene;
     const bd = globals.boardData;
+    const root = globals.renderData.rootXform;
 
     let mins = [100000.0, 100000.0]
     let maxs = [-100000.0, -100000.0];
@@ -190,13 +180,8 @@ export function refreshLayout() {
             rd.switchCut.push(createRectPoly(oledDim[0] + tuning.bezelGap, oledDim[1] + tuning.bezelGap, kXform));
 
             let keyPCBBounds = [15,6.75];
-            rd.pcbBoxes.push([
-                Vector3.TransformCoordinates(new Vector3(-keyPCBBounds[0], 0, -keyPCBBounds[1]), kXform),
-                Vector3.TransformCoordinates(new Vector3(keyPCBBounds[0], 0, -keyPCBBounds[1]), kXform),
-                Vector3.TransformCoordinates(new Vector3(keyPCBBounds[0], 0, keyPCBBounds[1]), kXform),
-                Vector3.TransformCoordinates(new Vector3(-keyPCBBounds[0], 0, keyPCBBounds[1]), kXform)
-            ]);
-            
+            rd.pcbBoxes.push(createRectPoly(keyPCBBounds[0], keyPCBBounds[1], kXform));
+
             rd.outline = getCombinedOutlineFromPolyGroup(keyOutlines);
             if (rd.keycap) {
                 scene.removeMesh(rd.keycap);
@@ -204,6 +189,7 @@ export function refreshLayout() {
     
             if (tuning.keyShape) {
                 rd.keycap = MeshBuilder.CreatePolygon(id, { shape: coremath.genArrayFromOutline(rd.outline,0,0.25), depth: 2, smoothingThreshold: 0.1, updatable: false }, scene);
+                rd.keycap.parent = root;
                 rd.keycap.translate(new Vector3(0, 4.5, 0), 1, Space.LOCAL);
         
                 if(k.matName && globals.renderData.mats[k.matName]) {
@@ -234,12 +220,7 @@ export function refreshLayout() {
             
             rd.switchCut.push(createRectPoly(switchCutDims[0], switchCutDims[1], kXform));
             let keyPCBBounds = [15/2,12/2];
-            rd.pcbBoxes.push([
-                Vector3.TransformCoordinates(new Vector3(-keyPCBBounds[0], 0, -keyPCBBounds[1]), kXform),
-                Vector3.TransformCoordinates(new Vector3(keyPCBBounds[0], 0, -keyPCBBounds[1]), kXform),
-                Vector3.TransformCoordinates(new Vector3(keyPCBBounds[0], 0, keyPCBBounds[1]), kXform),
-                Vector3.TransformCoordinates(new Vector3(-keyPCBBounds[0], 0, keyPCBBounds[1]), kXform)
-            ]);
+            rd.pcbBoxes.push(createRectPoly(keyPCBBounds[0], keyPCBBounds[1], kXform));
             
             rd.outline = getCombinedOutlineFromPolyGroup(keyOutlines);
             if (rd.keycap) {
@@ -248,6 +229,7 @@ export function refreshLayout() {
     
             if (tuning.keyShape) {
                 rd.keycap = MeshBuilder.CreatePolygon(id, { shape: coremath.genArrayFromOutline(rd.outline,0,0), depth: 9, smoothingThreshold: 0.1, updatable: false }, scene);
+                rd.keycap.parent = root;
                 rd.keycap.translate(new Vector3(0, 10.5, 0), 1, Space.LOCAL);
         
                 if(k.matName && globals.renderData.mats[k.matName]) {
@@ -301,6 +283,7 @@ export function refreshLayout() {
     
             if (tuning.keyShape) {
                 rd.keycap = MeshBuilder.CreatePolygon(id, { shape: coremath.genArrayFromOutline(rd.outline,0,0.25), depth: 7, smoothingThreshold: 0.1, updatable: false }, scene);
+                rd.keycap.parent = root;
                 rd.keycap.translate(new Vector3(0, 10.5, 0), 1, Space.LOCAL);
         
                 if(k.matName && globals.renderData.mats[k.matName]) {
@@ -326,7 +309,7 @@ export function refreshLayout() {
     let kPs = [];
     for( let [id,rd] of Object.entries(kRD) ) {
         for( let b of rd.pcbBoxes) {
-            for( let p of b) {
+            for( let p of b.points) {
                 kPs.push(p)
             }
         }
@@ -461,21 +444,19 @@ function getCombinedOutlineFromPolyGroup(group, ignoreOverlapping) {
 
     let maxOverlapSq = Epsilon;
 
-    let overlapFunc = (primeL, primeLen, otherLen, line, norm, distBetween, lineArray, parseArray) => {
-        if(!parseArray[primeL]) {
-            let primeToOtherNear = Math.max(distBetween - otherLen,0) / primeLen;
-            let primeToOtherFar = distBetween / primeLen;
-            if(primeToOtherNear < 1 - Epsilon && primeToOtherFar > Epsilon) {
-                // kill O and replace it with any remaining line segments
-                //parseArray[primeL] = true;
-                if (primeToOtherNear > Epsilon) {
-                    lineArray.push([line[0],line[0].add(norm.scale(distBetween - otherLen))]);
-                }
-                if (primeToOtherFar < 1 - Epsilon) {
-                    lineArray.push([line[0].add(norm.scale(distBetween)), line[1]]);
-                }
-                lineArray.splice(primeL,1);
+    let overlapFunc = (primeL, primeLen, otherLen, line, norm, distBetween, lineArray) => {
+        let primeToOtherNear = Math.max(distBetween - otherLen,0) / primeLen;
+        let primeToOtherFar = distBetween / primeLen;
+        if(primeToOtherNear < 1 - Epsilon && primeToOtherFar > Epsilon) {
+            // kill O and replace it with any remaining line segments
+            //parseArray[primeL] = true;
+            if (primeToOtherNear > Epsilon) {
+                lineArray.push([line[0],line[0].add(norm.scale(distBetween - otherLen))]);
             }
+            if (primeToOtherFar < 1 - Epsilon) {
+                lineArray.push([line[0].add(norm.scale(distBetween)), line[1]]);
+            }
+            lineArray.splice(primeL,1);
         }
     }
 
@@ -517,8 +498,8 @@ function getCombinedOutlineFromPolyGroup(group, ignoreOverlapping) {
                                 // O ------------> olen
                                 //      llen <--------- L
                                 // O <----------------> dd
-                                overlapFunc(jL,oLen,lLen,oL,oLNorm,dd,otherHole.outlineLines,otherHole.parsedOutlineLines);
-                                overlapFunc(iL,lLen,oLen,lL,lineNorm,dd,hole.outlineLines,hole.parsedOutlineLines);
+                                overlapFunc(jL,oLen,lLen,oL,oLNorm,dd,otherHole.outlineLines);
+                                overlapFunc(iL,lLen,oLen,lL,lineNorm,dd,hole.outlineLines);
                             }
                             else if( lineDot > 1-Epsilon ) {
                                 if( dd > Epsilon ) {
@@ -527,19 +508,15 @@ function getCombinedOutlineFromPolyGroup(group, ignoreOverlapping) {
                                     // O <---> dd
                                     // consume L
                                     let overlapDist = oLen - dd;
-                                    if(!hole.parsedOutlineLines[iL]) {
-                                        if(overlapDist > Epsilon) {
-                                            // console.log(`trimming A ${hole.id} ${iL} vs ${oId} ${jL} len ${lLen} ov ${overlapDist}`)
-                                            if((lLen - overlapDist) < Epsilon)
-                                            {
-                                                // console.log(`SPLICE`);
-                                                hole.outlineLines.splice(iL,1);
-                                                break;
-                                            }
-                                            // hole.parsedOutlineLines[iL] = true;
-                                            // hole.outlineLines.push([lL[0].add(lineNorm.scale(overlapDist)),lL[1]]);
-                                            lL[0] = lL[0].add(lineNorm.scale(overlapDist));
+                                    if(overlapDist > Epsilon) {
+                                        // console.log(`trimming A ${hole.id} ${iL} vs ${oId} ${jL} len ${lLen} ov ${overlapDist}`)
+                                        if((lLen - overlapDist) < Epsilon)
+                                        {
+                                            // console.log(`SPLICE`);
+                                            hole.outlineLines.splice(iL,1);
+                                            break;
                                         }
+                                        lL[0] = lL[0].add(lineNorm.scale(overlapDist));
                                     }
                                 }
                                 if( dd < Epsilon ) {
@@ -548,19 +525,15 @@ function getCombinedOutlineFromPolyGroup(group, ignoreOverlapping) {
                                     // L <---> -dd
                                     // consume L
                                     let d = -dd;
-                                    if(!hole.parsedOutlineLines[iL]) {
-                                        if(d < lLen - Epsilon) {
-                                            // console.log(`trimming B ${hole.id} ${iL} vs ${oId} ${jL} d ${d}`)
-                                            if(d < Epsilon)
-                                            {
-                                                // console.log(`SPLICE`);
-                                                hole.outlineLines.splice(iL,1);
-                                                break;
-                                            }
-                                            // hole.parsedOutlineLines[iL] = true;
-                                            // hole.outlineLines.push([lL[0],lL[0].add(lineNorm.scale(d))]);
-                                            lL[1] = lL[0].add(lineNorm.scale(d));
+                                    if(d < lLen - Epsilon) {
+                                        // console.log(`trimming B ${hole.id} ${iL} vs ${oId} ${jL} d ${d}`)
+                                        if(d < Epsilon)
+                                        {
+                                            // console.log(`SPLICE`);
+                                            hole.outlineLines.splice(iL,1);
+                                            break;
                                         }
+                                        lL[1] = lL[0].add(lineNorm.scale(d));
                                     }
                                 }
                             }
@@ -895,14 +868,39 @@ export function addScrewHoles(outline) {
 }
 
 let layerDefs = {
-    "bottom":{num:1,height:3,offset:-10.5,stackOrder:-4,visFilter:"drawCase",shape:"caseFrame",holes:["screwHoles"],mat:"case"},
-    "pcbMesh":{num:1,height:1.6,offset:-5,stackOrder:null,visFilter:"drawPCB",shape:"pcbOutline",holes:[],mat:"fr4"},
-    "bezel":{num:1,height:3,offset:6,stackOrder:2,visFilter:"drawBezel",shape:"caseFrameTaper",holes:["bezel","screwHoles"],mat:"case"},
-    "bezelmid":{num:1,height:3,offset:3,stackOrder:1,visFilter:"drawBezel",shape:"caseFrame",holes:["bezel","screwHoles"],mat:"case"},
-    "plate":{num:1,height:1.5,offset:0,stackOrder:0,visFilter:"drawPlate",shape:"caseFrame",holes:["screwHoles","switchCuts"],mat:"plate"},
-    "edge":{num:1,height:3,offset:-1.5,stackOrder:-1,visFilter:"drawCase",shape:"caseFrameWithPortCut",holes:["screwHoles", "cavityInnerEdge"],mat:"case"},
-    "edge2":{num:1,height:3,offset:-4.5,stackOrder:-2,visFilter:"drawCase",shape:"caseFrameWithPortCut",holes:["screwHoles", "cavityInnerEdge"],mat:"case"},
-    "edge3":{num:1,height:3,offset:-7.5,stackOrder:-3,visFilter:"drawCase",shape:"caseFrameWithPortCut",holes:["screwHoles", "cavityInnerEdge"],mat:"case"}
+    "pcbMesh":{height:1.6,offset:-5,stackOrder:null,visFilter:"drawPCB",shape:"pcbOutline",holes:[],mat:"fr4"},
+    "bezel":{height:3,offset:6,stackOrder:2,visFilter:"drawBezel",shape:"caseFrameTaper",holes:["bezel","screwHoles"],mat:"case"},
+    "bezelmid":{height:3,offset:3,stackOrder:1,visFilter:"drawBezel",shape:"caseFrame",holes:["bezel","screwHoles"],mat:"case"},
+    "plate":{height:1.5,offset:0,stackOrder:0,visFilter:"drawPlate",shape:"caseFrame",holes:["screwHoles","switchCuts"],mat:"plate"},
+    "edge":{height:3,offset:-1.5,stackOrder:-1,visFilter:"drawCase",shape:"caseFrameWithPortCut",holes:["screwHoles", "cavityInnerEdge"],mat:"case"},
+    "edge2":{height:3,offset:-4.5,stackOrder:-2,visFilter:"drawCase",shape:"caseFrameWithPortCut",holes:["screwHoles", "cavityInnerEdge"],mat:"case"},
+    "edge3":{height:3,offset:-7.5,stackOrder:-3,visFilter:"drawCase",shape:"caseFrameWithPortCut",holes:["screwHoles", "cavityInnerEdge"],mat:"case"},
+    "bottom":{height:3,offset:-10.5,stackOrder:-4,visFilter:"drawCase",shape:"caseFrame",holes:["screwHoles"],mat:"case"},
+    "feet":{height:9,offset:-13.5,stackOrder:-5,visFilter:"drawCase",mat:"case",customShape:(layerName, layerDef, cRD, bd) => {
+        const scene = globals.scene;
+        const root = globals.renderData.rootXform;
+        const mats = globals.renderData.mats;
+        let feet = getFeet(bd);
+        cRD.layers[layerName] = {outlines:[],meshes:[]};
+        for(const foot of feet) {
+            cRD.layers[layerName].outlines.push(foot.points)
+            let polyHoles = [];
+            for(const screw of foot.screws) {
+                let screwVec = new coremath.Circle(screw,tuning.screwHoleThruRadius);
+                cRD.layers[layerName].outlines.push(screwVec);
+                polyHoles.push(coremath.genArrayForCircle(screwVec,0,19));
+            }
+            // let shape = coremath.genArrayForCircle(foot,0,44);
+            let shape = coremath.genPointsFromVectorPath(foot.points,8);
+            const mesh = MeshBuilder.CreatePolygon(layerName, { shape: shape, depth:layerDef.height, smoothingThreshold: 0.1, holes:polyHoles }, scene);
+            mesh.parent = root;
+            mesh.position.y = -13.5;
+            mesh.material = mats["case"];
+            const meshBounds = mesh.getBoundingInfo();
+            console.log(`meshBounds ${meshBounds.minimum}`)
+            cRD.layers[layerName].meshes.push(mesh);
+        }
+    }}
 }
 
 function addUSBPort() {
@@ -961,11 +959,12 @@ function getFeet(bd) {
         const p1 = candidates[i+1];
         const offset = tuning.bezelThickness/2;
         const z_line = Math.min(p0.z, p1.z)-offset; // double offset for aesthetics
-        const foot = coremath.offsetAndFilletOutline([  new Vector3(p0.x+offset,0,z_line-offset),
+        const foot = {  points:coremath.offsetAndFilletOutline([  new Vector3(p0.x+offset,0,z_line-offset),
                                                         new Vector3(p0.x+offset,0,p0.z+offset),
                                                         new Vector3(p1.x-offset,0,p1.z+offset),
                                                         new Vector3(p1.x-offset,0,z_line-offset)],
-                                            0, Math.min(tuning.caseCornerFillet,tuning.bezelThickness/2), false);
+                                            0, Math.min(tuning.caseCornerFillet,tuning.bezelThickness/2), false),
+                        screws:[p0, p1]};
         feet.push(foot);
     }
     return feet;
@@ -976,6 +975,9 @@ export function refreshCase() {
     const bd = globals.boardData;
     const kRD = globals.renderData.keys;
     const mats = globals.renderData.mats;
+    const root = globals.renderData.rootXform;
+
+    root.rotation = new Vector3();
 
     let cRD = globals.renderData.case;
     
@@ -1133,40 +1135,56 @@ export function refreshCase() {
     vectorGeo["pcbOutline"] = coremath.offsetAndFilletOutline(bd.pcbOutline, 0.0, 2.0, false);
     tesselatedGeo["pcbOutline"] = coremath.genPointsFromVectorPath(vectorGeo["pcbOutline"]);
 
-    if(bd.hasFeet) {
-        let feet = getFeet(bd);
-        let layerName = "feet";
-        cRD.layers[layerName] = {outlines:[],meshes:[]};
-        for(const foot of feet) {
-            cRD.layers[layerName].outlines.push(foot)
-            // let shape = coremath.genArrayForCircle(foot,0,44);
-            let shape = coremath.genPointsFromVectorPath(foot,8);
-            const mesh = MeshBuilder.CreatePolygon(layerName, { shape: shape, depth:9, smoothingThreshold: 0.1, holes:null }, scene);
-            mesh.position.y = -13.5;
-            mesh.material = mats["case"];
-            cRD.layers[layerName].meshes.push(mesh);
-        }
-    }
-
     for(const [layerName, layerDef] of Object.entries(layerDefs)) {
         if( tuning[layerDef.visFilter] ) {
-            cRD.layers[layerName] = {outlines:[vectorGeo[layerDef.shape]]};
-            const polyShape = tesselatedGeo[layerDef.shape];
-            let polyHoles = [];//[...screwHoles,...bezelOutlines];
-            for(const holeLayer of layerDef.holes) {
-                if(vectorGeo[holeLayer] != null) {
-                    cRD.layers[layerName].outlines = cRD.layers[layerName].outlines.concat(vectorGeo[holeLayer]);
-                }
-                if(tesselatedGeo[holeLayer] != null) {
-                    polyHoles = polyHoles.concat(tesselatedGeo[holeLayer]);
-                }
+            if(layerDef.customShape) {
+                layerDef.customShape(layerName, layerDef, cRD, bd);
             }
-            // console.log("adding layer "+layerName);
-            cRD.layers[layerName].mesh = MeshBuilder.CreatePolygon(layerName, { shape: polyShape, depth:layerDef.height, smoothingThreshold: 0.1, holes:polyHoles }, scene);
-            cRD.layers[layerName].mesh.position.y = layerDef.offset;
-            cRD.layers[layerName].mesh.material = mats[layerDef.mat];
+            else {
+                cRD.layers[layerName] = {outlines:[vectorGeo[layerDef.shape]],meshes:[]};
+                const polyShape = tesselatedGeo[layerDef.shape];
+                let polyHoles = [];
+                for(const holeLayer of layerDef.holes) {
+                    if(vectorGeo[holeLayer] != null) {
+                        cRD.layers[layerName].outlines = cRD.layers[layerName].outlines.concat(vectorGeo[holeLayer]);
+                    }
+                    if(tesselatedGeo[holeLayer] != null) {
+                        polyHoles = polyHoles.concat(tesselatedGeo[holeLayer]);
+                    }
+                }
+                // console.log("adding layer "+layerName);
+                const mesh = MeshBuilder.CreatePolygon(layerName, { shape: polyShape, depth:layerDef.height, smoothingThreshold: 0.1, holes:polyHoles }, scene);
+                mesh.parent = root;
+                mesh.position.y = layerDef.offset;
+                mesh.material = mats[layerDef.mat];
+                cRD.layers[layerName].meshes.push(mesh);
+            }
         }
     }
+    
+    if(bd.hasFeet) {
+        let feet = getFeet(bd);
+        let footMinY = 1000000.0;
+        let footMinZ = 1000000.0;
+        let footDepth = 9;
+        for(const footMesh of cRD.layers["feet"].meshes) {
+            const meshBounds = footMesh.getBoundingInfo();
+            footMinY = Math.min(footMinY,meshBounds.minimum.y);
+            footMinZ = Math.min(footMinZ,meshBounds.minimum.z);
+        }
+        
+        const baseBounds = cRD.layers["bottom"].meshes[0].getBoundingInfo();
+        let baseMinY = baseBounds.minimum.y;
+        let baseMinZ = baseBounds.minimum.z;
+
+        // could use (footMinY - baseMinY) but the bounds aren't transformed. :/
+        bd.typingAngle = Math.atan2(-footDepth,(footMinZ - baseMinZ));
+    }
+    else {
+        bd.typingAngle = 0;
+    }
+    updateRotation();
+    console.log(`typing angle: ${bd.typingAngle * 180 / Math.PI}`)
 }
 
 export function refreshKeyboard() {
@@ -1175,6 +1193,30 @@ export function refreshKeyboard() {
     refreshCase();
 }
 
+export function updateRotation() {
+    let root = globals.renderData.rootXform;
+    let targetRot = globals.boardData.typingAngle;
+    if(globals.renderData.viewRotation == "flat") {
+        targetRot = 0;
+    }
+
+    let easingFunction = new QuinticEase();
+    // For each easing function, you can choose between EASEIN (default), EASEOUT, EASEINOUT
+    easingFunction.setEasingMode(EasingFunction.EASINGMODE_EASEINOUT);
+    Animation.CreateAndStartAnimation("expand", root, "rotation.x", 30, 20,
+                        root.rotation.x, targetRot,
+                        Animation.ANIMATIONLOOPMODE_CONSTANT, easingFunction); 
+}
+
+export function setFlatRotation() {
+    globals.renderData.viewRotation = "flat";
+    updateRotation();
+}
+
+export function setNaturalRotation() {
+    globals.renderData.viewRotation = "natural";
+    updateRotation();
+}
 
 export function expandLayers() {
     let cRDL = globals.renderData.case.layers;
@@ -1182,14 +1224,17 @@ export function expandLayers() {
     // For each easing function, you can choose between EASEIN (default), EASEOUT, EASEINOUT
     easingFunction.setEasingMode(EasingFunction.EASINGMODE_EASEINOUT);
     for(const [layerName, layerDef] of Object.entries(layerDefs)) {
-        if (cRDL[layerName] && cRDL[layerName].mesh) {
-            const mesh = cRDL[layerName].mesh;
-
-            Animation.CreateAndStartAnimation("expand", mesh, "position.y", 30, 20,
-                                              mesh.position.y, (layerDef.offset + layerDef.stackOrder * 15),
-                                              Animation.ANIMATIONLOOPMODE_CONSTANT, easingFunction); 
+        if (cRDL[layerName]) {
+            for(const mesh of cRDL[layerName].meshes) {
+                Animation.CreateAndStartAnimation("expand", mesh, "position.y", 30, 20,
+                mesh.position.y, (layerDef.offset + layerDef.stackOrder * 15),
+                Animation.ANIMATIONLOOPMODE_CONSTANT, easingFunction); 
+            }
         }
     }
+    setFlatRotation();
+
+    // Animation.CreateAndStartAnimation("flip",root,"rotation."
 }
 
 export function collapseLayers() {
@@ -1198,12 +1243,12 @@ export function collapseLayers() {
     // For each easing function, you can choose between EASEIN (default), EASEOUT, EASEINOUT
     easingFunction.setEasingMode(EasingFunction.EASINGMODE_EASEINOUT);
     for(const [layerName, layerDef] of Object.entries(layerDefs)) {
-        if (cRDL[layerName] && cRDL[layerName].mesh) {
-            const mesh = cRDL[layerName].mesh;
-
-            Animation.CreateAndStartAnimation("collapse", mesh, "position.y", 30, 20,
-                                              mesh.position.y, layerDef.offset,
-                                              Animation.ANIMATIONLOOPMODE_CONSTANT, easingFunction); 
+        if (cRDL[layerName]) {
+            for(const mesh of cRDL[layerName].meshes) {
+                Animation.CreateAndStartAnimation("collapse", mesh, "position.y", 30, 20,
+                                                mesh.position.y, layerDef.offset,
+                                                Animation.ANIMATIONLOOPMODE_CONSTANT, easingFunction); 
+            }
         }
     }
 }
@@ -1211,6 +1256,8 @@ export function collapseLayers() {
 export function loadKeyboard(data) {
     // console.log(data);
     let mats = globals.renderData.mats;
+
+    globals.renderData.rootXform = new TransformNode("keebRoot");
 
     let bd = {};
     bd.meta = data.meta;
@@ -1238,5 +1285,6 @@ export function loadKeyboard(data) {
     
     gfx.createMaterials();
     refreshKeyboard();
+    setNaturalRotation();
     gfx.snapCamera("angle");
 }

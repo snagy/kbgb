@@ -114,6 +114,7 @@ export const kbgbGUI = {
                 
                 globals.screengui.addControl(ctrlBar);
                 kbgbGUI.activeModeCtrl = ctrlBar;
+                boardOps.setFlatRotation();
             },
             remove: () => {
                 globals.screengui.removeControl(kbgbGUI.activeModeCtrl);
@@ -208,6 +209,8 @@ export const kbgbGUI = {
                 
                 globals.screengui.addControl(ctrlBar);
                 kbgbGUI.activeModeCtrl = ctrlBar;
+
+                boardOps.setNaturalRotation();
             },
             remove: () => {
                 globals.screengui.removeControl(kbgbGUI.activeModeCtrl);
@@ -267,6 +270,8 @@ export const kbgbGUI = {
 
                 globals.screengui.addControl(ctrlBar);
                 kbgbGUI.activeModeCtrl = ctrlBar;
+
+                boardOps.setNaturalRotation();
             },
             remove: () => {
                 globals.screengui.removeControl(kbgbGUI.activeModeCtrl);
@@ -316,6 +321,7 @@ export const kbgbGUI = {
                 addSVGButton("plate");
                 addSVGButton("edge");
                 addSVGButton("bottom");
+                addSVGButton("feet");
                 addSVGButton("pcb");
                 globals.screengui.addControl(rtBar);
 
@@ -353,7 +359,7 @@ export const kbgbGUI = {
         ctrlBar.addControl(kbgbGUI.addButton("layout", () => {kbgbGUI.setGUIMode("key")}, {height:"1",width:"120px"}));
         ctrlBar.addControl(kbgbGUI.addButton("case", () => {kbgbGUI.setGUIMode("case")}, {height:"1",width:"120px"}));
         ctrlBar.addControl(kbgbGUI.addButton("pcb", () => {kbgbGUI.setGUIMode("pcb")}, {height:"1",width:"120px"}));
-        ctrlBar.addControl(kbgbGUI.addButton("deets", () => {kbgbGUI.setGUIMode("details")}, {height:"1",width:"120px"}));
+        ctrlBar.addControl(kbgbGUI.addButton("layers", () => {kbgbGUI.setGUIMode("details")}, {height:"1",width:"120px"}));
 
         kbgbGUI.modeCtrl = ctrlBar;
         globals.screengui.addControl(ctrlBar);
