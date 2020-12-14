@@ -4,6 +4,7 @@ import * as boardOps from './boardOps.js'
 import * as svg from './svg_export.js'
 import {snapCamera} from './gfx.js'
 import {Button, Control, TextBlock, InputText, StackPanel, RadioButton, Checkbox, Slider, ScrollViewer, AdvancedDynamicTexture} from '@babylonjs/gui'
+import JSZip from 'jszip/dist/jszip';
 
 function download(content, fileName, contentType) {
     var a = document.createElement("a");
@@ -13,9 +14,16 @@ function download(content, fileName, contentType) {
     a.click();
 }
 
-function downloadSVG(layerName) {
+function downloadSVGs() {
+    var zip = new JSZip();
     const bd = globals.boardData;
-    download(svg.exportLayerString(layerName), `${bd.meta.name}_${layerName}.svg`, 'text/plain');
+    for(const [layerName, layerDef] of Object.entries(boardOps.layerDefs)) {
+        zip.file(`${bd.meta.name}_${layerName}.svg`, svg.exportLayerString(layerName));
+    }
+    zip.generateAsync({type:"blob"})
+        .then(function(content) {
+            download(content, `${bd.meta.name}_layers.zip`, 'text/plain');
+        });
 }
 
 export const kbgbGUI = {
@@ -310,7 +318,9 @@ export const kbgbGUI = {
                 // addSVGButton("plate");
                 // addSVGButton("edge");
                 // addSVGButton("bottom");
-                // addSVGButton("pcb");
+                ctrlBar.addControl(kbgbGUI.addButton("layer SVGs", () => {
+                            downloadSVGs();
+                        }, {height:"60px",width:"120px"}));
 
                 let txt = kbgbGUI.addLabel("WORK IN PROGRESS.");
 
@@ -327,7 +337,7 @@ export const kbgbGUI = {
                 rtBar.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
                 let addSVGButton = function(layerName) {
                     rtBar.addControl(kbgbGUI.addButton(layerName, () => {
-                        downloadSVG(layerName);
+                        // downloadSVGs();
                     }, {height:"60px",width:"120px"}));
                 }
                 addSVGButton("bezel");
@@ -336,6 +346,7 @@ export const kbgbGUI = {
                 addSVGButton("bottom");
                 addSVGButton("feet");
                 addSVGButton("pcb");
+
                 globals.screengui.addControl(rtBar);
 
                 kbgbGUI.activeModeCtrl = ctrlBar;

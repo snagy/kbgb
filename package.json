@@ -23,6 +23,7 @@
     "@babylonjs/core": "^4.2.0",
     "@babylonjs/gui": "^4.2.0",
     "@ijprest/kle-serial": "^0.15.1",
-    "@svgdotjs/svg.js": "^3.0.16"
+    "@svgdotjs/svg.js": "^3.0.16",
+    "jszip": "^3.5.0"
   }
 }

@@ -923,7 +923,7 @@ function getFootShape(layerName, layerDef, cRD, bd) {
     }
 }
 
-let layerDefs = {
+export const layerDefs = {
     "pcbMesh":{height:1.6,offset:-5,stackOrder:null,visFilter:"drawPCB",shape:"pcbOutline",holes:[],mat:"fr4"},
     "bezel":{height:3,offset:6,stackOrder:2,visFilter:"drawBezel",shape:"caseFrameTaper",holes:["bezel","screwHoles"],mat:"case"},
     "bezelmid":{height:3,offset:3,stackOrder:1,visFilter:"drawBezel",shape:"caseFrame",holes:["bezel","screwHoles"],mat:"case"},
