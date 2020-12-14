@@ -793,12 +793,34 @@ function findOverlappingGroups(kRD, groupName) {
     return groups;
 }
 
+function getScrewRadius() {
+    const bd = globals.boardData;
+    const screwType = bd.screwType?bd.screwType:"m2_simple";
+
+    return tuning.screwTypes[screwType].screwHoleRadius;
+}
+
+function getScrewStandoff() {
+    const bd = globals.boardData;
+    const screwType = bd.screwType?bd.screwType:"m2_simple";
+
+    return tuning.screwTypes[screwType].screwHoleRadius;
+}
+
+function getScrewBoss() {
+    const bd = globals.boardData;
+    const screwType = bd.screwType?bd.screwType:"m2_simple";
+
+    return tuning.screwTypes[screwType].minBoss;
+}
+
 export function addScrewHoles(outline) {
-    const bezelOffset = (tuning.bezelThickness - tuning.screwBossMin * 2.0) * tuning.screwBezelBias + tuning.bezelGap + tuning.screwBossMin;
+    const screwBoss = getScrewBoss();
+    const bezelOffset = (tuning.bezelThickness - screwBoss * 2.0) * tuning.screwBezelBias + tuning.bezelGap + screwBoss;
     let screwLocs = coremath.offsetOutlinePoints(outline,bezelOffset);
     globals.renderData.screwData = [];
 
-    let minDist =  tuning.screwHoleThruRadius + tuning.screwBossMin;
+    let minDist =  getScrewRadius() + screwBoss;
     if(minDist > Epsilon) {
         let remSet = [];
         for(let i = screwLocs.length-1; i >= 0; i--) {
@@ -863,7 +885,41 @@ export function addScrewHoles(outline) {
 
     globals.boardData.screwLocations = screwLocs;
     for(const loc of screwLocs) {
-        globals.renderData.screwData.push(new coremath.Circle(loc,tuning.screwHoleThruRadius));
+        globals.renderData.screwData.push(new coremath.Circle(loc,getScrewRadius()));
+    }
+}
+
+function getFootShape(layerName, layerDef, cRD, bd) {
+    const scene = globals.scene;
+    const root = globals.renderData.rootXform;
+    const mats = globals.renderData.mats;
+    let feet = getFeet(bd);
+    cRD.layers[layerName] = {outlines:[],meshes:[]};
+    for(const foot of feet) {
+        const p0 = foot.screws[0];
+        const p1 = foot.screws[1];
+        const offset = tuning.bezelThickness/2;
+        const z_line = Math.min(p0.z, p1.z)-offset*layerDef.chin; // double offset for aesthetics
+        const points = coremath.offsetAndFilletOutline([  new Vector3(p0.x+offset,0,z_line-offset),
+                                                        new Vector3(p0.x+offset,0,p0.z+offset),
+                                                        new Vector3(p1.x-offset,0,p1.z+offset),
+                                                        new Vector3(p1.x-offset,0,z_line-offset)],
+                                            0, Math.min(tuning.caseCornerFillet,tuning.bezelThickness/2), false);
+        cRD.layers[layerName].outlines.push(points)
+        let polyHoles = [];
+        for(const screw of foot.screws) {
+            let screwVec = new coremath.Circle(screw,getScrewRadius());
+            cRD.layers[layerName].outlines.push(screwVec);
+            polyHoles.push(coremath.genArrayForCircle(screwVec,0,19));
+        }
+        // let shape = coremath.genArrayForCircle(foot,0,44);
+        let shape = coremath.genPointsFromVectorPath(points,8);
+        const mesh = MeshBuilder.CreatePolygon(layerName, { shape: shape, depth:layerDef.height, smoothingThreshold: 0.1, holes:polyHoles }, scene);
+        mesh.parent = root;
+        mesh.position.y = layerDef.offset;
+        mesh.material = mats["case"];
+        const meshBounds = mesh.getBoundingInfo();
+        cRD.layers[layerName].meshes.push(mesh);
     }
 }
 
@@ -876,32 +932,10 @@ let layerDefs = {
     "edge2":{height:3,offset:-4.5,stackOrder:-2,visFilter:"drawCase",shape:"caseFrameWithPortCut",holes:["screwHoles", "cavityInnerEdge"],mat:"case"},
     "edge3":{height:3,offset:-7.5,stackOrder:-3,visFilter:"drawCase",shape:"caseFrameWithPortCut",holes:["screwHoles", "cavityInnerEdge"],mat:"case"},
     "bottom":{height:3,offset:-10.5,stackOrder:-4,visFilter:"drawCase",shape:"caseFrame",holes:["screwHoles"],mat:"case"},
-    "feet":{height:9,offset:-13.5,stackOrder:-5,visFilter:"drawCase",mat:"case",customShape:(layerName, layerDef, cRD, bd) => {
-        const scene = globals.scene;
-        const root = globals.renderData.rootXform;
-        const mats = globals.renderData.mats;
-        let feet = getFeet(bd);
-        cRD.layers[layerName] = {outlines:[],meshes:[]};
-        for(const foot of feet) {
-            cRD.layers[layerName].outlines.push(foot.points)
-            let polyHoles = [];
-            for(const screw of foot.screws) {
-                let screwVec = new coremath.Circle(screw,tuning.screwHoleThruRadius);
-                cRD.layers[layerName].outlines.push(screwVec);
-                polyHoles.push(coremath.genArrayForCircle(screwVec,0,19));
-            }
-            // let shape = coremath.genArrayForCircle(foot,0,44);
-            let shape = coremath.genPointsFromVectorPath(foot.points,8);
-            const mesh = MeshBuilder.CreatePolygon(layerName, { shape: shape, depth:layerDef.height, smoothingThreshold: 0.1, holes:polyHoles }, scene);
-            mesh.parent = root;
-            mesh.position.y = -13.5;
-            mesh.material = mats["case"];
-            const meshBounds = mesh.getBoundingInfo();
-            console.log(`meshBounds ${meshBounds.minimum}`)
-            cRD.layers[layerName].meshes.push(mesh);
-        }
-    }}
-}
+    "feet2":{height:3,offset:-13.5,stackOrder:-5,visFilter:"drawCase",mat:"case",customShape:getFootShape, chin:2.0},
+    "feet1":{height:3,offset:-16.5,stackOrder:-6,visFilter:"drawCase",mat:"case",customShape:getFootShape, chin:1.0},
+    "feet":{height:3,offset:-19.5,stackOrder:-7,visFilter:"drawCase",mat:"case",customShape:getFootShape, chin:0.0}
+};
 
 function addUSBPort() {
     let portDim = [15 / 2,
@@ -963,13 +997,8 @@ function getFeet(bd) {
         const p0 = candidates[i];
         const p1 = candidates[i+1];
         const offset = tuning.bezelThickness/2;
-        const z_line = Math.min(p0.z, p1.z)-offset; // double offset for aesthetics
-        const foot = {  points:coremath.offsetAndFilletOutline([  new Vector3(p0.x+offset,0,z_line-offset),
-                                                        new Vector3(p0.x+offset,0,p0.z+offset),
-                                                        new Vector3(p1.x-offset,0,p1.z+offset),
-                                                        new Vector3(p1.x-offset,0,z_line-offset)],
-                                            0, Math.min(tuning.caseCornerFillet,tuning.bezelThickness/2), false),
-                        screws:[p0, p1]};
+        const z_line = Math.min(p0.z, p1.z); // double offset for aesthetics
+        const foot = { screws:[p0, p1]};
         feet.push(foot);
     }
     return feet;
@@ -1180,6 +1209,7 @@ export function refreshCase() {
         let baseMinZ = baseBounds.minimum.z;
 
         // could use (footMinY - baseMinY) but the bounds aren't transformed. :/
+        console.log(`foot: ${footMinZ} base: ${baseMinZ}`)
         bd.typingAngle = Math.atan2(-footDepth,(footMinZ - baseMinZ));
     }
     else {
@@ -1197,7 +1227,7 @@ export function refreshKeyboard() {
 
 export function updateRotation() {
     let root = globals.renderData.rootXform;
-    let targetRot = globals.boardData.typingAngle;
+    let targetRot = globals.boardData.typingAngle || 0;
     if(globals.renderData.viewRotation == "flat") {
         targetRot = 0;
     }
