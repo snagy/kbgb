@@ -105,7 +105,7 @@ export const kbgbGUI = {
                 ctrlBar.addControl(kbgbGUI.addLabel("W: "));
                 ctrlBar.addControl(kbgbGUI.addKeyActionButton(`⬌`, (k) => {
                     const currIdx = keyWidths.indexOf(k.width);
-                    if(currIdx != -1 && currIdx > 1) {
+                    if(currIdx != -1 && currIdx >= 1) {
                         k.width = keyWidths[currIdx-1];
                     }
                 }));

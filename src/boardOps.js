@@ -1305,6 +1305,13 @@ export function loadKeyboard(data) {
     let kIdx = 0
     for (let k of data.keys) {
         k.id = "key" + kIdx++;
+
+        if(k.width2 == k.width && k.height2 == k.height && k.x2 == 0 && k.y2 == 0) {
+            delete k.width2;
+            delete k.height2;
+            delete k.x2;
+            delete k.y2;
+        }
         
         if(!mats[k.color]) {
             gfx.createKeyMaterial(k.color,Color3.FromHexString(k.color));
