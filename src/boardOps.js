@@ -1288,6 +1288,10 @@ export function collapseLayers() {
 
 export function addKey() {
     const bd = globals.boardData;
+    let kIdx = Object.keys(bd.layout.keys).length;
+    while(bd.layout.keys[`key${kIdx}`]) {
+        kIdx += 1;
+    }
     const k = {
             "color": "#e8e7e3",
             "labels": [],
@@ -1308,7 +1312,7 @@ export function addKey() {
             "ghost": false,
             "stepped": false,
             "nub": false,
-            "id":`key${Object.keys(bd.layout.keys).length}`
+            "id":`key${kIdx}`
     }
     bd.layout.keys[k.id] = k;
 }

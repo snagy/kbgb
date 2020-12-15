@@ -1,7 +1,7 @@
 import {globals} from './globals.js'
 import {tuning} from './tuning.js'
 import {Engine, ArcRotateCamera, CubeTexture, Scene, Vector3, VertexBuffer, 
-        VertexData, Color3, StandardMaterial, PBRMetallicRoughnessMaterial,
+        VertexData, Color3, StandardMaterial, PBRMaterial, PBRMetallicRoughnessMaterial,
         Animation, QuinticEase, EasingFunction, Texture} from '@babylonjs/core'
 
 export function createKeyMaterial(name,color) {
@@ -29,20 +29,31 @@ export function createMaterials() {
     let caseMatName = "case";
     if(!mats[caseMatName])
     {
-        const mat = new PBRMetallicRoughnessMaterial(caseMatName, globals.scene);
+        const mat = new PBRMaterial(caseMatName, globals.scene);
         mat.metallic = 0;
         mat.roughness = 0.8;
-        mat.baseColor = new Color3(0.6, 0.6, 0.6);
+        mat.baseColor = new Color3(12/255, 237/255, 239/255);
         // mat.subSurface.isTranslucencyEnabled = true;
         // mat.subSurface.isScatteringEnabled = true;
         // mat.subSurface.isRefractionEnabled = true;
+        mat.alpha = 0.75;
+        // alpha mode combine
+        mat.subSurface.isRefractionEnabled = true;
+        mat.subSurface.refractionIntensity = 0.9;
+        mat.subSurface.indexOfRefraction = 1.13;
+        mat.subSurface.tintColor = mat.baseColor;
+        mat.subSurface.linkRefractionWithTransparency = false;
+        mat.subSurface.isTranslucencyEnabled = true;
+        mat.subSurface.useAlbedoToTintRefraction = true;
+        // link refraction with trans
+        // translucency enable
         mats[caseMatName] = mat;
     }
 
     let plateMatName = "plate";
     if(!mats[plateMatName])
     {
-        mats[plateMatName] = new PBRMetallicRoughnessMaterial(plateMatName, globals.scene);
+        mats[plateMatName] = new PBRMaterial(plateMatName, globals.scene);
         mats[plateMatName].metallic = 1;
         mats[plateMatName].roughness = 0.2;
         mats[plateMatName].baseColor = new Color3(0.5, 0.5, 0.5);
