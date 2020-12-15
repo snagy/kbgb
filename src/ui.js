@@ -77,8 +77,9 @@ export const kbgbGUI = {
                 //ctrlBar.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
                 ctrlBar.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
             
-                ctrlBar.addControl(kbgbGUI.addButton("load kle", (e) => {
-                    document.getElementById("loadKLE").click();
+                ctrlBar.addControl(kbgbGUI.addButton("add key", (e) => {
+                    boardOps.addKey();
+                    boardOps.refreshKeyboard();
                 }, {height:"60px", width:"120px"}));
 
                 ctrlBar.addControl(kbgbGUI.addLabel("Pos: "));
@@ -115,6 +116,10 @@ export const kbgbGUI = {
                         k.width = keyWidths[currIdx+1];
                     }
                 }));
+
+                ctrlBar.addControl(kbgbGUI.addKeyActionButton("del", (k) => {
+                    boardOps.removeKey(k.id);
+                }, {height:"60px", width:"120px"}));
             
                 // ctrlBar.addControl(kbgbGUI.addLabel("H: "));
                 // ctrlBar.addControl(kbgbGUI.addKeyActionButton(`⬍`, (k) => k.height += 0.25 ));
@@ -308,19 +313,20 @@ export const kbgbGUI = {
                 ctrlBar.isVertical = false;
                 //ctrlBar.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
                 ctrlBar.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
-            
-                // let addSVGButton = function(layerName) {
-                //     ctrlBar.addControl(kbgbGUI.addButton(layerName, () => {
-                //         downloadSVG(layerName);
-                //     }, {height:"60px",width:"120px"}));
-                // }
-                // addSVGButton("bezel");
-                // addSVGButton("plate");
-                // addSVGButton("edge");
-                // addSVGButton("bottom");
-                ctrlBar.addControl(kbgbGUI.addButton("layer SVGs", () => {
+
+                ctrlBar.addControl(kbgbGUI.addButton("export SVGs", () => {
                             downloadSVGs();
                         }, {height:"60px",width:"120px"}));
+                ctrlBar.addControl(kbgbGUI.addButton("save layout", () => {
+                            download(boardOps.saveKeyboard(), `${globals.boardData.meta.name}.kbgb`, 'text/plain');
+                        }, {height:"60px",width:"120px"}));
+                ctrlBar.addControl(kbgbGUI.addButton("load layout", () => {
+                            alert("to be implemented soon");
+                        }, {height:"60px",width:"120px"}));
+                
+                ctrlBar.addControl(kbgbGUI.addButton("import kle", (e) => {
+                            document.getElementById("loadKLE").click();
+                        }, {height:"60px", width:"120px"}));
 
                 let txt = kbgbGUI.addLabel("WORK IN PROGRESS.");
 

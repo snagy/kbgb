@@ -314,17 +314,18 @@ export function refreshLayout() {
             }
         }
     }
-    bd.pcbOutline = coremath.convexHull2d(kPs);
+    const cRD = globals.renderData.case;
+    cRD.pcbOutline = coremath.convexHull2d(kPs);
     if(bd.forcePCBSymmetrical) {
         let midPoint = (bd.layout.bounds.maxs[0] - bd.layout.bounds.mins[0]) * 0.5 + bd.layout.bounds.mins[0];
-        for(let oP of bd.pcbOutline) {
+        for(let oP of cRD.pcbOutline) {
             kPs.push(new Vector3(midPoint - (oP.x - midPoint), oP.y, oP.z));
         }
-        bd.pcbOutline = coremath.convexHull2d(kPs);
+        cRD.pcbOutline = coremath.convexHull2d(kPs);
     }
     bd.pcbBounds = {mins:[100000.0, 100000.0],
                      maxs:[-100000.0, -100000.0]};
-    for(let p of bd.pcbOutline) {
+    for(let p of cRD.pcbOutline) {
         bd.pcbBounds.mins[0] = Math.min(bd.pcbBounds.mins[0], p.x);
         bd.pcbBounds.maxs[0] = Math.max(bd.pcbBounds.maxs[0], p.x);
         bd.pcbBounds.mins[1] = Math.min(bd.pcbBounds.mins[1], p.z);
@@ -1038,7 +1039,7 @@ export function refreshCase() {
                 kPs.push(p)
             }
         }
-        for(let p of bd.pcbOutline) {
+        for(let p of cRD.pcbOutline) {
             kPs.push(p);
         }
         bd.outline = coremath.convexHull2d(kPs);
@@ -1164,7 +1165,7 @@ export function refreshCase() {
     // }
     // globals.lineSystem = MeshBuilder.CreateLineSystem("lineSystem", {lines: dbglines}, globals.scene);
 
-    vectorGeo["pcbOutline"] = coremath.offsetAndFilletOutline(bd.pcbOutline, 0.0, 2.0, false);
+    vectorGeo["pcbOutline"] = coremath.offsetAndFilletOutline(cRD.pcbOutline, 0.0, 2.0, false);
     tesselatedGeo["pcbOutline"] = coremath.genPointsFromVectorPath(vectorGeo["pcbOutline"]);
 
     for(const [layerName, layerDef] of Object.entries(layerDefs)) {
@@ -1285,6 +1286,39 @@ export function collapseLayers() {
     }
 }
 
+export function addKey() {
+    const bd = globals.boardData;
+    const k = {
+            "color": "#e8e7e3",
+            "labels": [],
+            "textColor": [],
+            "textSize": [],
+            "default": {
+              "textColor": "#5c5c5c",
+              "textSize": 7
+            },
+            "x": 0,
+            "y": -1,
+            "width": 1,
+            "height": 1,
+            "rotation_x": 0,
+            "rotation_y": 0,
+            "rotation_angle": 0,
+            "decal": false,
+            "ghost": false,
+            "stepped": false,
+            "nub": false,
+            "id":`key${Object.keys(bd.layout.keys).length}`
+    }
+    bd.layout.keys[k.id] = k;
+}
+
+export function removeKey(kId) {
+    const bd = globals.boardData;
+    delete bd.layout.keys[kId];
+}
+
+
 export function loadKeyboard(data) {
     // console.log(data);
     let mats = globals.renderData.mats;
@@ -1326,4 +1360,8 @@ export function loadKeyboard(data) {
     refreshKeyboard();
     setNaturalRotation();
     gfx.snapCamera("angle");
+}
+
+export function saveKeyboard() {
+    return JSON.stringify(globals.boardData);
 }
