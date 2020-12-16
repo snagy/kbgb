@@ -131,8 +131,7 @@ export const kbgbGUI = {
             },
             remove: () => {
                 globals.screengui.removeControl(kbgbGUI.activeModeCtrl);
-                globals.pickedKeys = [];
-                boardOps.refreshOutlines();
+                boardOps.clearPickedKeys();
             }
         },
         "case":{

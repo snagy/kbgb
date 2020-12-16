@@ -206,6 +206,8 @@ function createScene() {
     // ssao.area = 0.003;
     // ssao.falloff = 0.00001;
 
+    scene.getOutlineRenderer().zOffset = 100;
+
     // return the created scene
     return scene;
 }

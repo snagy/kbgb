@@ -34,6 +34,35 @@ export function refreshOutlines() {
     }
 }
 
+export function clearPickedKeys() {
+    let kRD = globals.renderData.keys;
+    for (const id of globals.pickedKeys) {
+        if (!kRD[id]) {
+            console.log("picked nonexistant key");
+        } else {
+            let rd = kRD[id];
+            rd.keycap.renderOverlay = false;
+        }
+    }
+    globals.pickedKeys.length = 0;
+}
+export function togglePickedKey(id) {
+    let kRD = globals.renderData.keys;
+
+    if (!kRD[id]) {
+        console.log("picked nonexistant key");
+    } else {
+        let rd = kRD[id];
+        if (globals.pickedKeys.indexOf(id) >= 0) {
+            rd.keycap.renderOverlay = false;
+            globals.pickedKeys.splice(globals.pickedKeys.indexOf(id), 1)
+        } else {
+            rd.keycap.renderOverlay = true;
+            globals.pickedKeys.push(id);
+        }
+    }
+}
+
 let polyID = 0;
 
 function Poly(points) {
@@ -113,8 +142,8 @@ function getPlateCutsWithStabs(width,height,kXform,plateCuts,pcbBounds) {
             stabOffsetXL = stabOffsetXR = 66.675;
         }
 
-        let stabXforms = [Matrix.Translation(-stabOffsetXL, 0, -2).multiply(sXform),
-                          Matrix.Translation( stabOffsetXR, 0, -2).multiply(sXform)];
+        let stabXforms = [Matrix.Translation(-stabOffsetXL, 0, 2).multiply(sXform),
+                          Matrix.Translation( stabOffsetXR, 0, 2).multiply(sXform)];
         let stabPCBXforms = [Matrix.Translation(-stabOffsetXL, 0, 0).multiply(sXform),
                              Matrix.Translation( stabOffsetXR, 0, 0).multiply(sXform)];
 
@@ -141,6 +170,7 @@ export function refreshLayout() {
     // clear the renderdata (cache this later?)
     for(const [id, rd] of Object.entries(kRD)) {
         if (rd.keycap) {
+            rd.keycap.parent = null;
             scene.removeMesh(rd.keycap);
         }
     }
@@ -184,11 +214,15 @@ export function refreshLayout() {
 
             rd.outline = getCombinedOutlineFromPolyGroup(keyOutlines);
             if (rd.keycap) {
+                rd.keycap.parent = null;
                 scene.removeMesh(rd.keycap);
             }
     
             if (tuning.keyShape) {
                 rd.keycap = MeshBuilder.CreatePolygon(id, { shape: coremath.genArrayFromOutline(rd.outline,0,0.25), depth: 2, smoothingThreshold: 0.1, updatable: false }, scene);
+                if(globals.pickedKeys.indexOf(id)>=0) {
+                    rd.keycap.renderOverlay = true;
+                }
                 rd.keycap.parent = root;
                 rd.keycap.translate(new Vector3(0, 4.5, 0), 1, Space.LOCAL);
         
@@ -224,11 +258,15 @@ export function refreshLayout() {
             
             rd.outline = getCombinedOutlineFromPolyGroup(keyOutlines);
             if (rd.keycap) {
+                rd.keycap.parent = null;
                 scene.removeMesh(rd.keycap);
             }
     
             if (tuning.keyShape) {
                 rd.keycap = MeshBuilder.CreatePolygon(id, { shape: coremath.genArrayFromOutline(rd.outline,0,0), depth: 9, smoothingThreshold: 0.1, updatable: false }, scene);
+                if(globals.pickedKeys.indexOf(id)>=0) {
+                    rd.keycap.renderOverlay = true;
+                }
                 rd.keycap.parent = root;
                 rd.keycap.translate(new Vector3(0, 10.5, 0), 1, Space.LOCAL);
         
@@ -278,16 +316,21 @@ export function refreshLayout() {
             
             rd.outline = getCombinedOutlineFromPolyGroup(keyOutlines);
             if (rd.keycap) {
+                rd.keycap.parent = null;
                 scene.removeMesh(rd.keycap);
             }
     
             if (tuning.keyShape) {
                 rd.keycap = MeshBuilder.CreatePolygon(id, { shape: coremath.genArrayFromOutline(rd.outline,0,0.25), depth: 7, smoothingThreshold: 0.1, updatable: false }, scene);
+
                 rd.keycap.parent = root;
                 rd.keycap.translate(new Vector3(0, 10.5, 0), 1, Space.LOCAL);
         
                 if(k.matName && globals.renderData.mats[k.matName]) {
                     rd.keycap.material = globals.renderData.mats[k.matName];
+                }
+                if(globals.pickedKeys.indexOf(id)>=0) {
+                    rd.keycap.renderOverlay = true;
                 }
             }
         }
@@ -333,7 +376,7 @@ export function refreshLayout() {
     }
 
 
-    refreshOutlines();
+    // refreshOutlines();
 }
 
 // combine two outlines.  'subtract' assumes one is being cut from the other, the other assumes they are being added
@@ -1016,10 +1059,12 @@ export function refreshCase() {
     
     for(const [layerName, layer] of Object.entries(cRD.layers)) {
         if(layer.mesh) {
+            layer.mesh.parent = null;
             scene.removeMesh(layer.mesh);
         }
         if(layer.meshes) {
             for(const m of layer.meshes) {
+                m.parent = null;
                 scene.removeMesh(m);
             }
             layer.meshes.length = 0;

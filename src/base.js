@@ -141,19 +141,13 @@ window.addEventListener("click", function (e) {
     if (pickResult && pickResult.pickedMesh) {
         if (globals.boardData.layout.keys[pickResult.pickedMesh.name]) {
             if(kbgbGUI.activeMode == "key") {
-                if (e.metaKey || e.ctrlKey) {
-                    if (globals.pickedKeys.indexOf(pickResult.pickedMesh.name) > 0) {
-                        globals.pickedKeys.splice(globals.pickedKeys.indexOf(pickResult.pickedMesh.name), 1)
-                    }
-                    else {
-                        globals.pickedKeys.push(pickResult.pickedMesh.name)
-                    }
+                if (!(e.metaKey || e.ctrlKey)) {
+                    boardOps.clearPickedKeys();
                 }
-                else {
-                    globals.pickedKeys = [pickResult.pickedMesh.name];
-                }
+                boardOps.togglePickedKey(pickResult.pickedMesh.name);
+
                 console.log("picked key " + pickResult.pickedMesh.name)
-                boardOps.refreshOutlines();
+                // boardOps.refreshOutlines();
             }
         }
     }
