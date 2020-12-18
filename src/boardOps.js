@@ -938,7 +938,7 @@ function getFootShape(layerName, layerDef, cRD, bd) {
     const root = globals.renderData.rootXform;
     const mats = globals.renderData.mats;
     let feet = getFeet(bd);
-    cRD.layers[layerName] = {outlines:[],meshes:[]};
+    cRD.layers[layerName] = {name:layerName,outlines:[],meshes:[],outlineBounds:{mins:(new Vector3(10000000.0,1000000.0,1000000.0)), maxs:(new Vector3(-10000000,-1000000,-1000000))}};
     for(const foot of feet) {
         const p0 = foot.screws[0];
         const p1 = foot.screws[1];
@@ -964,21 +964,24 @@ function getFootShape(layerName, layerDef, cRD, bd) {
         mesh.material = mats["case"];
         const meshBounds = mesh.getBoundingInfo();
         cRD.layers[layerName].meshes.push(mesh);
+        const outlineBounds = coremath.getVectorPathBounds(points);
+        cRD.layers[layerName].outlineBounds.mins.minimizeInPlace(outlineBounds.mins);
+        cRD.layers[layerName].outlineBounds.maxs.maximizeInPlace(outlineBounds.maxs);
     }
 }
 
 export const layerDefs = {
-    "pcbMesh":{height:1.6,offset:-5,stackOrder:null,visFilter:"drawPCB",shape:"pcbOutline",holes:[],mat:"fr4"},
-    "bezel":{height:3,offset:6,stackOrder:2,visFilter:"drawBezel",shape:"caseFrameTaper",holes:["bezel","screwHoles"],mat:"case"},
-    "bezelmid":{height:3,offset:3,stackOrder:1,visFilter:"drawBezel",shape:"caseFrame",holes:["bezel","screwHoles"],mat:"case"},
-    "plate":{height:1.5,offset:0,stackOrder:0,visFilter:"drawPlate",shape:"caseFrame",holes:["screwHoles","switchCuts"],mat:"plate"},
-    "edge":{height:3,offset:-1.5,stackOrder:-1,visFilter:"drawCase",shape:"caseFrameWithPortCut",holes:["screwHoles", "cavityInnerEdge"],mat:"case"},
-    "edge2":{height:3,offset:-4.5,stackOrder:-2,visFilter:"drawCase",shape:"caseFrameWithPortCut",holes:["screwHoles", "cavityInnerEdge"],mat:"case"},
-    "edge3":{height:3,offset:-7.5,stackOrder:-3,visFilter:"drawCase",shape:"caseFrameWithPortCut",holes:["screwHoles", "cavityInnerEdge"],mat:"case"},
-    "bottom":{height:3,offset:-10.5,stackOrder:-4,visFilter:"drawCase",shape:"caseFrame",holes:["screwHoles"],mat:"case"},
-    "feet2":{height:3,offset:-13.5,stackOrder:-5,visFilter:"drawCase",mat:"case",customShape:getFootShape, chin:2.0},
-    "feet1":{height:3,offset:-16.5,stackOrder:-6,visFilter:"drawCase",mat:"case",customShape:getFootShape, chin:1.0},
-    "feet":{height:3,offset:-19.5,stackOrder:-7,visFilter:"drawCase",mat:"case",customShape:getFootShape, chin:0.0}
+    "pcbMesh":{height:1.6,offset:-5,stackOrder:null,visFilter:"drawPCB",shape:"pcbOutline",holes:[],mat:"fr4",physicalMat:"FR4"},
+    "bezel":{height:3,offset:6,stackOrder:2,visFilter:"drawBezel",shape:"caseFrameTaper",holes:["bezel","screwHoles"],mat:"case",physicalMat:"acrylic"},
+    "bezelmid":{height:3,offset:3,stackOrder:1,visFilter:"drawBezel",shape:"caseFrame",holes:["bezel","screwHoles"],mat:"case",physicalMat:"acrylic"},
+    "plate":{height:1.5,offset:0,stackOrder:0,visFilter:"drawPlate",shape:"caseFrame",holes:["screwHoles","switchCuts"],mat:"plate",physicalMat:"alu"},
+    "edge":{height:3,offset:-1.5,stackOrder:-1,visFilter:"drawCase",shape:"caseFrameWithPortCut",holes:["screwHoles", "cavityInnerEdge"],mat:"case",physicalMat:"acrylic"},
+    "edge2":{height:3,offset:-4.5,stackOrder:-2,visFilter:"drawCase",shape:"caseFrameWithPortCut",holes:["screwHoles", "cavityInnerEdge"],mat:"case",physicalMat:"acrylic"},
+    "edge3":{height:3,offset:-7.5,stackOrder:-3,visFilter:"drawCase",shape:"caseFrameWithPortCut",holes:["screwHoles", "cavityInnerEdge"],mat:"case",physicalMat:"acrylic"},
+    "bottom":{height:3,offset:-10.5,stackOrder:-4,visFilter:"drawCase",shape:"caseFrame",holes:["screwHoles"],mat:"case",physicalMat:"acrylic"},
+    "feet2":{height:3,offset:-13.5,stackOrder:-5,visFilter:"drawCase",mat:"case",customShape:getFootShape,chin:2.0,physicalMat:"acrylic"},
+    "feet1":{height:3,offset:-16.5,stackOrder:-6,visFilter:"drawCase",mat:"case",customShape:getFootShape,chin:1.0,physicalMat:"acrylic"},
+    "feet":{height:3,offset:-19.5,stackOrder:-7,visFilter:"drawCase",mat:"case",customShape:getFootShape,chin:0.0,physicalMat:"acrylic"}
 };
 
 function addUSBPort() {
@@ -1219,7 +1222,7 @@ export function refreshCase() {
                 layerDef.customShape(layerName, layerDef, cRD, bd);
             }
             else {
-                cRD.layers[layerName] = {outlines:[vectorGeo[layerDef.shape]],meshes:[]};
+                cRD.layers[layerName] = {name:layerName,outlines:[vectorGeo[layerDef.shape]],meshes:[]};
                 const polyShape = tesselatedGeo[layerDef.shape];
                 let polyHoles = [];
                 for(const holeLayer of layerDef.holes) {
@@ -1236,6 +1239,7 @@ export function refreshCase() {
                 mesh.position.y = layerDef.offset;
                 mesh.material = mats[layerDef.mat];
                 cRD.layers[layerName].meshes.push(mesh);
+                cRD.layers[layerName].outlineBounds = coremath.getVectorPathBounds(vectorGeo[layerDef.shape]);
             }
         }
     }

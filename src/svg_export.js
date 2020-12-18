@@ -10,8 +10,9 @@ const formatter = new Intl.NumberFormat('en-US', {
  function f(a) { return formatter.format(a)}
 
 
-export function exportLayerString(layerName) {
+export function exportLayerString(layerData) {
     const bd = globals.boardData;
+
     const svg = [];
     function append(...values) {
         svg.push.apply(svg, values);
@@ -19,19 +20,17 @@ export function exportLayerString(layerName) {
     
     append(`<?xml version="1.0" standalone="no"?>`)
 
-    let bBounds = bd.layout.bounds;
-    let w = bBounds.maxs[0]-bBounds.mins[0]+40
-    let h = -bBounds.mins[1]+bBounds.maxs[1]+40
+    let padding = 5;
+    let w = layerData.outlineBounds.maxs.x-layerData.outlineBounds.mins.x + padding * 2;
+    let h = -layerData.outlineBounds.mins.z+layerData.outlineBounds.maxs.z + padding * 2;
 
     //begin svg
-    append(`<svg width="${f(w)}mm" height="${f(h)}mm" viewBox="${f(bBounds.mins[0]-20)} ${f(-bBounds.maxs[1]-20)} ${f(w)} ${f(h)}" xmlns="http://www.w3.org/2000/svg" version="1.1">`);
+    append(`<svg width="${f(w)}mm" height="${f(h)}mm" viewBox="${f(layerData.outlineBounds.mins.x-padding)} ${f(-layerData.outlineBounds.maxs.z-padding)} ${f(w)} ${f(h)}" xmlns="http://www.w3.org/2000/svg" version="1.1">`);
 
-    append(`<title>${bd.meta.name} ${layerName} layer</title>`);
+    append(`<title>${bd.meta.name} ${layerData.name} layer</title>`);
     
-    append(`<desc>The ${bd.meta.name} ${layerName} layer</desc>`);
+    append(`<desc>The ${bd.meta.name} ${layerData.name} layer</desc>`);
 
-    const cRD = globals.renderData.case;
-    let layerData = cRD.layers[layerName];
     if( layerData.outlines ) {
         let pathStr = `<path fill="red" fill-rule="evenodd" stroke="blue" stroke-width="1" d="`
         for(let shape of layerData.outlines) {

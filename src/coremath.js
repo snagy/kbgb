@@ -338,6 +338,29 @@ export function genPointsFromVectorPath(vectorPath, segmentsPerFillet) {
     return outPoints;
 }
 
+export function getVectorPathBounds(vectorPath) {
+    let mins = new Vector3(10000000.0,100000000.0,1000000000.0);
+    let maxs = new Vector3(-10000000.0,-10000000.0,-10000000.0);
+
+    for (let i = 0; i < vectorPath.length; i++) {
+        let nextItem = vectorPath[i];
+        switch(nextItem.type) {
+            case 0:
+                mins.minimizeInPlace(nextItem.point);
+                maxs.maximizeInPlace(nextItem.point);
+                break;
+            case 1:
+                //todo:  better analytic solution for this
+                let minPoint = nextItem.center.add((new Vector3(-1,0,-1)).scale(nextItem.radius));
+                let maxPoint = nextItem.center.add((new Vector3(1,0,1)).scale(nextItem.radius));
+                mins.minimizeInPlace(minPoint);
+                maxs.maximizeInPlace(maxPoint);
+                break;
+        }
+    }
+    return {mins:mins,maxs:maxs};
+}
+
 export function genArrayFromOutline(outline, offset, fillets, close, segments) {
     let vectorPath = offsetAndFilletOutline(outline, offset, fillets, close);
     return genPointsFromVectorPath(vectorPath, segments);

@@ -14,12 +14,26 @@ function download(content, fileName, contentType) {
     a.click();
 }
 
+const formatter = new Intl.NumberFormat('en-US', {
+    minimumFractionDigits: 0,      
+    maximumFractionDigits: 4,
+ });
+
+function format_float(a) { return formatter.format(a)}
+
 function downloadSVGs() {
     var zip = new JSZip();
     const bd = globals.boardData;
+    const cRD = globals.renderData.case;
+    let layerInfoCSV = `Layer Name,Material,Thickness(mm),Part Width(mm),PartHeight(mm)\n`
     for(const [layerName, layerDef] of Object.entries(boardOps.layerDefs)) {
-        zip.file(`${bd.meta.name}_${layerName}.svg`, svg.exportLayerString(layerName));
+        let layerData = cRD.layers[layerName];
+        zip.file(`${layerName}.svg`, svg.exportLayerString(layerData));
+        layerInfoCSV += `${layerName},${layerDef.physicalMat},${layerDef.height},`;
+        layerInfoCSV += `${format_float(layerData.outlineBounds.maxs.x-layerData.outlineBounds.mins.x)},`
+        layerInfoCSV += `${format_float(layerData.outlineBounds.maxs.z-layerData.outlineBounds.mins.z)}\n`;
     }
+    zip.file(`caseBOM.csv`, layerInfoCSV);
     zip.generateAsync({type:"blob"})
         .then(function(content) {
             download(content, `${bd.meta.name}_layers.zip`, 'text/plain');
