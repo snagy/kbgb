@@ -139,14 +139,15 @@ window.addEventListener("click", function (e) {
     var pickResult = scene.pick(scene.pointerX, scene.pointerY);
     //console.log(pickResult);
     if (pickResult && pickResult.pickedMesh) {
-        if (globals.boardData.layout.keys[pickResult.pickedMesh.name]) {
-            if(kbgbGUI.activeMode == "key") {
+        if(kbgbGUI.activeMode == "key") {
+            const parent = pickResult.pickedMesh.parent;
+            if (parent && globals.boardData.layout.keys[parent.name]) {
                 if (!(e.metaKey || e.ctrlKey)) {
                     boardOps.clearPickedKeys();
                 }
-                boardOps.togglePickedKey(pickResult.pickedMesh.name);
+                boardOps.togglePickedKey(parent.name);
 
-                console.log("picked key " + pickResult.pickedMesh.name)
+                console.log("picked key " + parent.name)
                 // boardOps.refreshOutlines();
             }
         }

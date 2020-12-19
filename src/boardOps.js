@@ -2,7 +2,7 @@ import {globals} from './globals.js';
 import {tuning} from './tuning.js';
 import * as coremath from './coremath.js';
 import * as gfx from './gfx.js';
-import {Vector3, Space, MeshBuilder, Matrix, Epsilon, Color3,
+import {Vector3, Space, MeshBuilder, Matrix, Epsilon, Color3, Mesh,
         Animation, EasingFunction, QuinticEase, TransformNode} from '@babylonjs/core'
 
 export function refreshOutlines() {
@@ -12,6 +12,7 @@ export function refreshOutlines() {
 
     for (const [k, o] of Object.entries(oRD)) {
         globals.scene.removeMesh(o);
+        o.dispose();
     }
 
     oRD.length = 0;
@@ -42,6 +43,9 @@ export function clearPickedKeys() {
         } else {
             let rd = kRD[id];
             rd.keycap.renderOverlay = false;
+            for (const child of rd.keycap.getChildMeshes()){			
+                child.renderOverlay = false; 
+            }
         }
     }
     globals.pickedKeys.length = 0;
@@ -55,9 +59,16 @@ export function togglePickedKey(id) {
         let rd = kRD[id];
         if (globals.pickedKeys.indexOf(id) >= 0) {
             rd.keycap.renderOverlay = false;
+            for (const child of rd.keycap.getChildMeshes()){			
+                child.renderOverlay = false; 
+            }
             globals.pickedKeys.splice(globals.pickedKeys.indexOf(id), 1)
         } else {
             rd.keycap.renderOverlay = true;
+
+            for (const child of rd.keycap.getChildMeshes()){			
+                child.renderOverlay = true; 
+            }
             globals.pickedKeys.push(id);
         }
     }
@@ -172,6 +183,7 @@ export function refreshLayout() {
         if (rd.keycap) {
             rd.keycap.parent = null;
             scene.removeMesh(rd.keycap);
+            rd.keycap.dispose();
         }
     }
     kRD = globals.renderData.keys = [];
@@ -216,6 +228,7 @@ export function refreshLayout() {
             if (rd.keycap) {
                 rd.keycap.parent = null;
                 scene.removeMesh(rd.keycap);
+                rd.keycap.dispose();
             }
     
             if (tuning.keyShape) {
@@ -260,6 +273,7 @@ export function refreshLayout() {
             if (rd.keycap) {
                 rd.keycap.parent = null;
                 scene.removeMesh(rd.keycap);
+                rd.keycap.dispose();
             }
     
             if (tuning.keyShape) {
@@ -318,19 +332,42 @@ export function refreshLayout() {
             if (rd.keycap) {
                 rd.keycap.parent = null;
                 scene.removeMesh(rd.keycap);
+                rd.keycap.dispose();
             }
     
             if (tuning.keyShape) {
-                rd.keycap = MeshBuilder.CreatePolygon(id, { shape: coremath.genArrayFromOutline(rd.outline,0,0.25), depth: 7, smoothingThreshold: 0.1, updatable: false }, scene);
+                const keyCapGLTF = gfx.getKeycap("KAT", k.width, k.row, null);
+                if( keyCapGLTF ) {
+                    rd.keycap = keyCapGLTF.instantiateModelsToScene(name => id, false).rootNodes[0];
+                    rd.keycap.parent = root;
+                    rd.keycap.setEnabled(true);
+                    for (const child of rd.keycap.getChildMeshes()){			
+                        child.setEnabled(true); 
+                    }
+                    // rd.keycap.parent = root;
+                    const kcXform = Matrix.RotationY(Math.PI).multiply(kXform).multiply(Matrix.Scaling(-1,1,1));
+                    rd.keycap.setPreTransformMatrix(kcXform);
+                    rd.keycap.translate(new Vector3(0, 3.5, 0), 1, Space.LOCAL);
+                }
+                else {
+                    rd.keycap = MeshBuilder.CreatePolygon(id, { shape: coremath.genArrayFromOutline(rd.outline,0,0.25), depth: 7, smoothingThreshold: 0.1, updatable: false }, scene);
+                    rd.keycap.parent = root;
+                    rd.keycap.translate(new Vector3(0, 10.5, 0), 1, Space.LOCAL);
+                }
 
-                rd.keycap.parent = root;
-                rd.keycap.translate(new Vector3(0, 10.5, 0), 1, Space.LOCAL);
         
                 if(k.matName && globals.renderData.mats[k.matName]) {
-                    rd.keycap.material = globals.renderData.mats[k.matName];
+                    let mat = globals.renderData.mats[k.matName]
+                    for (const child of rd.keycap.getChildMeshes()){			
+                        child.material = mat; 
+                    }
+                    rd.keycap.material = mat;
                 }
                 if(globals.pickedKeys.indexOf(id)>=0) {
                     rd.keycap.renderOverlay = true;
+                    for (const child of rd.keycap.getChildMeshes()){			
+                        child.renderOverlay = true; 
+                    }
                 }
             }
         }
@@ -1064,11 +1101,13 @@ export function refreshCase() {
         if(layer.mesh) {
             layer.mesh.parent = null;
             scene.removeMesh(layer.mesh);
+            layer.mesh.dispose();
         }
         if(layer.meshes) {
             for(const m of layer.meshes) {
                 m.parent = null;
                 scene.removeMesh(m);
+                m.dispose();
             }
             layer.meshes.length = 0;
         }

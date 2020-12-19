@@ -2,7 +2,8 @@ import {globals} from './globals.js'
 import {tuning} from './tuning.js'
 import {Engine, ArcRotateCamera, CubeTexture, Scene, Vector3, VertexBuffer, 
         VertexData, Color3, StandardMaterial, PBRMaterial, PBRMetallicRoughnessMaterial,
-        Animation, QuinticEase, EasingFunction, Texture} from '@babylonjs/core'
+        Animation, QuinticEase, EasingFunction, Texture, SceneLoader} from '@babylonjs/core'
+import {GLTFFileLoader} from "@babylonjs/loaders";
 
 export function createKeyMaterial(name,color) {
     let mats = globals.renderData.mats;
@@ -212,6 +213,55 @@ function createScene() {
     return scene;
 }
 
+export const keyAssets = {"KAT":{}};
+export function getKeycap(profile, width, row, opts) {
+    const prof = keyAssets[profile];
+    if(!prof) return null;
+
+    const sized = prof[width];
+    if(!sized) return null;
+
+    let best = null;
+
+    for(const [r,m] of Object.entries(sized)) {
+        const container = m.container;
+        const d = m.details;
+        if(best == null || row == r) {
+            best = container;
+        }
+    }
+    return best;
+}
+
+const katList = {
+    "KAT_1_25u_r5.glb": {r:"5", w:"1.25"},
+    "KAT_1_5u_r2.glb": {r:"2", w:"1.5"},
+    "KAT_1_5u_r3_stepped.glb": {r:"3", w:"1.5", stepped:true},
+    "KAT_1_5u_r5.glb": {r:"5", w:"1.5"},
+    "KAT_1_75u_r3.glb": {r:"3", w:"1.75"},
+    "KAT_1_75u_r5.glb": {r:"5", w:"1.75"},
+    "KAT_1u_r0.glb": {r:"0", w:"1"},
+    "KAT_1u_r1.glb": {r:"1", w:"1"},
+    "KAT_1u_r2.glb": {r:"2", w:"1"},
+    "KAT_1u_r3.glb": {r:"3", w:"1"},
+    "KAT_1u_r4.glb": {r:"4", w:"1"},
+    "KAT_1u_r5.glb": {r:"5", w:"1"},
+    "KAT_2_25u_r3.glb": {r:"3", w:"2.25"},
+    "KAT_2_25u_r4.glb": {r:"4", w:"2.25"},
+    "KAT_2_75u_r4.glb": {r:"4", w:"2.75"},
+    "KAT_2_75u_r5_convex.glb": {r:"5", w:"2.75", convex:true},
+    "KAT_2u_r1.glb": {r:"1", w:"2"},
+    "KAT_2u_r2_vertical.glb": {r:"2", w:"2", vertical:true},
+    "KAT_2u_r4_vertical.glb": {r:"4", w:"2", vertical:true},
+    "KAT_2u_r5.glb": {r:"5", w:"2"},
+    "KAT_2u_r5_convex.glb": {r:"5", w:"2", convex:true},
+    "KAT_3u_r5.glb": {r:"5", w:"3", convex:true},
+    "KAT_6_25u_r5.glb": {r:"5", w:"6.25", convex:true},
+    "KAT_6u_r5.glb": {r:"5", w:"6", convex:true},
+    "KAT_7u_r5.glb": {r:"5", w:"7", convex:true},
+    "KAT_ISO_ENTER.glb": {r:"special", w:"ISO", type:"ISO ENTER"}
+}
+
 export function init() {
     // get the canvas DOM element
     globals.canvas = document.getElementById('renderCanvas');
@@ -221,4 +271,15 @@ export function init() {
 
     // call the createScene function
     globals.scene = createScene();
+
+    for(const [n,d] of Object.entries(katList)) {
+        SceneLoader.LoadAssetContainer("assets/KAT/", n, globals.scene, function (container) {
+            if(!keyAssets.KAT[d.w]) {
+                keyAssets.KAT[d.w] = {};
+            }
+            keyAssets.KAT[d.w][d.r] = {container:container, details:d};
+        });
+    }
+
+
 }
