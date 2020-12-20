@@ -2,7 +2,7 @@ import {globals} from './globals.js'
 import {tuning} from './tuning.js'
 import {Engine, ArcRotateCamera, CubeTexture, Scene, Vector3, VertexBuffer, 
         VertexData, Color3, StandardMaterial, PBRMaterial, PBRMetallicRoughnessMaterial,
-        Animation, QuinticEase, EasingFunction, Texture, SceneLoader} from '@babylonjs/core'
+        Animation, QuinticEase, EasingFunction, Texture, SceneLoader, Matrix} from '@babylonjs/core'
 import {GLTFFileLoader} from "@babylonjs/loaders";
 
 export function createKeyMaterial(name,color) {
@@ -214,9 +214,22 @@ function createScene() {
 }
 
 export const keyAssets = {"KAT":{},"DSA":{},"KAM":{}};
-export function getKeycap(profile, width, row, opts) {
+export function getKeycap(profile, width, height, row, opts) {
     const prof = keyAssets[profile];
     if(!prof) return null;
+
+    let xForm = Matrix.Identity();
+    if(profile == "KAM") {
+        if(height > width) {
+            width = height;
+            height = 1;
+
+            xForm = Matrix.RotationY(Math.PI / 2);
+        }
+    }
+    else if(profile == "KAT") {
+        xForm = Matrix.RotationY(Math.PI);
+    }
 
     const sized = prof[width];
     if(!sized) return null;
@@ -230,7 +243,7 @@ export function getKeycap(profile, width, row, opts) {
             best = container;
         }
     }
-    return best;
+    return {container:best,preXform:xForm};
 }
 
 const katList = {
@@ -284,7 +297,7 @@ const kamList = {
     "ISO_ENTER.glb": {r:"special", w:"ISO", type:"ISO ENTER"}
 }
 
-export function init() {
+export function init(loadCB) {
     // get the canvas DOM element
     globals.canvas = document.getElementById('renderCanvas');
 
@@ -293,13 +306,23 @@ export function init() {
 
     // call the createScene function
     globals.scene = createScene();
+    let loading = [];
 
     for(const [n,d] of Object.entries(kamList)) {
+        loading.push(n);
         SceneLoader.LoadAssetContainer("assets/KAM/", n, globals.scene, function (container) {
             if(!keyAssets.KAM[d.w]) {
                 keyAssets.KAM[d.w] = {};
             }
             keyAssets.KAM[d.w][d.r] = {container:container, details:d};
+            var i = loading.indexOf(n);
+            if (i >= 0) {
+                loading.splice(i, 1 );
+            }
+
+            if(loading.length == 0) {
+                loadCB();
+            }
         });
     }
 

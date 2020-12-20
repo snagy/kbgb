@@ -33,7 +33,7 @@ function loadKeyboardFromKLE1(txt) {
 }
 
 function initKBGB() {
-    gfx.init();
+    gfx.init(boardOps.refreshKeyboard);
 
     gfx.setEnvironmentLight(hdris[hdriIdx]);
 

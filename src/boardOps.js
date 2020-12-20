@@ -174,6 +174,8 @@ export function refreshLayout() {
     const bd = globals.boardData;
     const root = globals.renderData.rootXform;
 
+    if(!bd.layout) { return; }
+
     let mins = [100000.0, 100000.0]
     let maxs = [-100000.0, -100000.0];
 
@@ -336,16 +338,16 @@ export function refreshLayout() {
             }
     
             if (tuning.keyShape) {
-                const keyCapGLTF = gfx.getKeycap("KAM", k.width, k.row, null);
+                const keyCapGLTF = gfx.getKeycap("KAM", k.width, k.height, k.row, null);
                 if( keyCapGLTF ) {
-                    rd.keycap = keyCapGLTF.instantiateModelsToScene(name => id, false).rootNodes[0];
+                    rd.keycap = keyCapGLTF.container.instantiateModelsToScene(name => id, false).rootNodes[0];
                     rd.keycap.parent = root;
                     rd.keycap.setEnabled(true);
                     for (const child of rd.keycap.getChildMeshes()){			
                         child.setEnabled(true); 
                     }
                     // rd.keycap.parent = root;
-                    const kcXform = Matrix.RotationY(Math.PI).multiply(kXform).multiply(Matrix.Scaling(-1,1,1));
+                    const kcXform = keyCapGLTF.preXform.multiply(kXform).multiply(Matrix.Scaling(-1,1,1));
                     rd.keycap.setPreTransformMatrix(kcXform);
                     rd.keycap.translate(new Vector3(0, 3.5, 0), 1, Space.LOCAL);
                 }
@@ -1115,7 +1117,7 @@ export function refreshCase() {
     
     cRD.layers = {};
 
-    if(Object.keys(bd.layout.keys).length < 1) {
+    if(!bd.layout || Object.keys(bd.layout.keys).length < 1) {
         return;
     }
 
