@@ -213,7 +213,7 @@ function createScene() {
     return scene;
 }
 
-export const keyAssets = {"KAT":{}};
+export const keyAssets = {"KAT":{},"DSA":{},"KAM":{}};
 export function getKeycap(profile, width, row, opts) {
     const prof = keyAssets[profile];
     if(!prof) return null;
@@ -244,6 +244,7 @@ const katList = {
     "KAT_1u_r1.glb": {r:"1", w:"1"},
     "KAT_1u_r2.glb": {r:"2", w:"1"},
     "KAT_1u_r3.glb": {r:"3", w:"1"},
+    "KAT_1u_r3_nub.glb": {r:"3", w:"1", nubbed:true},
     "KAT_1u_r4.glb": {r:"4", w:"1"},
     "KAT_1u_r5.glb": {r:"5", w:"1"},
     "KAT_2_25u_r3.glb": {r:"3", w:"2.25"},
@@ -261,6 +262,27 @@ const katList = {
     "KAT_7u_r5.glb": {r:"5", w:"7", convex:true},
     "KAT_ISO_ENTER.glb": {r:"special", w:"ISO", type:"ISO ENTER"}
 }
+const dsaList = {
+    "1u.glb": {r:"0", w:"1"},
+    "1_25u.glb": {r:"0", w:"1.25"}
+}
+const kamList = {
+    "1u.glb": {r:"0", w:"1"},
+    "1u_nub.glb": {r:"0", w:"2", nubbed:true},
+    "1_25u.glb": {r:"0", w:"1.25"},
+    "1_5u.glb": {r:"0", w:"1.5"},
+    "1_75u.glb": {r:"0", w:"1.75"},
+    "2u.glb": {r:"0", w:"2"},
+    // "2u_convex.glb": {r:"0", w:"2", convex:true},
+    // "2u_stepped.glb": {r:"0", w:"1.75", stepped:true},
+    "2_25u.glb": {r:"0", w:"2.25"},
+    "2_75u.glb": {r:"0", w:"2.75"},
+    "3u_convex.glb": {r:"0", w:"3"},
+    "6u_convex.glb": {r:"0", w:"6"},
+    "6_25u_convex.glb": {r:"0", w:"6.25"},
+    "7u_convex.glb": {r:"0", w:"7"},
+    "ISO_ENTER.glb": {r:"special", w:"ISO", type:"ISO ENTER"}
+}
 
 export function init() {
     // get the canvas DOM element
@@ -272,14 +294,31 @@ export function init() {
     // call the createScene function
     globals.scene = createScene();
 
-    for(const [n,d] of Object.entries(katList)) {
-        SceneLoader.LoadAssetContainer("assets/KAT/", n, globals.scene, function (container) {
-            if(!keyAssets.KAT[d.w]) {
-                keyAssets.KAT[d.w] = {};
+    for(const [n,d] of Object.entries(kamList)) {
+        SceneLoader.LoadAssetContainer("assets/KAM/", n, globals.scene, function (container) {
+            if(!keyAssets.KAM[d.w]) {
+                keyAssets.KAM[d.w] = {};
             }
-            keyAssets.KAT[d.w][d.r] = {container:container, details:d};
+            keyAssets.KAM[d.w][d.r] = {container:container, details:d};
         });
     }
 
+    // for(const [n,d] of Object.entries(katList)) {
+    //     SceneLoader.LoadAssetContainer("assets/KAT/", n, globals.scene, function (container) {
+    //         if(!keyAssets.KAT[d.w]) {
+    //             keyAssets.KAT[d.w] = {};
+    //         }
+    //         keyAssets.KAT[d.w][d.r] = {container:container, details:d};
+    //     });
+    // }
+
+    // for(const [n,d] of Object.entries(dsaList)) {
+    //     SceneLoader.LoadAssetContainer("assets/DSA/", n, globals.scene, function (container) {
+    //         if(!keyAssets.DSA[d.w]) {
+    //             keyAssets.DSA[d.w] = {};
+    //         }
+    //         keyAssets.DSA[d.w][d.r] = {container:container, details:d};
+    //     });
+    // }
 
 }

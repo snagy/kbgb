@@ -336,7 +336,7 @@ export function refreshLayout() {
             }
     
             if (tuning.keyShape) {
-                const keyCapGLTF = gfx.getKeycap("KAT", k.width, k.row, null);
+                const keyCapGLTF = gfx.getKeycap("KAM", k.width, k.row, null);
                 if( keyCapGLTF ) {
                     rd.keycap = keyCapGLTF.instantiateModelsToScene(name => id, false).rootNodes[0];
                     rd.keycap.parent = root;
