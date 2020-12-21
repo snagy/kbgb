@@ -338,7 +338,12 @@ export function refreshLayout() {
             }
     
             if (tuning.keyShape) {
-                const keyCapGLTF = gfx.getKeycap("KAM", k.width, k.height, k.row, null);
+                let primeSearch = k.width;
+                if(k.row == "special") {
+                    primeSearch = k.special;
+                }
+                let searchOpts = {vertical:k.vertical, stepped: k.stepped, nub: k.nub, r:k.row};
+                const keyCapGLTF = gfx.getKeycap("KAM", primeSearch, k.height, searchOpts);
                 if( keyCapGLTF ) {
                     rd.keycap = keyCapGLTF.container.instantiateModelsToScene(name => id, false).rootNodes[0];
                     rd.keycap.parent = root;
@@ -1432,21 +1437,46 @@ export function loadKeyboard(data) {
     bd.layout = {keys: {}};
     let kIdx = 0
     for (let k of data.keys) {
-        k.id = "key" + kIdx++;
+        let keyInfo = {id: "key" + kIdx++,
+                        special: "standard",
+                        x: k.x,
+                        y: k.y,
+                        width: k.width,
+                        height: k.height,
+                        rotation_x: k.rotation_x,
+                        rotation_y: k.rotation_y,
+                        rotation_angle: k.rotation_angle,
+                        nub:k.nub,
+                        stepped:k.stepped,
+                        type:k.type,
+                        encoder_knob_size:k.encoder_knob_size
+                        };
+        keyInfo.matName = k.color;
 
-        if(k.width2 == k.width && k.height2 == k.height && k.x2 == 0 && k.y2 == 0) {
-            delete k.width2;
-            delete k.height2;
-            delete k.x2;
-            delete k.y2;
+        if( k.width == 1 && k.height > 1) {
+            keyInfo.vertical = true;
         }
         
-        if(!mats[k.color]) {
-            gfx.createKeyMaterial(k.color,Color3.FromHexString(k.color));
+        if(!(k.width2 == k.width && k.height2 == k.height && k.x2 == 0 && k.y2 == 0)) {
+            if(k.width2 == 1.5 && k.height2 == 1 && k.width == 1.25 && k.height == 2 && k.x2 == -0.25 ) {
+                keyInfo.row = "special";
+                keyInfo.special = "ISO";
+            }
+            else if(k.width2 == 1.75 && k.height2 == 1 && k.width == 1.25 && k.x2 == 0) {
+                // stepped is..uhhh...weird.            
+                // keyInfo.width = 1.75;
+            }
+            keyInfo.width2 = k.width2;
+            keyInfo.height2 = k.height2;
+            keyInfo.x2 = k.x2;
+            keyInfo.y2 = k.y2;
         }
-        k.matName = k.color;
         
-        bd.layout.keys[k.id] = k;
+        if(!mats[keyInfo.matName]) {
+            gfx.createKeyMaterial(keyInfo.matName,Color3.FromHexString(keyInfo.matName));
+        }
+        
+        bd.layout.keys[keyInfo.id] = keyInfo;
     }
     globals.boardData = bd;
     

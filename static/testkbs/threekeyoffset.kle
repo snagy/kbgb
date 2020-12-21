@@ -92,7 +92,7 @@
       "decal": false,
       "ghost": false,
       "stepped": false,
-      "nub": false,
+      "nub": true,
       "profile": "DSA",
       "sm": "",
       "sb": "",

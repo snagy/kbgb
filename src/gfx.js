@@ -214,18 +214,21 @@ function createScene() {
 }
 
 export const keyAssets = {"KAT":{},"DSA":{},"KAM":{}};
-export function getKeycap(profile, width, height, row, opts) {
+export function getKeycap(profile, width, height, opts) {
     const prof = keyAssets[profile];
     if(!prof) return null;
 
     let xForm = Matrix.Identity();
     if(profile == "KAM") {
-        if(height > width) {
+        if(opts.vertical) {
             width = height;
             height = 1;
 
             xForm = Matrix.RotationY(Math.PI / 2);
+        } else {
+            xForm = Matrix.RotationY(Math.PI);
         }
+        xForm = xForm.multiply(Matrix.Scaling(-1,1,1));
     }
     else if(profile == "KAT") {
         xForm = Matrix.RotationY(Math.PI);
@@ -235,12 +238,20 @@ export function getKeycap(profile, width, height, row, opts) {
     if(!sized) return null;
 
     let best = null;
+    let bestScore = -1;
 
     for(const [r,m] of Object.entries(sized)) {
         const container = m.container;
         const d = m.details;
-        if(best == null || row == r) {
+        let score = 0;
+        for(const [k,v] of Object.entries(opts)) {
+            if( d[k] == v) {
+                score += 1;
+            }
+        }
+        if(score > bestScore) {
             best = container;
+            bestScore = score;
         }
     }
     return {container:best,preXform:xForm};
@@ -257,7 +268,7 @@ const katList = {
     "KAT_1u_r1.glb": {r:"1", w:"1"},
     "KAT_1u_r2.glb": {r:"2", w:"1"},
     "KAT_1u_r3.glb": {r:"3", w:"1"},
-    "KAT_1u_r3_nub.glb": {r:"3", w:"1", nubbed:true},
+    "KAT_1u_r3_nub.glb": {r:"3", w:"1", nub:true},
     "KAT_1u_r4.glb": {r:"4", w:"1"},
     "KAT_1u_r5.glb": {r:"5", w:"1"},
     "KAT_2_25u_r3.glb": {r:"3", w:"2.25"},
@@ -280,21 +291,21 @@ const dsaList = {
     "1_25u.glb": {r:"0", w:"1.25"}
 }
 const kamList = {
-    "1u.glb": {r:"0", w:"1"},
-    "1u_nub.glb": {r:"0", w:"2", nubbed:true},
-    "1_25u.glb": {r:"0", w:"1.25"},
-    "1_5u.glb": {r:"0", w:"1.5"},
-    "1_75u.glb": {r:"0", w:"1.75"},
-    "2u.glb": {r:"0", w:"2"},
+    "1u.glb": {r:"0", w:"1", nub:false, stepped:false},
+    "1u_nub.glb": {r:"0", w:"1", nub:true, stepped:false},
+    "1_25u.glb": {r:"0", w:"1.25", nub:false, stepped:false},
+    "1_5u.glb": {r:"0", w:"1.5", nub:false, stepped:false},
+    "1_75u.glb": {r:"0", w:"1.75", nub:false, stepped:false},
+    "1_75u_stepped.glb": {r:"0", w:"1.25", nub:false, stepped:true},
+    "2u.glb": {r:"0", w:"2", nub:false, stepped:false},
     // "2u_convex.glb": {r:"0", w:"2", convex:true},
-    // "2u_stepped.glb": {r:"0", w:"1.75", stepped:true},
-    "2_25u.glb": {r:"0", w:"2.25"},
-    "2_75u.glb": {r:"0", w:"2.75"},
-    "3u_convex.glb": {r:"0", w:"3"},
-    "6u_convex.glb": {r:"0", w:"6"},
-    "6_25u_convex.glb": {r:"0", w:"6.25"},
-    "7u_convex.glb": {r:"0", w:"7"},
-    "ISO_ENTER.glb": {r:"special", w:"ISO", type:"ISO ENTER"}
+    "2_25u.glb": {r:"0", w:"2.25", nub:false, stepped:false},
+    "2_75u.glb": {r:"0", w:"2.75", nub:false, stepped:false},
+    "3u_convex.glb": {r:"0", w:"3", nub:false, stepped:false},
+    "6u_convex.glb": {r:"0", w:"6", nub:false, stepped:false},
+    "6_25u_convex.glb": {r:"0", w:"6.25", nub:false, stepped:false},
+    "7u_convex.glb": {r:"0", w:"7", nub:false, stepped:false},
+    "ISO_ENTER.glb": {r:"special", w:"ISO", type:"ISO ENTER", nub:false, stepped:false}
 }
 
 export function init(loadCB) {
@@ -312,9 +323,9 @@ export function init(loadCB) {
         loading.push(n);
         SceneLoader.LoadAssetContainer("assets/KAM/", n, globals.scene, function (container) {
             if(!keyAssets.KAM[d.w]) {
-                keyAssets.KAM[d.w] = {};
+                keyAssets.KAM[d.w] = [];
             }
-            keyAssets.KAM[d.w][d.r] = {container:container, details:d};
+            keyAssets.KAM[d.w].push({container:container, details:d});
             var i = loading.indexOf(n);
             if (i >= 0) {
                 loading.splice(i, 1 );
