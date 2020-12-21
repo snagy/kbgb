@@ -239,7 +239,8 @@ export function refreshLayout() {
                     rd.keycap.renderOverlay = true;
                 }
                 rd.keycap.parent = root;
-                rd.keycap.translate(new Vector3(0, 4.5, 0), 1, Space.LOCAL);
+                rd.keycap.heightOffset = 4.5,
+                rd.keycap.translate(new Vector3(0, rd.keycap.heightOffset, 0), 1, Space.LOCAL);
         
                 if(k.matName && globals.renderData.mats[k.matName]) {
                     rd.keycap.material = globals.renderData.mats[k.matName];
@@ -284,7 +285,8 @@ export function refreshLayout() {
                     rd.keycap.renderOverlay = true;
                 }
                 rd.keycap.parent = root;
-                rd.keycap.translate(new Vector3(0, 10.5, 0), 1, Space.LOCAL);
+                rd.keycap.heightOffset = 10.5,
+                rd.keycap.translate(new Vector3(0, rd.keycap.heightOffset, 0), 1, Space.LOCAL);
         
                 if(k.matName && globals.renderData.mats[k.matName]) {
                     rd.keycap.material = globals.renderData.mats[k.matName];
@@ -354,13 +356,14 @@ export function refreshLayout() {
                     // rd.keycap.parent = root;
                     const kcXform = keyCapGLTF.preXform.multiply(kXform).multiply(Matrix.Scaling(-1,1,1));
                     rd.keycap.setPreTransformMatrix(kcXform);
-                    rd.keycap.translate(new Vector3(0, 3.5, 0), 1, Space.LOCAL);
+                    rd.keycap.heightOffset = 3.5;
                 }
                 else {
                     rd.keycap = MeshBuilder.CreatePolygon(id, { shape: coremath.genArrayFromOutline(rd.outline,0,0.25), depth: 7, smoothingThreshold: 0.1, updatable: false }, scene);
                     rd.keycap.parent = root;
-                    rd.keycap.translate(new Vector3(0, 10.5, 0), 1, Space.LOCAL);
+                    rd.keycap.heightOffset = 3.5;
                 }
+                rd.keycap.translate(new Vector3(0, rd.keycap.heightOffset, 0), 1, Space.LOCAL);
 
         
                 if(k.matName && globals.renderData.mats[k.matName]) {
@@ -1362,6 +1365,16 @@ export function expandLayers() {
     }
     setFlatRotation();
 
+    let kRD = globals.renderData.keys;
+    // clear the renderdata (cache this later?)
+    for(const [id, rd] of Object.entries(kRD)) {
+        if (rd.keycap) {
+            Animation.CreateAndStartAnimation("expand", rd.keycap, "position.y", 30, 20+Math.random()*10,
+            rd.keycap.position.y, 200.0,
+            Animation.ANIMATIONLOOPMODE_CONSTANT, easingFunction, () => {rd.keycap.setEnabled(false)}); 
+        }
+    }
+
     // Animation.CreateAndStartAnimation("flip",root,"rotation."
 }
 
@@ -1377,6 +1390,18 @@ export function collapseLayers() {
                                                 mesh.position.y, layerDef.offset,
                                                 Animation.ANIMATIONLOOPMODE_CONSTANT, easingFunction); 
             }
+        }
+    }
+
+
+    let kRD = globals.renderData.keys;
+    // clear the renderdata (cache this later?)
+    for(const [id, rd] of Object.entries(kRD)) {
+        if (rd.keycap) {
+            rd.keycap.setEnabled(true);
+            Animation.CreateAndStartAnimation("expand", rd.keycap, "position.y", 30, 20+Math.random()*10,
+            rd.keycap.position.y, rd.keycap.heightOffset,
+            Animation.ANIMATIONLOOPMODE_CONSTANT, easingFunction); 
         }
     }
 }
