@@ -60,6 +60,16 @@ export function createMaterials() {
         mats[plateMatName].baseColor = new Color3(0.5, 0.5, 0.5);
     }
 
+
+    let switchMatName = "switch";
+    if(!mats[switchMatName])
+    {
+        mats[switchMatName] = new PBRMaterial(switchMatName, globals.scene);
+        mats[switchMatName].metallic = 0;
+        mats[switchMatName].roughness = 0.7;
+        mats[switchMatName].baseColor = new Color3(0.1, 0.1, 0.1);
+    }
+
     let pcbMatName = "fr4";
     if(!mats[pcbMatName])
     {
@@ -213,6 +223,8 @@ function createScene() {
     return scene;
 }
 
+export const switchAsset = {container:null,details:null};
+
 export const keyAssets = {"KAT":{},"DSA":{},"KAM":{}};
 export function getKeycap(profile, width, height, opts) {
     const prof = keyAssets[profile];
@@ -308,6 +320,7 @@ const kamList = {
     "ISO_ENTER.glb": {r:"special", w:"ISO", type:"ISO ENTER", nub:false, stepped:false}
 }
 
+
 export function init(loadCB) {
     // get the canvas DOM element
     globals.canvas = document.getElementById('renderCanvas');
@@ -318,6 +331,11 @@ export function init(loadCB) {
     // call the createScene function
     globals.scene = createScene();
     let loading = [];
+
+    SceneLoader.LoadAssetContainer("assets/", "MX_SWITCH.glb", globals.scene, function (container) {
+        switchAsset.container = container;
+        loadCB();
+    });
 
     for(const [n,d] of Object.entries(kamList)) {
         loading.push(n);

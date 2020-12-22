@@ -187,6 +187,11 @@ export function refreshLayout() {
             scene.removeMesh(rd.keycap);
             rd.keycap.dispose();
         }
+        if(rd.switch) {
+            rd.switch.parent = null;
+            scene.removeMesh(rd.switch);
+            rd.switch.dispose();
+        }
     }
     kRD = globals.renderData.keys = [];
     
@@ -332,6 +337,20 @@ export function refreshLayout() {
             
             getPlateCutsWithStabs(k.width,k.height,kXform,rd.switchCut,rd.pcbBoxes);
             
+            if(rd.switch) {
+                rd.switch.parent = null;
+                scene.removeMesh(rd.switch);
+                rd.switch.dispose();
+            }
+
+            const switchGLTF = gfx.switchAsset.container;
+            if( switchGLTF ) {
+                rd.switch = switchGLTF.instantiateModelsToScene(name => id, false).rootNodes[0];
+                rd.switch.parent = root;
+                const kcXform = kXform.multiply(Matrix.Scaling(-1,1,1));
+                rd.switch.setPreTransformMatrix(kcXform);
+            }
+
             rd.outline = getCombinedOutlineFromPolyGroup(keyOutlines);
             if (rd.keycap) {
                 rd.keycap.parent = null;
@@ -349,11 +368,6 @@ export function refreshLayout() {
                 if( keyCapGLTF ) {
                     rd.keycap = keyCapGLTF.container.instantiateModelsToScene(name => id, false).rootNodes[0];
                     rd.keycap.parent = root;
-                    rd.keycap.setEnabled(true);
-                    for (const child of rd.keycap.getChildMeshes()){			
-                        child.setEnabled(true); 
-                    }
-                    // rd.keycap.parent = root;
                     const kcXform = keyCapGLTF.preXform.multiply(kXform).multiply(Matrix.Scaling(-1,1,1));
                     rd.keycap.setPreTransformMatrix(kcXform);
                     rd.keycap.heightOffset = 3.5;
@@ -361,7 +375,7 @@ export function refreshLayout() {
                 else {
                     rd.keycap = MeshBuilder.CreatePolygon(id, { shape: coremath.genArrayFromOutline(rd.outline,0,0.25), depth: 7, smoothingThreshold: 0.1, updatable: false }, scene);
                     rd.keycap.parent = root;
-                    rd.keycap.heightOffset = 3.5;
+                    rd.keycap.heightOffset = 10.5;
                 }
                 rd.keycap.translate(new Vector3(0, rd.keycap.heightOffset, 0), 1, Space.LOCAL);
 
@@ -1366,12 +1380,17 @@ export function expandLayers() {
     setFlatRotation();
 
     let kRD = globals.renderData.keys;
-    // clear the renderdata (cache this later?)
     for(const [id, rd] of Object.entries(kRD)) {
         if (rd.keycap) {
             Animation.CreateAndStartAnimation("expand", rd.keycap, "position.y", 30, 20+Math.random()*10,
-            rd.keycap.position.y, 200.0,
+            rd.keycap.position.y, 203.5,
             Animation.ANIMATIONLOOPMODE_CONSTANT, easingFunction, () => {rd.keycap.setEnabled(false)}); 
+        }
+
+        if (rd.switch) {
+            Animation.CreateAndStartAnimation("expand", rd.switch, "position.y", 30, 30+Math.random()*10,
+            rd.switch.position.y, 200.0,
+            Animation.ANIMATIONLOOPMODE_CONSTANT, easingFunction, () => {rd.switch.setEnabled(false)}); 
         }
     }
 
@@ -1399,8 +1418,14 @@ export function collapseLayers() {
     for(const [id, rd] of Object.entries(kRD)) {
         if (rd.keycap) {
             rd.keycap.setEnabled(true);
-            Animation.CreateAndStartAnimation("expand", rd.keycap, "position.y", 30, 20+Math.random()*10,
+            Animation.CreateAndStartAnimation("expand", rd.keycap, "position.y", 30, 30+Math.random()*10,
             rd.keycap.position.y, rd.keycap.heightOffset,
+            Animation.ANIMATIONLOOPMODE_CONSTANT, easingFunction); 
+        }
+        if (rd.switch) {
+            rd.switch.setEnabled(true);
+            Animation.CreateAndStartAnimation("expand", rd.switch, "position.y", 30, 20+Math.random()*10,
+            rd.switch.position.y, 0.0,
             Animation.ANIMATIONLOOPMODE_CONSTANT, easingFunction); 
         }
     }

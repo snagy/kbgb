@@ -1,0 +1,1 @@
+gltf-pipeline -i $1.glb -o $1_compressed.glb -d
