@@ -6,6 +6,15 @@ import * as gfx from './gfx.js'
 import * as dxf from './dxf_export.js'
 import * as kle from '@ijprest/kle-serial';
 import * as inspectorStub from './inspectorstub.js'
+import Amplify from '@aws-amplify/core';
+import Auth from '@aws-amplify/auth';
+import Analytics from '@aws-amplify/analytics';
+
+// import Amplify from 'aws-amplify';
+import awsconfig from './aws-exports';
+
+Amplify.configure(awsconfig);
+Auth.configure({ mandatorySignIn: false});
 
 const hdris = [
     "assets/carpentry_shop.env",
@@ -26,6 +35,7 @@ function loadKeyboardFromPath(path) {
 }
 
 function loadKeyboardFromKLE1(txt) {
+    Analytics.record({ name: 'Manual KLE1 Import' });
     let old_kle = JSON.parse(txt);
 
     var new_kle = kle.Serial.deserialize(old_kle);
@@ -33,6 +43,7 @@ function loadKeyboardFromKLE1(txt) {
 }
 
 function initKBGB() {
+    Analytics.record({ name: 'initKBGB' });
     gfx.init(boardOps.refreshKeyboard);
 
     gfx.setEnvironmentLight(hdris[hdriIdx]);

@@ -5,6 +5,7 @@ import * as svg from './svg_export.js'
 import {snapCamera} from './gfx.js'
 import {Button, Control, TextBlock, InputText, StackPanel, RadioButton, Checkbox, Slider, ScrollViewer, AdvancedDynamicTexture} from '@babylonjs/gui'
 import JSZip from 'jszip/dist/jszip';
+import Analytics from '@aws-amplify/analytics';
 
 function download(content, fileName, contentType) {
     var a = document.createElement("a");
@@ -22,6 +23,7 @@ const formatter = new Intl.NumberFormat('en-US', {
 function format_float(a) { return formatter.format(a)}
 
 function downloadSVGs() {
+    Analytics.record({ name: 'SVG export' });
     var zip = new JSZip();
     const bd = globals.boardData;
     const cRD = globals.renderData.case;
