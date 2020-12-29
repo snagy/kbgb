@@ -180,20 +180,7 @@ export function refreshLayout() {
     let maxs = [-100000.0, -100000.0];
 
     let kRD = globals.renderData.keys;
-    // clear the renderdata (cache this later?)
-    for(const [id, rd] of Object.entries(kRD)) {
-        if (rd.keycap) {
-            rd.keycap.parent = null;
-            scene.removeMesh(rd.keycap);
-            rd.keycap.dispose();
-        }
-        if(rd.switch) {
-            rd.switch.parent = null;
-            scene.removeMesh(rd.switch);
-            rd.switch.dispose();
-        }
-    }
-    kRD = globals.renderData.keys = [];
+    // kRD = globals.renderData.keys = [];
     
     for (const [id, k] of Object.entries(bd.layout.keys)) {
         // console.log(k);
@@ -206,7 +193,13 @@ export function refreshLayout() {
                         bezelHoles:[]
                     };
         }
+
         let rd = kRD[id];
+        rd.mins = [100000.0, 100000.0];
+        rd.maxs = [-100000.0, -100000.0];
+        rd.pcbBoxes.length = 0;
+        rd.switchCut.length = 0;
+        rd.bezelHoles.length = 0;
 
         if(k.type == "oled") {
             //oled sizing: greater than 38 x 12    20.1*2 x 14.1 ?
@@ -237,6 +230,11 @@ export function refreshLayout() {
                 scene.removeMesh(rd.keycap);
                 rd.keycap.dispose();
             }
+            if(rd.switch) {
+                rd.switch.parent = null;
+                scene.removeMesh(rd.switch);
+                rd.switch.dispose();
+            }
     
             if (tuning.keyShape) {
                 rd.keycap = MeshBuilder.CreatePolygon(id, { shape: coremath.genArrayFromOutline(rd.outline,0,0.25), depth: 2, smoothingThreshold: 0.1, updatable: false }, scene);
@@ -245,7 +243,7 @@ export function refreshLayout() {
                 }
                 rd.keycap.parent = root;
                 rd.keycap.heightOffset = 4.5,
-                rd.keycap.translate(new Vector3(0, rd.keycap.heightOffset, 0), 1, Space.LOCAL);
+                rd.keycap.position.y = rd.keycap.heightOffset;
         
                 if(k.matName && globals.renderData.mats[k.matName]) {
                     rd.keycap.material = globals.renderData.mats[k.matName];
@@ -283,6 +281,11 @@ export function refreshLayout() {
                 scene.removeMesh(rd.keycap);
                 rd.keycap.dispose();
             }
+            if(rd.switch) {
+                rd.switch.parent = null;
+                scene.removeMesh(rd.switch);
+                rd.switch.dispose();
+            }
     
             if (tuning.keyShape) {
                 rd.keycap = MeshBuilder.CreatePolygon(id, { shape: coremath.genArrayFromOutline(rd.outline,0,0), depth: 9, smoothingThreshold: 0.1, updatable: false }, scene);
@@ -290,8 +293,8 @@ export function refreshLayout() {
                     rd.keycap.renderOverlay = true;
                 }
                 rd.keycap.parent = root;
-                rd.keycap.heightOffset = 10.5,
-                rd.keycap.translate(new Vector3(0, rd.keycap.heightOffset, 0), 1, Space.LOCAL);
+                rd.keycap.heightOffset = 10.5;
+                rd.keycap.position.y = rd.keycap.heightOffset;
         
                 if(k.matName && globals.renderData.mats[k.matName]) {
                     rd.keycap.material = globals.renderData.mats[k.matName];
@@ -334,31 +337,35 @@ export function refreshLayout() {
                 rd.bezelHoles.push(bezelHole2);
             }
             
-            
             getPlateCutsWithStabs(k.width,k.height,kXform,rd.switchCut,rd.pcbBoxes);
             
-            if(rd.switch) {
-                rd.switch.parent = null;
-                scene.removeMesh(rd.switch);
-                rd.switch.dispose();
+            if(!rd.switch) {
+                const switchGLTF = gfx.switchAsset.container;
+                if( switchGLTF ) {
+                    rd.switch = switchGLTF.instantiateModelsToScene(name => id, false).rootNodes[0];
+                    rd.switch.parent = root;
+                }
             }
 
-            const switchGLTF = gfx.switchAsset.container;
-            if( switchGLTF ) {
-                rd.switch = switchGLTF.instantiateModelsToScene(name => id, false).rootNodes[0];
-                rd.switch.parent = root;
+            if(rd.switch) {
                 const kcXform = kXform.multiply(Matrix.Scaling(-1,1,1));
                 rd.switch.setPreTransformMatrix(kcXform);
             }
 
             rd.outline = getCombinedOutlineFromPolyGroup(keyOutlines);
-            if (rd.keycap) {
-                rd.keycap.parent = null;
-                scene.removeMesh(rd.keycap);
-                rd.keycap.dispose();
-            }
+            // if (rd.keycap) {
+            //     rd.keycap.parent = null;
+            //     scene.removeMesh(rd.keycap);
+            //     rd.keycap.dispose();
+            // }
     
-            if (tuning.keyShape) {
+            if (tuning.keyShape && (!rd.keycap || rd.keycap.width != k.width || rd.keycap.row != k.row)) {
+                if (rd.keycap) {
+                    rd.keycap.parent = null;
+                    scene.removeMesh(rd.keycap);
+                    rd.keycap.dispose();
+                }
+
                 let primeSearch = k.width;
                 if(k.row == "special") {
                     primeSearch = k.special;
@@ -368,16 +375,19 @@ export function refreshLayout() {
                 if( keyCapGLTF ) {
                     rd.keycap = keyCapGLTF.container.instantiateModelsToScene(name => id, false).rootNodes[0];
                     rd.keycap.parent = root;
-                    const kcXform = keyCapGLTF.preXform.multiply(kXform).multiply(Matrix.Scaling(-1,1,1));
-                    rd.keycap.setPreTransformMatrix(kcXform);
+                    rd.keycap.preXform = keyCapGLTF.preXform;
+                    rd.keycap.postXform = Matrix.Scaling(-1,1,1);
                     rd.keycap.heightOffset = 3.5;
                 }
                 else {
                     rd.keycap = MeshBuilder.CreatePolygon(id, { shape: coremath.genArrayFromOutline(rd.outline,0,0.25), depth: 7, smoothingThreshold: 0.1, updatable: false }, scene);
                     rd.keycap.parent = root;
+                    rd.keycap.preXform = null;
                     rd.keycap.heightOffset = 10.5;
                 }
-                rd.keycap.translate(new Vector3(0, rd.keycap.heightOffset, 0), 1, Space.LOCAL);
+
+                rd.keycap.width = k.width;
+                rd.keycap.row = k.row;
 
         
                 if(k.matName && globals.renderData.mats[k.matName]) {
@@ -393,6 +403,13 @@ export function refreshLayout() {
                         child.renderOverlay = true; 
                     }
                 }
+            }
+            if(rd.keycap) {
+                if(rd.keycap.preXform) {
+                    const kcXform = rd.keycap.preXform.multiply(kXform).multiply(rd.keycap.postXform);
+                    rd.keycap.setPreTransformMatrix(kcXform);
+                }
+                rd.keycap.position.y = rd.keycap.heightOffset;
             }
         }
 
@@ -412,9 +429,11 @@ export function refreshLayout() {
 
     let kPs = [];
     for( let [id,rd] of Object.entries(kRD) ) {
-        for( let b of rd.pcbBoxes) {
-            for( let p of b.points) {
-                kPs.push(p)
+        if(rd.pcbBoxes) {
+            for( let b of rd.pcbBoxes) {
+                for( let p of b.points) {
+                    kPs.push(p)
+                }
             }
         }
     }
@@ -1146,8 +1165,10 @@ export function refreshCase() {
     if(bd.caseType == "convex") {
         let kPs = [];
         for( let [id,rd] of Object.entries(kRD) ) {
-            for( let p of rd.outline ) {
-                kPs.push(p)
+            if(rd.outline) {
+                for( let p of rd.outline ) {
+                    kPs.push(p)
+                }
             }
         }
         for(let p of cRD.pcbOutline) {
@@ -1463,16 +1484,43 @@ export function addKey() {
 }
 
 export function removeKey(kId) {
+    const rd = globals.renderData.keys[kId];
+    if(rd) {
+        if (rd.keycap) {
+            rd.keycap.parent = null;
+            globals.scene.removeMesh(rd.keycap);
+            rd.keycap.dispose();
+        }
+        if(rd.switch) {
+            rd.switch.parent = null;
+            globals.scene.removeMesh(rd.switch);
+            rd.switch.dispose();
+        }
+        delete globals.renderData.keys[kId];
+    }
     const bd = globals.boardData;
     delete bd.layout.keys[kId];
 }
-
 
 export function loadKeyboard(data) {
     // console.log(data);
     let mats = globals.renderData.mats;
 
     globals.renderData.rootXform = new TransformNode("keebRoot");
+
+    for(const [id, rd] of Object.entries(globals.renderData.keys)) {
+        if (rd.keycap) {
+            rd.keycap.parent = null;
+            globals.scene.removeMesh(rd.keycap);
+            rd.keycap.dispose();
+        }
+        if(rd.switch) {
+            rd.switch.parent = null;
+            globals.scene.removeMesh(rd.switch);
+            rd.switch.dispose();
+        }
+    }
+    globals.renderData.keys = {};
 
     let bd = {};
     bd.meta = data.meta;

@@ -8,7 +8,8 @@ const BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPl
 module.exports = {
     mode: 'production',
     entry: './src/base.js',
-    // devtool: 'inline-source-map',
+    // devtool: 'source-map',
+    //devtool: 'eval-source-map',
     optimization: {
         usedExports: true,
       },
@@ -35,6 +36,6 @@ module.exports = {
         // }),
 
         // new BundleAnalyzerPlugin(),
-        new webpack.HotModuleReplacementPlugin()
+        // new webpack.HotModuleReplacementPlugin()
     ],
 };

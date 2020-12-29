@@ -9,6 +9,7 @@ import * as inspectorStub from './inspectorstub.js'
 import Amplify from '@aws-amplify/core';
 import Auth from '@aws-amplify/auth';
 import Analytics from '@aws-amplify/analytics';
+import {PointerEventTypes} from '@babylonjs/core';
 
 // import Amplify from 'aws-amplify';
 import awsconfig from './aws-exports';
@@ -45,6 +46,50 @@ function loadKeyboardFromKLE1(txt) {
 function initKBGB() {
     Analytics.record({ name: 'initKBGB' });
     gfx.init(boardOps.refreshKeyboard);
+
+
+    const scene = globals.scene;
+
+    scene.onPointerObservable.add((pointerInfo) => {
+        const e = pointerInfo.event;
+        switch (pointerInfo.type) {
+            // case PointerEventTypes.POINTERDOWN:
+            //     console.log("POINTER DOWN");
+            //     break;
+            // case PointerEventTypes.POINTERUP:
+            //     console.log("POINTER UP");
+            //     break;
+            // case PointerEventTypes.POINTERMOVE:
+            //     console.log("POINTER MOVE");
+            //     break;
+            // case PointerEventTypes.POINTERWHEEL:
+            //     console.log("POINTER WHEEL");
+            //     break;
+            case PointerEventTypes.POINTERPICK:
+                const pickResult = pointerInfo.pickInfo;
+                if (pickResult && pickResult.pickedMesh) {
+                    if(kbgbGUI.activeMode == "key") {
+                        const parent = pickResult.pickedMesh.parent;
+                        if (parent && globals.boardData.layout.keys[parent.name]) {
+                            if (!(e.metaKey || e.ctrlKey)) {
+                                boardOps.clearPickedKeys();
+                            }
+                            boardOps.togglePickedKey(parent.name);
+            
+                            console.log("picked key " + parent.name)
+                            // boardOps.refreshOutlines();
+                        }
+                    }
+                }
+                break;
+            // case PointerEventTypes.POINTERTAP:
+            //     console.log("POINTER TAP");
+            //     break;
+            // case PointerEventTypes.POINTERDOUBLETAP:
+            //     console.log("POINTER DOUBLE-TAP");
+            //     break;
+        }
+    });
 
     gfx.setEnvironmentLight(hdris[hdriIdx]);
 
@@ -140,27 +185,4 @@ function initKBGB() {
 
 window.addEventListener('DOMContentLoaded', function () {
     initKBGB();
-});
-
-
-
-//When click event is raised
-window.addEventListener("click", function (e) {
-    const scene = globals.scene;
-    var pickResult = scene.pick(scene.pointerX, scene.pointerY);
-    //console.log(pickResult);
-    if (pickResult && pickResult.pickedMesh) {
-        if(kbgbGUI.activeMode == "key") {
-            const parent = pickResult.pickedMesh.parent;
-            if (parent && globals.boardData.layout.keys[parent.name]) {
-                if (!(e.metaKey || e.ctrlKey)) {
-                    boardOps.clearPickedKeys();
-                }
-                boardOps.togglePickedKey(parent.name);
-
-                console.log("picked key " + parent.name)
-                // boardOps.refreshOutlines();
-            }
-        }
-    }
 });

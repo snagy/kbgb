@@ -3,7 +3,8 @@ import {tuning} from './tuning.js'
 import * as boardOps from './boardOps.js'
 import * as svg from './svg_export.js'
 import {snapCamera} from './gfx.js'
-import {Button, Control, TextBlock, InputText, StackPanel, RadioButton, Checkbox, Slider, ScrollViewer, AdvancedDynamicTexture} from '@babylonjs/gui'
+import {Button, Rectangle, Control, TextBlock, InputText, StackPanel, RadioButton, Checkbox, 
+        Slider, ScrollViewer, AdvancedDynamicTexture} from '@babylonjs/gui'
 import JSZip from 'jszip/dist/jszip';
 import Analytics from '@aws-amplify/analytics';
 
@@ -42,26 +43,107 @@ function downloadSVGs() {
         });
 }
 
+function addButton(txt, action, style) {
+    style = style?style:{};
+    var button = Button.CreateSimpleButton("button", txt);
+    button.top = "0px";
+    button.left = "0px";
+    button.width = style.width?style.width:"50px";
+    button.height = style.height?style.height:"50px";
+    button.cornerRadius = 0;
+    button.thickness = 2;
+    button.children[0].color = "#FFFFFF";
+    button.children[0].fontSize = 24;
+    button.color = "#101010";
+    button.background = "#909090";
+    //button.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
+
+    button.onPointerClickObservable.add( (a,b) => {
+        if(action) {
+            action(a,b);
+         }
+        b.skipNextObservers = true;
+    });
+
+    return button;
+}
+
+function createScreenBlock() {
+    let background = Button.CreateSimpleButton("screenBlock", "");
+    background.background = "#000000";
+    background.alpha = 0.8;
+    background.cornerRadius = 0;
+    background.thickness = 0;
+    background.top = "0px";
+    background.left = "0px";
+    background.width = "1";
+    background.height = "1";
+    background.pointerEnterAnimation = null;
+    background.pointerOutAnimation = null;
+    background.pointerDownAnimation = null;
+    background.pointerUpAnimation = null;
+    return background;
+}
+
+function modalPop(container, txt, action, escape) {
+    let background = createScreenBlock();
+    let modalAction = (containedAction) => {
+        return (a,b) => {
+            if(containedAction) {
+                containedAction(a,b);
+            }
+            background.dispose();
+            button.dispose();
+            b.skipNextObservers = true;
+        }
+    }
+
+    const button = addButton(txt, modalAction(action));
+    button.zIndex = background.zIndex + 1;
+    background.onPointerClickObservable.add( modalAction(escape));
+    container.addControl(background);
+    container.addControl(button);
+}
+
+
+function createDropdown(container, options, escape) {
+    let modalAction = (containedAction) => {
+        return (a,b) => {
+            if(containedAction) {
+                containedAction(a,b);
+            }
+            background.dispose();
+            scroller.dispose();
+            b.skipNextObservers = true;
+        }
+    }
+
+    let background = createScreenBlock();
+    background.onPointerClickObservable.add(modalAction(escape));
+
+    let scroller = new ScrollViewer("dropdown");
+    scroller.zIndex = background.zIndex + 1;
+    scroller.width = "65px";
+    scroller.height = "400px";
+    scroller.barSize = "15";
+
+    let panel = new StackPanel();
+    // panel.height = "400px";
+    panel.isPointerBlocker = true;
+    panel.isVertical = true;
+    for(const o of options) {
+        panel.addControl(addButton(o.txt, modalAction(o.action)));
+    }
+
+    scroller.addControl(panel);
+
+    container.addControl(background);
+    container.addControl(scroller);
+}
+
+
 export const kbgbGUI = {
-    addButton: function(txt, action, style) {
-        style = style?style:{};
-        var button = Button.CreateSimpleButton("button", txt);
-        button.top = "0px";
-        button.left = "0px";
-        button.width = style.width?style.width:"50px";
-        button.height = style.height?style.height:"50px";
-        button.cornerRadius = 5;
-        button.thickness = 2;
-        button.children[0].color = "#FFFFFF";
-        button.children[0].fontSize = 24;
-        button.color = "#101010";
-        button.background = "#909090";
-        //button.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
-    
-        button.onPointerClickObservable.add(action);
-    
-        return button;
-    },
+
     addLabel: function(txt) {
         var t = new TextBlock();
         t.width = "80px";
@@ -72,7 +154,7 @@ export const kbgbGUI = {
         return t;
     },
     addKeyActionButton: function(txt, keyAction) {
-        return kbgbGUI.addButton(txt, function () {
+        return addButton(txt, function () {
             for (let kId of globals.pickedKeys) {
                 let bd = globals.boardData;
                 let k = bd.layout.keys[kId];
@@ -93,7 +175,7 @@ export const kbgbGUI = {
                 //ctrlBar.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
                 ctrlBar.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
             
-                ctrlBar.addControl(kbgbGUI.addButton("add key", (e) => {
+                ctrlBar.addControl(addButton("add key", (e) => {
                     boardOps.addKey();
                     boardOps.refreshKeyboard();
                 }, {height:"60px", width:"120px"}));
@@ -109,29 +191,54 @@ export const kbgbGUI = {
                 ctrlBar.addControl(kbgbGUI.addKeyActionButton(`⤹`, (k) => k.rotation_angle -= 2 ));
                 ctrlBar.addControl(kbgbGUI.addKeyActionButton(`⤸`, (k) => k.rotation_angle += 2 ));
             
-                // ctrlBar.addControl(kbgbGUI.addButton("Size", (e) => {
-                //     var sv = new ScrollViewer();
-                //     sv.width = "500px";
-                //     sv.height = "400px";
-                //     sv.background = "orange";
-                
-                //     globals.screengui.addControl(sv);
-                // }))
-
+                ctrlBar.addControl(kbgbGUI.addLabel("  "));
+                let kAction = (keyAction) => {
+                    return (a,b) => {
+                        for (let kId of globals.pickedKeys) {
+                            let bd = globals.boardData;
+                            let k = bd.layout.keys[kId];
+                            keyAction(k);
+                        }
+                        boardOps.refreshKeyboard();
+                    }
+                };
+                let setWidthAction = (v) => kAction((k) => {
+                    k.width = v;
+                });
                 let keyWidths = [1,1.25,1.5,1.75,2,2.25,2.5,2.75,3,4,4.5,5.5,6,6.25,6.5,7,8,9,10];
-                ctrlBar.addControl(kbgbGUI.addLabel("W: "));
-                ctrlBar.addControl(kbgbGUI.addKeyActionButton(`⬌`, (k) => {
-                    const currIdx = keyWidths.indexOf(k.width);
-                    if(currIdx != -1 && currIdx >= 1) {
-                        k.width = keyWidths[currIdx-1];
-                    }
-                }));
-                ctrlBar.addControl(kbgbGUI.addKeyActionButton(`⬄`, (k) => {
-                    const currIdx = keyWidths.indexOf(k.width);
-                    if(currIdx != -1 && currIdx < keyWidths.length-1) {
-                        k.width = keyWidths[currIdx+1];
-                    }
-                }));
+                ctrlBar.addControl(addButton("Size", (e) => {
+                    // modalPop(globals.screengui,"YOOO", () => {console.log("ACK");});
+                    createDropdown(globals.screengui,[
+                        {txt:"1U", action:setWidthAction(1) },
+                        {txt:"1.25U", action:setWidthAction(1.25) },
+                        {txt:"1.5U", action:setWidthAction(1.5) },
+                        {txt:"1.75U", action:setWidthAction(1.75) },
+                        {txt:"2U", action:setWidthAction(2) },
+                        {txt:"2.25U", action:setWidthAction(2.25) },
+                        {txt:"2.75U", action:setWidthAction(2.75) },
+                        {txt:"3U", action:setWidthAction(3) },
+                        {txt:"6U", action:setWidthAction(6) },
+                        {txt:"6.25U", action:setWidthAction(6.25) },
+                        {txt:"7U", action:setWidthAction(7) },
+                        {txt:"ISO"},
+                        {txt:"1.75U STEPPED"}], () => {console.log("ACK");})
+                }))
+
+                // ctrlBar.addControl(kbgbGUI.addLabel("W: "));
+                // ctrlBar.addControl(kbgbGUI.addKeyActionButton(`⬌`, (k) => {
+                //     const currIdx = keyWidths.indexOf(k.width);
+                //     if(currIdx != -1 && currIdx >= 1) {
+                //         k.width = keyWidths[currIdx-1];
+                //     }
+                // }));
+                // ctrlBar.addControl(kbgbGUI.addKeyActionButton(`⬄`, (k) => {
+                //     const currIdx = keyWidths.indexOf(k.width);
+                //     if(currIdx != -1 && currIdx < keyWidths.length-1) {
+                //         k.width = keyWidths[currIdx+1];
+                //     }
+                // }));
+
+                ctrlBar.addControl(kbgbGUI.addLabel("  "));
 
                 ctrlBar.addControl(kbgbGUI.addKeyActionButton("del", (k) => {
                     boardOps.removeKey(k.id);
@@ -329,17 +436,17 @@ export const kbgbGUI = {
                 //ctrlBar.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
                 ctrlBar.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
 
-                ctrlBar.addControl(kbgbGUI.addButton("export SVGs", () => {
+                ctrlBar.addControl(addButton("export SVGs", () => {
                             downloadSVGs();
                         }, {height:"60px",width:"120px"}));
-                ctrlBar.addControl(kbgbGUI.addButton("save layout", () => {
+                ctrlBar.addControl(addButton("save layout", () => {
                             download(boardOps.saveKeyboard(), `${globals.boardData.meta.name}.kbgb`, 'text/plain');
                         }, {height:"60px",width:"120px"}));
-                ctrlBar.addControl(kbgbGUI.addButton("load layout", () => {
+                ctrlBar.addControl(addButton("load layout", () => {
                             alert("to be implemented soon");
                         }, {height:"60px",width:"120px"}));
                 
-                ctrlBar.addControl(kbgbGUI.addButton("import kle", (e) => {
+                ctrlBar.addControl(addButton("import kle", (e) => {
                             document.getElementById("loadKLE").click();
                         }, {height:"60px", width:"120px"}));
 
@@ -357,7 +464,7 @@ export const kbgbGUI = {
                 rtBar.isVertical = true;
                 rtBar.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
                 let addSVGButton = function(layerName) {
-                    rtBar.addControl(kbgbGUI.addButton(layerName, () => {
+                    rtBar.addControl(addButton(layerName, () => {
                         // downloadSVGs();
                     }, {height:"60px",width:"120px"}));
                 }
@@ -393,18 +500,19 @@ export const kbgbGUI = {
     },
     addModeGUI: function() {
         globals.screengui = AdvancedDynamicTexture.CreateFullscreenUI("screenUI");
+        globals.screengui.renderScale = 1.0;
 
         let ctrlBar = new StackPanel();  
-        ctrlBar.height = ".1";
+        ctrlBar.height = "40px";
         ctrlBar.isPointerBlocker = true;
         ctrlBar.isVertical = false;
         //ctrlBar.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
         ctrlBar.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
 
-        ctrlBar.addControl(kbgbGUI.addButton("layout", () => {kbgbGUI.setGUIMode("key")}, {height:"1",width:"120px"}));
-        ctrlBar.addControl(kbgbGUI.addButton("case", () => {kbgbGUI.setGUIMode("case")}, {height:"1",width:"120px"}));
-        ctrlBar.addControl(kbgbGUI.addButton("pcb", () => {kbgbGUI.setGUIMode("pcb")}, {height:"1",width:"120px"}));
-        ctrlBar.addControl(kbgbGUI.addButton("layers", () => {kbgbGUI.setGUIMode("details")}, {height:"1",width:"120px"}));
+        ctrlBar.addControl(addButton("layout", () => {kbgbGUI.setGUIMode("key")}, {height:"1",width:"120px"}));
+        ctrlBar.addControl(addButton("case", () => {kbgbGUI.setGUIMode("case")}, {height:"1",width:"120px"}));
+        ctrlBar.addControl(addButton("pcb", () => {kbgbGUI.setGUIMode("pcb")}, {height:"1",width:"120px"}));
+        ctrlBar.addControl(addButton("layers", () => {kbgbGUI.setGUIMode("details")}, {height:"1",width:"120px"}));
 
         kbgbGUI.modeCtrl = ctrlBar;
         globals.screengui.addControl(ctrlBar);
