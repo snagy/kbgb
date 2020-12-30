@@ -106,7 +106,7 @@ function modalPop(container, txt, action, escape) {
 }
 
 
-function createDropdown(container, options, escape) {
+function modalSelection(container, options, selectionAction, escape, parentButton) {
     let modalAction = (containedAction) => {
         return (a,b) => {
             if(containedAction) {
@@ -121,18 +121,30 @@ function createDropdown(container, options, escape) {
     let background = createScreenBlock();
     background.onPointerClickObservable.add(modalAction(escape));
 
+    let width = 150;
+    let barSize = 15;
     let scroller = new ScrollViewer("dropdown");
     scroller.zIndex = background.zIndex + 1;
-    scroller.width = "65px";
+    scroller.width = `${width+barSize}px`;
     scroller.height = "400px";
-    scroller.barSize = "15";
+    scroller.barSize = barSize;
+    scroller.thickness = 0;
+    scroller.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
+    scroller.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
+    scroller.leftInPixels = parentButton.centerX-parentButton.widthInPixels*0.5;
+    scroller.topInPixels = parentButton.centerY-parentButton.heightInPixels*0.5 - 400;
 
     let panel = new StackPanel();
     // panel.height = "400px";
     panel.isPointerBlocker = true;
     panel.isVertical = true;
     for(const o of options) {
-        panel.addControl(addButton(o.txt, modalAction(o.action)));
+        panel.addControl(addButton(o.txt, modalAction((a,b) => {
+                if(selectionAction) {
+                    selectionAction(o,a,b);
+                }
+                parentButton.textBlock.text = o.txt;
+            }), {width:width}));
     }
 
     scroller.addControl(panel);
@@ -141,6 +153,13 @@ function createDropdown(container, options, escape) {
     container.addControl(scroller);
 }
 
+function createDropdown(container, initialOption, options, selectionAction) {
+    return addButton(options[initialOption].txt, (e,f) => {
+        // modalPop(globals.screengui,"YOOO", () => {console.log("ACK");});
+        modalSelection(container, options, selectionAction, () => {}, f.target)
+    },
+    {width:"150px"});
+}
 
 export const kbgbGUI = {
 
@@ -193,36 +212,36 @@ export const kbgbGUI = {
             
                 ctrlBar.addControl(kbgbGUI.addLabel("  "));
                 let kAction = (keyAction) => {
-                    return (a,b) => {
                         for (let kId of globals.pickedKeys) {
                             let bd = globals.boardData;
                             let k = bd.layout.keys[kId];
                             keyAction(k);
                         }
                         boardOps.refreshKeyboard();
-                    }
                 };
                 let setWidthAction = (v) => kAction((k) => {
                     k.width = v;
                 });
                 let keyWidths = [1,1.25,1.5,1.75,2,2.25,2.5,2.75,3,4,4.5,5.5,6,6.25,6.5,7,8,9,10];
-                ctrlBar.addControl(addButton("Size", (e) => {
-                    // modalPop(globals.screengui,"YOOO", () => {console.log("ACK");});
-                    createDropdown(globals.screengui,[
-                        {txt:"1U", action:setWidthAction(1) },
-                        {txt:"1.25U", action:setWidthAction(1.25) },
-                        {txt:"1.5U", action:setWidthAction(1.5) },
-                        {txt:"1.75U", action:setWidthAction(1.75) },
-                        {txt:"2U", action:setWidthAction(2) },
-                        {txt:"2.25U", action:setWidthAction(2.25) },
-                        {txt:"2.75U", action:setWidthAction(2.75) },
-                        {txt:"3U", action:setWidthAction(3) },
-                        {txt:"6U", action:setWidthAction(6) },
-                        {txt:"6.25U", action:setWidthAction(6.25) },
-                        {txt:"7U", action:setWidthAction(7) },
+                // modalPop(globals.screengui,"YOOO", () => {console.log("ACK");});
+                let keySelectionAction = (o,a,b) => {
+                    setWidthAction(o.val);
+                }
+                ctrlBar.addControl(
+                    createDropdown(globals.screengui,0, [
+                        {txt:"1U", val:1 },
+                        {txt:"1.25U", val:1.25 },
+                        {txt:"1.5U", val:1.5 },
+                        {txt:"1.75U", val:1.75 },
+                        {txt:"2U", val:2 },
+                        {txt:"2.25U", val:2.25 },
+                        {txt:"2.75U", val:2.75 },
+                        {txt:"3U", val:3 },
+                        {txt:"6U", val:6 },
+                        {txt:"6.25U", val:6.25 },
+                        {txt:"7U", val:7 },
                         {txt:"ISO"},
-                        {txt:"1.75U STEPPED"}], () => {console.log("ACK");})
-                }))
+                        {txt:"1.75U STEPPED"}], keySelectionAction));
 
                 // ctrlBar.addControl(kbgbGUI.addLabel("W: "));
                 // ctrlBar.addControl(kbgbGUI.addKeyActionButton(`⬌`, (k) => {
