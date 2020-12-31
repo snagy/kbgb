@@ -938,7 +938,7 @@ function getScrewBoss() {
     return tuning.screwTypes[screwType].minBoss;
 }
 
-export function addScrewHoles(outline) {
+export function addScrewHoles(outline, bezelWithPort) {
     const screwBoss = getScrewBoss();
     const bezelOffset = (tuning.bezelThickness - screwBoss * 2.0) * tuning.screwBezelBias + tuning.bezelGap + screwBoss;
     let screwLocs = coremath.offsetOutlinePoints(outline,bezelOffset);
@@ -1004,6 +1004,15 @@ export function addScrewHoles(outline) {
                 // splice puts in front of i
                 screwLocs.splice(i,0,newLoc);
             }
+        }
+    }
+    
+    const externalPoint = new Vector3(20,0,-3500);
+    for(let i = screwLocs.length-1; i >= 0; i--) {
+        let loc = screwLocs[i];
+        const int = coremath.segmentToPoly(loc, externalPoint, bezelWithPort);
+        if(int.numIntersections == 0 || int.numIntersections % 2 == 0) {
+            screwLocs.splice(i,1);
         }
     }
 
@@ -1184,6 +1193,20 @@ export function refreshCase() {
             bd.outline = coremath.convexHull2d(kPs);
         }
     }
+    else if(bd.caseType == "concave") {
+        let kPs = [];
+        for( let [id,rd] of Object.entries(kRD) ) {
+            if(rd.outline) {
+                for( let p of rd.outline ) {
+                    kPs.push(p)
+                }
+            }
+        }
+        for(let p of cRD.pcbOutline) {
+            kPs.push(p);
+        }
+        bd.outline = coremath.convexHull2d(kPs);
+    }
     else
     {
         let pcbBounds = bd.pcbBounds;
@@ -1205,10 +1228,6 @@ export function refreshCase() {
     vectorGeo["caseFrameTaper"] = coremath.offsetAndFilletOutline(bd.outline, tuning.bezelGap + tuning.bezelThickness*.9, tuning.caseCornerFillet, false);
     tesselatedGeo["caseFrameTaper"] = coremath.genPointsFromVectorPath(vectorGeo["caseFrameTaper"],8);
 
-    addScrewHoles(bd.outline);
-
-    vectorGeo["screwHoles"] = globals.renderData.screwData;
-    tesselatedGeo["screwHoles"] = vectorGeo["screwHoles"].map((a) => coremath.genArrayForCircle(a,0,19));
 
     if(bd.hasUSBPort) {
         addUSBPort();
@@ -1235,6 +1254,11 @@ export function refreshCase() {
         vectorGeo["caseFrameWithPortCut"] = vectorGeo["caseFrame"];
         tesselatedGeo["caseFrameWithPortCut"] = tesselatedGeo["caseFrame"];
     }
+
+    addScrewHoles(bd.outline, tesselatedGeo["caseFrameWithPortCut"]);
+
+    vectorGeo["screwHoles"] = globals.renderData.screwData;
+    tesselatedGeo["screwHoles"] = vectorGeo["screwHoles"].map((a) => coremath.genArrayForCircle(a,0,19));
     
     // let dbglines = [];
     // for(let i = 0; i < combo.length; i++) {

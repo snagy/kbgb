@@ -61,6 +61,34 @@ export function segmentToSegment(x0, x1, xL, xNorm, y0, y1) {
     return result;
 }
 
+export function segmentToPoly(s0, s1, poly) {
+    let tL = s1.subtract(s0);
+    const tNorm = new Vector3(tL.z,0,-tL.x).normalize();
+    let closest = 1000000000.0;
+    let closestIntersection = null;
+    let numIntersections = 0;
+
+    for(let j = 0; j < poly.length; j++) {
+        const sLine = [poly[j], poly[(j+1)%poly.length]];
+        const sL = sLine[1].subtract(sLine[0]);
+        const sNorm = new Vector3(sL.z,0,-sL.x).normalize();
+        
+        let segRes = segmentToSegment(s0, s1, tL, tNorm, sLine[0], sLine[1]);
+        if(segRes.type == "in_segment" && segRes.intersection) {
+            let dist = segRes.intersection.subtract(s0).lengthSquared();
+            if( dist > Epsilon*Epsilon) {
+                numIntersections += 1;
+                if( dist < closest ) {
+                    closest = dist;
+                    closestIntersection = segRes.intersection;
+                }
+            }
+        }
+    }
+
+    return {numIntersections:numIntersections,nearestIntersection:closestIntersection};
+}
+
 // only convex
 export function isPointInPoly(p, poly) {
     for(let i = 0; i < poly.length; i++) {
