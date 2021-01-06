@@ -2,6 +2,7 @@ import {globals} from './globals.js'
 import {tuning} from './tuning.js'
 import * as boardOps from './boardOps.js'
 import * as svg from './svg_export.js'
+import * as gbr from './gbr_export.js'
 import {snapCamera} from './gfx.js'
 import {Button, Rectangle, Control, TextBlock, InputText, StackPanel, RadioButton, Checkbox, 
         Slider, ScrollViewer, AdvancedDynamicTexture} from '@babylonjs/gui'
@@ -40,6 +41,22 @@ function downloadSVGs() {
     zip.generateAsync({type:"blob"})
         .then(function(content) {
             download(content, `${bd.meta.name}_layers.zip`, 'text/plain');
+        });
+}
+
+function downloadGBRs() {
+    Analytics.record({ name: 'GBR export' });
+    var zip = new JSZip();
+    const bd = globals.boardData;
+    const pcb = globals.pcbData;
+
+    gbr.beginSetExport();
+    zip.file(`outline.gml`, gbr.exportEdgeCutsLayer(pcb));
+    zip.file('drill.txt', gbr.exportDrillFile(pcb));
+
+    zip.generateAsync({type:"blob"})
+        .then(function(content) {
+            download(content, `${bd.meta.name}_gerbers.zip`, 'text/plain');
         });
 }
 
@@ -458,6 +475,9 @@ export const kbgbGUI = {
                 ctrlBar.addControl(addButton("export SVGs", () => {
                             downloadSVGs();
                         }, {height:"60px",width:"120px"}));
+                ctrlBar.addControl(addButton("export GBRs", () => {
+                            downloadGBRs();
+                        }, {height:"60px",width:"120px"}));
                 ctrlBar.addControl(addButton("save layout", () => {
                             download(boardOps.saveKeyboard(), `${globals.boardData.meta.name}.kbgb`, 'text/plain');
                         }, {height:"60px",width:"120px"}));
@@ -469,7 +489,7 @@ export const kbgbGUI = {
                             document.getElementById("loadKLE").click();
                         }, {height:"60px", width:"120px"}));
 
-                let txt = kbgbGUI.addLabel("WORK IN PROGRESS.");
+                let txt = kbgbGUI.addLabel("WORK IN PROGRESS");
 
                 txt.width = "260px";
                 ctrlBar.addControl(txt);

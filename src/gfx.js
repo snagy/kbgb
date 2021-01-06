@@ -1,7 +1,7 @@
 import {globals} from './globals.js'
 import {tuning} from './tuning.js'
 import {Engine, ArcRotateCamera, CubeTexture, Scene, Vector3, VertexBuffer, 
-        VertexData, Color3, StandardMaterial, PBRMaterial, PBRMetallicRoughnessMaterial,
+        VertexData, Color3, DefaultRenderingPipeline, StandardMaterial, PBRMaterial, PBRMetallicRoughnessMaterial,
         Animation, QuinticEase, EasingFunction, Texture, SceneLoader, Matrix} from '@babylonjs/core'
 import {GLTFFileLoader} from "@babylonjs/loaders";
 
@@ -172,7 +172,16 @@ function createScene() {
     // ssao.area = 0.003;
     // ssao.falloff = 0.00001;
 
-    scene.getOutlineRenderer().zOffset = 100;
+    scene.clearColor = new Color3(0.8, 0.8, 0.8).toLinearSpace();
+
+    var pipeline = new DefaultRenderingPipeline(
+        "defaultPipeline", // The name of the pipeline
+        true, // Do you want the pipeline to use HDR texture?
+        scene, // The scene instance
+        [camera] // The list of cameras to be attached to
+    );
+
+    scene.getOutlineRenderer().zOffset = 10;
 
     // return the created scene
     return scene;

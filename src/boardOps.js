@@ -2,6 +2,7 @@ import {globals} from './globals.js';
 import {tuning} from './tuning.js';
 import * as coremath from './coremath.js';
 import * as gfx from './gfx.js';
+import * as pcb from './pcbOps.js';
 import {Vector3, Space, MeshBuilder, Matrix, Epsilon, Color3, Mesh,
         Animation, EasingFunction, QuinticEase, TransformNode} from '@babylonjs/core'
 
@@ -74,38 +75,17 @@ export function togglePickedKey(id) {
     }
 }
 
-let polyID = 0;
-
-function Poly(points) {
-    this.points = points;
-    this.id = polyID++;
-    this.overlappingPolys = {};
-    this.type = "rect";
-}
-
-function createRectPoly(w, h, xform) {
-   return (new Poly([
-        Vector3.TransformCoordinates(new Vector3(-w, 0, -h), xform),
-        Vector3.TransformCoordinates(new Vector3(w, 0, -h), xform),
-        Vector3.TransformCoordinates(new Vector3(w, 0, h), xform),
-        Vector3.TransformCoordinates(new Vector3(-w, 0, h), xform)
-    ]));
-}
-
-function getPlateCutsWithStabs(width,height,kXform,plateCuts,pcbBounds) {
+function getPlateCutsWithStabs(id,width,height,kXform,plateCuts) {
     let switchCutDims = [tuning.switchCutout[0]*0.5, tuning.switchCutout[1]*0.5];
     let sXform = kXform;
 
     // wack ass cherry 6u spacebar
     if(width == 6) {
-        getPlateCutsWithStabs(666,height,Matrix.Translation(9.525, 0, 0).multiply(sXform),plateCuts,pcbBounds);
+        getPlateCutsWithStabs(id,666,height,Matrix.Translation(9.525, 0, 0).multiply(sXform),plateCuts);
     }
-    plateCuts.push(createRectPoly(switchCutDims[0], switchCutDims[1], sXform));
+    plateCuts.push(coremath.createRectPoly(switchCutDims[0], switchCutDims[1], sXform));
 
-    // pcb footprint of a hotswap switch: x +/- 9 y +/- 6.75
-    // enc: 6.75, 8,5
-    let keyPCBBounds = [9,6.75];
-    pcbBounds.push(createRectPoly(keyPCBBounds[0], keyPCBBounds[1], sXform));
+    pcb.addDevice(id, "mx", sXform);
 
     let span = width;
     if(height >= 1.75) {
@@ -158,13 +138,10 @@ function getPlateCutsWithStabs(width,height,kXform,plateCuts,pcbBounds) {
         let stabPCBXforms = [Matrix.Translation(-stabOffsetXL, 0, 0).multiply(sXform),
                              Matrix.Translation( stabOffsetXR, 0, 0).multiply(sXform)];
 
-        // stab foot = 4 wide x 19 h
-        let stabPCBFootDims = [3,9];
 
         for(let j = 0; j < stabXforms.length; j++) {
-            plateCuts.push(createRectPoly(stabCutDims[0], stabCutDims[1], stabXforms[j]));
-
-            pcbBounds.push(createRectPoly(stabPCBFootDims[0],stabPCBFootDims[1],stabPCBXforms[j]));
+            plateCuts.push(coremath.createRectPoly(stabCutDims[0], stabCutDims[1], stabXforms[j]));
+            pcb.addDevice(id, "stab", stabPCBXforms[j]);
         }
     }
 }
@@ -174,11 +151,13 @@ export function refreshLayout() {
     const bd = globals.boardData;
     const root = globals.renderData.rootXform;
 
+    pcb.clearPCB();
+
     if(!bd.layout) { return; }
 
     let mins = [100000.0, 100000.0]
     let maxs = [-100000.0, -100000.0];
-
+    
     let kRD = globals.renderData.keys;
     // kRD = globals.renderData.keys = [];
     
@@ -188,7 +167,6 @@ export function refreshLayout() {
         if (!kRD[id]) {
             kRD[id] = { id:id,
                         mins:[100000.0, 100000.0], maxs:[-100000.0, -100000.0],
-                        pcbBoxes:[],
                         switchCut:[],
                         bezelHoles:[]
                     };
@@ -197,7 +175,6 @@ export function refreshLayout() {
         let rd = kRD[id];
         rd.mins = [100000.0, 100000.0];
         rd.maxs = [-100000.0, -100000.0];
-        rd.pcbBoxes.length = 0;
         rd.switchCut.length = 0;
         rd.bezelHoles.length = 0;
 
@@ -215,14 +192,13 @@ export function refreshLayout() {
                 kXform = kXform.multiply(Matrix.RotationY(k.rotation_angle * Math.PI / 180.0))
                 kXform = kXform.multiply(Matrix.Translation(k.rotation_x * tuning.base1U[0], 0, -k.rotation_y * tuning.base1U[1]));
             }
-            let keyOutlines = [createRectPoly(oledDim[0], oledDim[1], kXform)];
+            let keyOutlines = [coremath.createRectPoly(oledDim[0], oledDim[1], kXform)];
     
-            rd.bezelHoles.push(createRectPoly(oledDim[0] + tuning.bezelGap, oledDim[1] + tuning.bezelGap, kXform));
+            rd.bezelHoles.push(coremath.createRectPoly(oledDim[0] + tuning.bezelGap, oledDim[1] + tuning.bezelGap, kXform));
             
-            rd.switchCut.push(createRectPoly(oledDim[0] + tuning.bezelGap, oledDim[1] + tuning.bezelGap, kXform));
+            rd.switchCut.push(coremath.createRectPoly(oledDim[0] + tuning.bezelGap, oledDim[1] + tuning.bezelGap, kXform));
 
-            let keyPCBBounds = [15,6.75];
-            rd.pcbBoxes.push(createRectPoly(keyPCBBounds[0], keyPCBBounds[1], kXform));
+            pcb.addDevice(k.id, k.type, kXform);
 
             rd.outline = getCombinedOutlineFromPolyGroup(keyOutlines);
             if (rd.keycap) {
@@ -264,16 +240,16 @@ export function refreshLayout() {
                 kXform = kXform.multiply(Matrix.Translation(k.rotation_x * tuning.base1U[0], 0, -k.rotation_y * tuning.base1U[1]));
             }
             let circCenter = Vector3.TransformCoordinates(new Vector3(0, 0, 0), kXform)
-            let keyOutlines = [new Poly(coremath.genArrayForCircle(new coremath.Circle(circCenter, rad), 0, 19))];
+            let keyOutlines = [new coremath.Poly(coremath.genArrayForCircle(new coremath.Circle(circCenter, rad), 0, 19))];
     
-            const bezelHole = new Poly(coremath.genArrayForCircle(new coremath.Circle(circCenter, rad), tuning.bezelGap, 19));
+            const bezelHole = new coremath.Poly(coremath.genArrayForCircle(new coremath.Circle(circCenter, rad), tuning.bezelGap, 19));
             rd.bezelHoles.push(bezelHole);
             
             let switchCutDims = [15*0.5, 15.5*0.5];
             
-            rd.switchCut.push(createRectPoly(switchCutDims[0], switchCutDims[1], kXform));
-            let keyPCBBounds = [15/2,12/2];
-            rd.pcbBoxes.push(createRectPoly(keyPCBBounds[0], keyPCBBounds[1], kXform));
+            rd.switchCut.push(coremath.createRectPoly(switchCutDims[0], switchCutDims[1], kXform));
+            
+            pcb.addDevice(k.id, k.type, kXform);
             
             rd.outline = getCombinedOutlineFromPolyGroup(keyOutlines);
             if (rd.keycap) {
@@ -318,9 +294,9 @@ export function refreshLayout() {
                 kXform = kXform.multiply(Matrix.Translation(k.rotation_x * tuning.base1U[0], 0, -k.rotation_y * tuning.base1U[1]));
             }
 
-            let keyOutlines = [createRectPoly(keycapDim[0], keycapDim[1], kXform)];
+            let keyOutlines = [coremath.createRectPoly(keycapDim[0], keycapDim[1], kXform)];
 
-            rd.bezelHoles.push(createRectPoly(keycapDim[0] + tuning.bezelGap, keycapDim[1] + tuning.bezelGap, kXform));
+            rd.bezelHoles.push(coremath.createRectPoly(keycapDim[0] + tuning.bezelGap, keycapDim[1] + tuning.bezelGap, kXform));
     
             if(k.width2 > 0 && k.height2 > 0 && !(k.width == k.width2 && k.height == k.height2 && k.x2 == 0 && k.y2 == 0)) {  
                 let k2Dim = [(tuning.keyDims[0] + tuning.base1U[0] * (k.width2 - 1)) / 2,
@@ -329,21 +305,25 @@ export function refreshLayout() {
                             -(k.y2 * tuning.base1U[1] - keycapDim[1] + k2Dim[1])];
     
                 let k2Xform = Matrix.Translation(k2Pos[0], 0, k2Pos[1]).multiply(kXform);
-                keyOutlines.push(createRectPoly(k2Dim[0], k2Dim[1], k2Xform));
+                keyOutlines.push(coremath.createRectPoly(k2Dim[0], k2Dim[1], k2Xform));
                 keyOutlines[0].overlappingPolys[keyOutlines[1].id] = keyOutlines[1];
                 keyOutlines[1].overlappingPolys[keyOutlines[0].id] = keyOutlines[0];
     
-                const bezelHole2 = createRectPoly(k2Dim[0]+ tuning.bezelGap, k2Dim[1] + tuning.bezelGap, k2Xform);
+                const bezelHole2 = coremath.createRectPoly(k2Dim[0]+ tuning.bezelGap, k2Dim[1] + tuning.bezelGap, k2Xform);
                 rd.bezelHoles.push(bezelHole2);
             }
             
-            getPlateCutsWithStabs(k.width,k.height,kXform,rd.switchCut,rd.pcbBoxes);
+            getPlateCutsWithStabs(k.id,k.width,k.height,kXform,rd.switchCut);
             
             if(!rd.switch) {
                 const switchGLTF = gfx.switchAsset.container;
                 if( switchGLTF ) {
                     rd.switch = switchGLTF.instantiateModelsToScene(name => id, false).rootNodes[0];
                     rd.switch.parent = root;
+                    rd.switch.setPreTransformMatrix(Matrix.RotationY(Math.PI).multiply(Matrix.Scaling(-1,1,1)));
+                    for (const child of rd.switch.getChildMeshes()){
+                        child.setPreTransformMatrix(Matrix.RotationY(Math.PI).multiply(Matrix.Scaling(-1,1,1)));	
+                    }
                 }
             }
 
@@ -427,28 +407,11 @@ export function refreshLayout() {
 
     bd.layout.bounds = { mins: mins, maxs: maxs };
 
-    let kPs = [];
-    for( let [id,rd] of Object.entries(kRD) ) {
-        if(rd.pcbBoxes) {
-            for( let b of rd.pcbBoxes) {
-                for( let p of b.points) {
-                    kPs.push(p)
-                }
-            }
-        }
-    }
-    const cRD = globals.renderData.case;
-    cRD.pcbOutline = coremath.convexHull2d(kPs);
-    if(bd.forcePCBSymmetrical) {
-        let midPoint = (bd.layout.bounds.maxs[0] - bd.layout.bounds.mins[0]) * 0.5 + bd.layout.bounds.mins[0];
-        for(let oP of cRD.pcbOutline) {
-            kPs.push(new Vector3(midPoint - (oP.x - midPoint), oP.y, oP.z));
-        }
-        cRD.pcbOutline = coremath.convexHull2d(kPs);
-    }
+    pcb.refreshPCBOutline(bd);
+
     bd.pcbBounds = {mins:[100000.0, 100000.0],
                      maxs:[-100000.0, -100000.0]};
-    for(let p of cRD.pcbOutline) {
+    for(let p of globals.pcbData.outline) {
         bd.pcbBounds.mins[0] = Math.min(bd.pcbBounds.mins[0], p.x);
         bd.pcbBounds.maxs[0] = Math.max(bd.pcbBounds.maxs[0], p.x);
         bd.pcbBounds.mins[1] = Math.min(bd.pcbBounds.mins[1], p.z);
@@ -940,11 +903,12 @@ function getScrewBoss() {
 
 export function addScrewHoles(outline, bezelWithPort) {
     const screwBoss = getScrewBoss();
+    const screwRadius = getScrewRadius();
     const bezelOffset = (tuning.bezelThickness - screwBoss * 2.0) * tuning.screwBezelBias + tuning.bezelGap + screwBoss;
     let screwLocs = coremath.offsetOutlinePoints(outline,bezelOffset);
     globals.renderData.screwData = [];
 
-    let minDist =  getScrewRadius() + screwBoss;
+    let minDist =  screwRadius + screwBoss;
     if(minDist > Epsilon) {
         let remSet = [];
         for(let i = screwLocs.length-1; i >= 0; i--) {
@@ -1008,17 +972,18 @@ export function addScrewHoles(outline, bezelWithPort) {
     }
     
     const externalPoint = new Vector3(20,0,-3500);
+    const minEdgeDistSq = (screwRadius+screwBoss)*(screwRadius+screwBoss);
     for(let i = screwLocs.length-1; i >= 0; i--) {
         let loc = screwLocs[i];
         const int = coremath.segmentToPoly(loc, externalPoint, bezelWithPort);
-        if(int.numIntersections == 0 || int.numIntersections % 2 == 0) {
+        if(int.numIntersections == 0 || int.numIntersections % 2 == 0 || int.nearestDistSq < minEdgeDistSq) {
             screwLocs.splice(i,1);
         }
     }
 
     globals.boardData.screwLocations = screwLocs;
     for(const loc of screwLocs) {
-        globals.renderData.screwData.push(new coremath.Circle(loc,getScrewRadius()));
+        globals.renderData.screwData.push(new coremath.Circle(loc,screwRadius));
     }
 }
 
@@ -1093,7 +1058,7 @@ function addUSBPort() {
     //     kXform = kXform.multiply(Matrix.RotationY(k.rotation_angle * Math.PI / 180.0))
     //     kXform = kXform.multiply(Matrix.Translation(k.rotation_x * tuning.base1U[0], 0, -k.rotation_y * tuning.base1U[1]));
     // }
-    globals.boardData.portCut = [new Poly([
+    globals.boardData.portCut = [new coremath.Poly([
         Vector3.TransformCoordinates(new Vector3(-portDim[0], 0, -portDim[1]), kXform),
         Vector3.TransformCoordinates(new Vector3(portDim[0], 0, -portDim[1]), kXform),
         Vector3.TransformCoordinates(new Vector3(portDim[0], 0, portDim[1]), kXform),
@@ -1180,7 +1145,7 @@ export function refreshCase() {
                 }
             }
         }
-        for(let p of cRD.pcbOutline) {
+        for(let p of globals.pcbData.outline) {
             kPs.push(p);
         }
         bd.outline = coremath.convexHull2d(kPs);
@@ -1321,7 +1286,7 @@ export function refreshCase() {
     // }
     // globals.lineSystem = MeshBuilder.CreateLineSystem("lineSystem", {lines: dbglines}, globals.scene);
 
-    vectorGeo["pcbOutline"] = coremath.offsetAndFilletOutline(cRD.pcbOutline, 0.0, 2.0, false);
+    vectorGeo["pcbOutline"] = coremath.offsetAndFilletOutline(globals.pcbData.outline, 0.0, 2.0, false);
     tesselatedGeo["pcbOutline"] = coremath.genPointsFromVectorPath(vectorGeo["pcbOutline"]);
 
     for(const [layerName, layerDef] of Object.entries(layerDefs)) {

@@ -1,5 +1,44 @@
 import {Epsilon, Vector3} from '@babylonjs/core'
 
+let polyID = 0;
+
+export function Poly(points) {
+    this.points = points;
+    this.id = polyID++;
+    this.overlappingPolys = {};
+    this.type = "rect";
+}
+
+export function createRectPoly(w, h, xform) {
+   return (new Poly([
+        Vector3.TransformCoordinates(new Vector3(-w, 0, -h), xform),
+        Vector3.TransformCoordinates(new Vector3(w, 0, -h), xform),
+        Vector3.TransformCoordinates(new Vector3(w, 0, h), xform),
+        Vector3.TransformCoordinates(new Vector3(-w, 0, h), xform)
+    ]));
+}
+
+
+export function Point(point) {
+    this.type = 0;
+    this.point = point;
+}
+
+
+export function Arc(center, radius, rotRadians, endRot) {
+    this.type = 1;
+    this.center = center;
+    this.radius = radius;
+    this.rotRadians = rotRadians;
+    this.endRot = endRot;
+}
+
+export function Circle(center, radius) {
+    this.type = 2;
+    this.center = center;
+    this.radius = radius;
+}
+
 export function lineLineIntersection(p0, d0, p1, d1) {
     let det = d0.x * d1.z - d1.x * d0.z;
     if (Math.abs(det) < Epsilon) // no collision
@@ -15,13 +54,31 @@ export function lineLineIntersection(p0, d0, p1, d1) {
     return intersection;
 }
 
-function pointToLineDistSq(x0, xL, y0) {
+function nearestPointOnLine(x0, xL, y0) {
     let dir = y0.subtract(x0);
     let xNormalized = xL.normalizeToNew();
     let dot = Vector3.Dot(dir,xNormalized);
+    
+    return x0.add(xNormalized.scale(dot));
+}
 
-    let nearestPoint = x0.add(xNormalized.scale(dot));
+function pointToLineDistSq(x0, xL, y0) {
+    let nearestPoint = nearestPointOnLine(x0, xL, y0);
     return y0.subtract(nearestPoint).lengthSquared();
+}
+
+function segmentToArcIntersection(x0, x1, xL, xNorm, a) {
+    let nearestPoint = nearestPointOnLine(x0, xL, a.center);
+    let dist = a.center.subtract(nearestPoint).length();
+    let numIntersections = 0;
+    if( Math.abs(dist-a.radius) < Epsilon ) {
+        return [nearestPoint];
+    }
+    else if( dist > a.radius ) {
+        return [];
+    }
+
+    return {numIntersections:numIntersections};
 }
 
 export function segmentToSegment(x0, x1, xL, xNorm, y0, y1) {
@@ -86,7 +143,7 @@ export function segmentToPoly(s0, s1, poly) {
         }
     }
 
-    return {numIntersections:numIntersections,nearestIntersection:closestIntersection};
+    return {numIntersections:numIntersections,nearestIntersection:closestIntersection,nearestDistSq:closest};
 }
 
 // only convex
@@ -227,26 +284,6 @@ export function convexHull2d(points) {
     }
 
     return pList
-}
-
-export function Point(point) {
-    this.type = 0;
-    this.point = point;
-}
-
-
-export function Arc(center, radius, rotRadians, endRot) {
-    this.type = 1;
-    this.center = center;
-    this.radius = radius;
-    this.rotRadians = rotRadians;
-    this.endRot = endRot;
-}
-
-export function Circle(center, radius) {
-    this.type = 2;
-    this.center = center;
-    this.radius = radius;
 }
 
 // offset is + to the left, - to right

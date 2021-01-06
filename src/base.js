@@ -111,7 +111,7 @@ function initKBGB() {
         'testkbs/kle-ergodox.kle',
         'testkbs/foggy_sp_knobs.kle',
         'testkbs/reddit-9d-ortho.kle',
-        'testkbs/blank.kle',
+        'testkbs/blank.kle', //10
         'testkbs/onekey.kle',
         'testkbs/twokey.kle',
         'testkbs/threekey.kle',
@@ -120,7 +120,7 @@ function initKBGB() {
         'testkbs/twoonone.kle',
         'testkbs/keysize_test.kle'
     ]
-    let kbdidx = 3;
+    let kbdidx = 11;
     // load a keyboard
     loadKeyboardFromPath(keyboards[kbdidx]);
 

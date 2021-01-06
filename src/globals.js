@@ -1,6 +1,7 @@
 export const globals = {
     pickedKeys: [],
-    renderData: { keys: {}, case: {layers:{}}, mats: {}, outlines: {} },
-    boardData: {},
+    boardData: {},  // definition
+    renderData: { keys: {}, case: {layers:{}}, mats: {}, outlines: {} }, // derived
+    pcbData: {}, // derived
     keyAssets: {}
 }
