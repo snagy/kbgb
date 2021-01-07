@@ -16,6 +16,8 @@ import {Vector3} from '@babylonjs/core'
 // GL2 = inner 2 +
 // GL3 = inner 3 +
 
+const defaultTrackWidth = 0.2032; // 8 mil.  10 mil = .25, pins are 2.25, maybe go with that as a mult?
+
 const footprintDefs = {
     "mx":{
         pthDefs: {
@@ -30,7 +32,8 @@ const footprintDefs = {
             {pin: 0, loc: [0, 0], defName:"stemPin"},
             {pin: 0, loc: [-5.08, 0], defName:"sidePin"},
             {pin: 0, loc: [5.08, 0], defName:"sidePin"}
-        ]
+        ],
+        pins: ["1","2"]
     },
     "oled":{
         bounds:[15,6.75]
@@ -39,13 +42,21 @@ const footprintDefs = {
         bounds:[15/2,12/2]
     },
     "stab":{
-        bounds:[3,9]
+        pthDefs: {
+            "smallPin":  {radius:3.048/2, ring: 0},
+            "bigPin": {radius:3.9878/2, ring:0}
+        },
+        bounds:[3,9],
+        pthList: [
+            {pin: 0, loc: [0, -6.985], defName:"smallPin"},
+            {pin: 0, loc: [0, 8.255], defName:"bigPin"}
+        ]
     }
 };
 
 
 export function clearPCB() {
-    globals.pcbData = {outline:[], devices:{}};
+    globals.pcbData = {outline:[], devices:{}, nets:{}};
 }
 
 export function addDevice(id, t, xForm) {
@@ -67,13 +78,27 @@ export function addDevice(id, t, xForm) {
             const pth = {radius:holeDef.radius, ring:holeDef.ring};
             pth.location = Vector3.TransformCoordinates(new Vector3(hole.loc[0], 0, hole.loc[1]), xForm);
             newFootprint.pths.push(pth);
+            for(const pin of holeDef.pins) {
+                newFootprint.pins.push({name:pin})
+            }
         }
     }
 
     d.footprints.push(newFootprint)
 }
 
+export function createNets(pcb) {
 
+    for( let [id,d] of Object.entries(pcb.devices) ) {
+        for(let f of d.footprints) {
+            if(f.box) {
+                for( let p of f.box.points) {
+                    kPs.push(p)
+                }
+            }
+        }
+    }
+}
 
 export function refreshPCBOutline(bd) {
     const pD = globals.pcbData;

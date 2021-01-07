@@ -51,8 +51,15 @@ function downloadGBRs() {
     const pcb = globals.pcbData;
 
     gbr.beginSetExport();
-    zip.file(`outline.gml`, gbr.exportEdgeCutsLayer(pcb));
-    zip.file('drill.txt', gbr.exportDrillFile(pcb));
+    const pcbName = "pcb";
+    zip.file(`${pcbName}.gml`, gbr.exportEdgeCutsLayer(pcb));
+    zip.file(`${pcbName}.txt`, gbr.exportDrillFile(pcb));
+
+    zip.file(`${pcbName}.gtl`, gbr.exportLayer(pcb, "copper", "top"));
+    zip.file(`${pcbName}.gbl`, gbr.exportLayer(pcb, "copper", "bot"));
+
+    zip.file(`${pcbName}.gts`, gbr.exportLayer(pcb, "mask", "top"));
+    zip.file(`${pcbName}.gbs`, gbr.exportLayer(pcb, "mask", "bot"));
 
     zip.generateAsync({type:"blob"})
         .then(function(content) {

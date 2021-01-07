@@ -12,14 +12,22 @@ G04 #@! TF.FilePolarity,Positive*  // "positive" indicates presence of material 
 */ 
 
 const formatter = new Intl.NumberFormat('en-US', {
-    minimumFractionDigits: 0,      
+    minimumFractionDigits: 4,      
     maximumFractionDigits: 4,
  });
 
  function fmt_float(a) { return formatter.format(a)}
 
 
-function f(a) { return Number(a * 1000000).toFixed(0)}
+const formatter_gbr = new Intl.NumberFormat('en-US', {
+    minimumFractionDigits: 6,      
+    maximumFractionDigits: 6,
+ });
+
+ function fmt_float_gbr(a) { return formatter_gbr.format(a)}
+
+
+function fmt_fixed(a) { return Number(a * 1000000).toFixed(0)}
 
 function uuidv4() {
 return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
@@ -33,32 +41,109 @@ export function beginSetExport() {
     setUuid = uuidv4();
 }
 
+const linearDrawMode = "G01*"
+
 const orgName = "TangentSpace";
 const progName = "KBGB";
 const versionString = "0.0.1";
 
+function exportGBRHeader(gbr, opts) {
+    function append(...values) {
+        gbr.push.apply(gbr, values);
+    }
+    append(`G04 #@! TF.GenerationSoftware,${orgName},${progName},(${versionString})*`);
+    append(`G04 #@! TF.CreationDate,${new Date().toISOString()}*`);
+    append(`G04 #@! TF.ProjectId,${globals.boardData.meta.name},${setUuid},rev?*`);
+    append(`G04 #@! TF.SameCoordinates,${setUuid}*`);
+    append(`G04 #@! TF.FileFunction,${opts.fileFunction}*`);  // file function: "Profile" <aka edge cuts> 
+    if(opts.polarity) {
+        append(`G04 #@! TF.FilePolarity,${opts.polarity}*`);
+    }
+    append(`%FSLAX46Y46*%`);  // leading zero omitted, version 4.6
+    append(`G04 Gerber Fmt 4.6, Leading zero omitted, Abs format (unit mm)*`);
+    append(`G04 Created by Tangent Space - KBGB (0.0.1)*`);
+    append(`%MOMM*%`);
+    append(`%LPD*%`); 
+}
+
+export function exportLayer(pcb,layer,side) {
+    const gbr = [];
+    function append(...values) {
+        gbr.push.apply(gbr, values);
+    }
+
+    let headerOpts = {
+    }
+    if(layer=="copper") {
+        headerOpts.polarity = "Positive";
+        if( side == "top") {
+            headerOpts.fileFunction = `Copper,L1,Top`;
+        }
+        else {
+            headerOpts.fileFunction = `Copper,L2,Bot`;
+        }
+    }
+    else if(layer == "mask") {
+        headerOpts.polarity = "Negative";
+        if( side == "top") {
+            headerOpts.fileFunction = `Soldermask,Top`;
+        }
+        else {
+            headerOpts.fileFunction = `Soldermask,Bot`;
+        }
+    }
+
+    exportGBRHeader(gbr, headerOpts);
+
+    append(linearDrawMode);
+
+    append(`G04 APERTURE LIST*`);
+    let tools = {};
+    let tIdx = 10;
+    for( let [id,d] of Object.entries(pcb.devices) ) {
+        for(let f of d.footprints) {
+            for(const pth of f.pths) {
+                let cuDiameter = (pth.radius+pth.ring) * 2;
+                if(!tools[cuDiameter]) {
+                    let tool = {name:`D${tIdx}`, locs:[]}
+                    if(layer=="copper") {
+                        append(`G04 #@! TA.AperFunction,ComponentPad*`);
+                    }
+                    append(`%AD${tool.name}C,${fmt_float_gbr(cuDiameter)}*%`)
+
+                    if(layer=="copper") {
+                        append(`G04 #@! TD*`);  // TD*: delete all attributes
+                    }   
+                    tIdx += 1;
+                    tools[cuDiameter] = tool;          
+                }
+                tools[cuDiameter].locs.push([pth.location.x,pth.location.z]);
+            }
+        }
+    }
+    append(`G04 APERTURE END LIST*`);
+
+    for( let [tRad, t] of Object.entries(tools)) {
+        append(`${t.name}*`);
+        for( const loc of t.locs ) {
+            append(`X${fmt_fixed(loc[0])}Y${fmt_fixed(loc[1])}D03*`)
+        }
+    }
+
+    append(`M02*`);  // END FILE
+
+    return gbr.join('\n');
+}
+
 export function exportEdgeCutsLayer(pcb) {
-    const outline = coremath.offsetAndFilletOutline(pcb.outline, 0.0, 2.0, false);
-    const bd = globals.boardData;
+    const outlines = [coremath.offsetAndFilletOutline(pcb.outline, 0.0, 2.0, false)];
 
     const gbr = [];
     function append(...values) {
         gbr.push.apply(gbr, values);
     }
 
-    append(`G04 #@! TF.GenerationSoftware,${orgName},${progName},(${versionString})*`);
-    append(`G04 #@! TF.CreationDate,${new Date().toISOString()}*`);
-    append(`G04 #@! TF.ProjectId,${bd.meta.name},${setUuid},rev?*`);
-    append(`G04 #@! TF.SameCoordinates,${setUuid}*`);
-    append(`G04 #@! TF.FileFunction,Profile,NP*`);  // file function: "Profile" <aka edge cuts> 
-    append(`%FSLAX46Y46*%`);  // leading zero omitted, version 4.6
-    append(`G04 Gerber Fmt 4.6, Leading zero omitted, Abs format (unit mm)*`);
-    append(`G04 Created by Tangent Space - KBGB (0.0.1)*`);
-    append(`%MOMM*%`);
-    append(`%LPD*%`); 
-
-    const linearDrawMode = "G01*"
-    append(linearDrawMode);
+    exportGBRHeader(gbr, {fileFunction:"Profile,NP"});
 
     append(`G04 APERTURE LIST*`);
     append(`G04 #@! TA.AperFunction,Profile*`);  //TA: define attribute "Profile"
@@ -69,8 +154,7 @@ export function exportEdgeCutsLayer(pcb) {
     // begin D10 aperture
     append(`D10*`);
 
-    // for(let shape of outline) {
-    const shape = outline;
+    for(let shape of outlines) {
         if(Array.isArray(shape)) {
             let isDrawingLine = false;
             if(shape.length > 1) {
@@ -78,11 +162,11 @@ export function exportEdgeCutsLayer(pcb) {
                 // let p = shape[0];
                 // switch(p.type) {
                 //     case 0:
-                //         append(`X${f(p.point.x)}Y${f(-p.point.z)}D02*`);
+                //         append(`X${fmt_fixed(p.point.x)}Y${fmt_fixed(-p.point.z)}D02*`);
                 //         break;
                 //     case 1:
                 //         // let startPoint = p.center.add(coremath.getNormalFromRot(p.endRot - p.rotDegrees).scale(p.radius));
-                //         // pathStr += `M${f(startPoint.x)},${f(-startPoint.z)}`
+                //         // pathStr += `M${fmt_fixed(startPoint.x)},${fmt_fixed(-startPoint.z)}`
                 //         break;
                 // }
 
@@ -96,7 +180,7 @@ export function exportEdgeCutsLayer(pcb) {
                                 isDrawingLine = true;
                                 // mode = `D02`;
                             }
-                            append(`X${f(p.point.x)}Y${f(p.point.z)}${mode}*`);
+                            append(`X${fmt_fixed(p.point.x)}Y${fmt_fixed(p.point.z)}${mode}*`);
                             break;
                         case 1: // arc
                             isDrawingLine = false;
@@ -108,7 +192,7 @@ export function exportEdgeCutsLayer(pcb) {
                             }
                             let endPoint = p.center.add(coremath.getNormalFromRot(p.endRot).scale(p.radius));
                             let startVec = coremath.getNormalFromRot(p.endRot-p.rotRadians).scale(p.radius);
-                            append(`X${f(endPoint.x)}Y${f(endPoint.z)}I${f(-startVec.x)}J${f(-startVec.z)}D01*`)
+                            append(`X${fmt_fixed(endPoint.x)}Y${fmt_fixed(endPoint.z)}I${fmt_fixed(-startVec.x)}J${fmt_fixed(-startVec.z)}D01*`)
                             break;
                     }
                 }
@@ -118,7 +202,7 @@ export function exportEdgeCutsLayer(pcb) {
                 console.log("SKIPPING CIRCLE");
             }
         }
-    // }
+    }
     append(`M02*`);  // END FILE
 
     return gbr.join('\n');
@@ -152,7 +236,7 @@ export function exportDrillFile(pcb) {
                     tIdx += 1;
                     tools[pth.radius] = tool;
                 }
-                !tools[pth.radius].locs.push([pth.location.x,pth.location.z]);
+                tools[pth.radius].locs.push([pth.location.x,pth.location.z]);
             }
         }
     }
