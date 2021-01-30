@@ -409,15 +409,7 @@ export function refreshLayout() {
 
     pcb.refreshPCBOutline(bd);
 
-    bd.pcbBounds = {mins:[100000.0, 100000.0],
-                     maxs:[-100000.0, -100000.0]};
-    for(let p of globals.pcbData.outline) {
-        bd.pcbBounds.mins[0] = Math.min(bd.pcbBounds.mins[0], p.x);
-        bd.pcbBounds.maxs[0] = Math.max(bd.pcbBounds.maxs[0], p.x);
-        bd.pcbBounds.mins[1] = Math.min(bd.pcbBounds.mins[1], p.z);
-        bd.pcbBounds.maxs[1] = Math.max(bd.pcbBounds.maxs[1], p.z);
-    }
-
+    bd.pcbBounds = globals.pcbData.outlineBounds;
 
     // refreshOutlines();
 }

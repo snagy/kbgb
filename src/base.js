@@ -106,21 +106,22 @@ function initKBGB() {
         'testkbs/fc660m.kle',
         'testkbs/fake_alice.kle',
         'testkbs/kle_atreus.kle',
-        'testkbs/basis-mono-og.kle',
+        'testkbs/basis-mono-og.kle',  //5
         'testkbs/basis-stagger-3.kle',
         'testkbs/kle-ergodox.kle',
         'testkbs/foggy_sp_knobs.kle',
         'testkbs/reddit-9d-ortho.kle',
-        'testkbs/blank.kle', //10
+        'testkbs/boston-noISO.kle', //10
+        'testkbs/blank.kle', 
         'testkbs/onekey.kle',
         'testkbs/twokey.kle',
         'testkbs/threekey.kle',
-        'testkbs/threekeyoffset.kle',
+        'testkbs/threekeyoffset.kle', //15
         'testkbs/one_bigass.kle',
         'testkbs/twoonone.kle',
         'testkbs/keysize_test.kle'
     ]
-    let kbdidx = 11;
+    let kbdidx = 10;
     // load a keyboard
     loadKeyboardFromPath(keyboards[kbdidx]);
 

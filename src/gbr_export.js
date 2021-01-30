@@ -99,37 +99,87 @@ export function exportLayer(pcb,layer,side) {
 
     append(`G04 APERTURE LIST*`);
     let tools = {};
-    let tIdx = 10;
     for( let [id,d] of Object.entries(pcb.devices) ) {
         for(let f of d.footprints) {
             for(const pth of f.pths) {
                 let cuDiameter = (pth.radius+pth.ring) * 2;
                 if(!tools[cuDiameter]) {
-                    let tool = {name:`D${tIdx}`, locs:[]}
-                    if(layer=="copper") {
-                        append(`G04 #@! TA.AperFunction,ComponentPad*`);
-                    }
-                    append(`%AD${tool.name}C,${fmt_float_gbr(cuDiameter)}*%`)
-
-                    if(layer=="copper") {
-                        append(`G04 #@! TD*`);  // TD*: delete all attributes
-                    }   
-                    tIdx += 1;
-                    tools[cuDiameter] = tool;          
+                    tools[cuDiameter] = {locs:[],usage:`ComponentPad`,diameter:cuDiameter};          
                 }
-                tools[cuDiameter].locs.push([pth.location.x,pth.location.z]);
+                tools[cuDiameter].locs.push(pth.location);
+            }
+            if(side == "bot") {
+                for(const pad of f.pads) {
+                    if(!tools["pads"]) {
+                        tools["pads"] = {locs:[],polys:[],usage:`ComponentPad`,diameter:0.1};
+                    }
+                    tools["pads"].polys.push(pad);
+                }
             }
         }
     }
+
+    if(pcb.vias.length > 0 && layer=="copper") {
+        tools["via"] = {locs:pcb.vias,usage:`ViaPad`,diameter:0.6};
+    }
+    
+    let tIdx = 10;
+    for( let [tRad, tool] of Object.entries(tools)) {
+        tool.name = `D${tIdx}`;
+        if(layer=="copper") {
+            append(`G04 #@! TA.AperFunction,${tool.usage}*`);
+        }
+        append(`%AD${tool.name}C,${fmt_float_gbr(tool.diameter)}*%`)
+
+        if(layer=="copper") {
+            append(`G04 #@! TD*`);  // TD*: delete all attributes
+        }   
+        tIdx += 1;
+    }
+
+    let trackTool = `D${tIdx}`
+    append(`G04 #@! TA.AperFunction,Conductor*`);
+    append(`%AD${trackTool}C,${fmt_float_gbr(pcb.trackWidth)}*%`);
+    append(`G04 #@! TD*`);
+
+
     append(`G04 APERTURE END LIST*`);
 
     for( let [tRad, t] of Object.entries(tools)) {
-        append(`${t.name}*`);
-        for( const loc of t.locs ) {
-            append(`X${fmt_fixed(loc[0])}Y${fmt_fixed(loc[1])}D03*`)
+        if(t.locs.length > 0) {
+            append(`${t.name}*`);
+            for( const loc of t.locs ) {
+                append(`X${fmt_fixed(loc.x)}Y${fmt_fixed(loc.z)}D03*`)
+            }
         }
     }
 
+    if(tools["pads"] && tools["pads"].polys.length > 0) {
+        append(`${tools["pads"].name}*`);
+        for(const poly of tools["pads"].polys) {
+            append(`G36*`);
+            const startPoint = poly[poly.length-1];
+            append(`X${fmt_fixed(startPoint.x)}Y${fmt_fixed(startPoint.z)}D02*`)
+            for(const p of poly) {
+                append(`X${fmt_fixed(p.x)}Y${fmt_fixed(p.z)}D01*`)
+            }
+            append(`G37*`);
+        }
+    }
+
+    append(`${trackTool}*`);
+    if(layer=="copper" && side == "top") {
+        for( let route of pcb.topRoutes) {
+            append(`X${fmt_fixed(route[0].x)}Y${fmt_fixed(route[0].z)}D02*`)
+            append(`X${fmt_fixed(route[1].x)}Y${fmt_fixed(route[1].z)}D01*`)
+        }
+    }
+    if(layer=="copper" && side == "bot") {
+        for( let route of pcb.bottomRoutes) {
+            append(`X${fmt_fixed(route[0].x)}Y${fmt_fixed(route[0].z)}D02*`)
+            append(`X${fmt_fixed(route[1].x)}Y${fmt_fixed(route[1].z)}D01*`)
+        }
+    }
     append(`M02*`);  // END FILE
 
     return gbr.join('\n');
@@ -226,27 +276,35 @@ export function exportDrillFile(pcb) {
     append(`INCH`);   // inch
 
     let tools = {};
-    let tIdx = 1;
     for( let [id,d] of Object.entries(pcb.devices) ) {
         for(let f of d.footprints) {
             for(const pth of f.pths) {
                 if(!tools[pth.radius]) {
-                    let tool = {name:`T${tIdx}`, locs:[]}
-                    append(`${tool.name}C${fmt_float(2 * 0.1 * pth.radius / 2.54)}`)
-                    tIdx += 1;
-                    tools[pth.radius] = tool;
+                    tools[pth.radius] = {locs:[],rad:pth.radius};
                 }
-                tools[pth.radius].locs.push([pth.location.x,pth.location.z]);
+                tools[pth.radius].locs.push(pth.location);
             }
         }
     }
+
+    if(pcb.vias.length > 0) {
+        tools["via"] = {locs:pcb.vias,rad:0.15};
+    }
+
+    let tIdx = 1;
+    for( let [tRad, tool] of Object.entries(tools)) {
+        tool.name = `T${tIdx}`
+        append(`${tool.name}C${fmt_float(2 * 0.1 * tool.rad / 2.54)}`)
+        tIdx += 1;
+    }
+
     append(`%`);
     append(`G90`);
     append(`G05`);
     for( let [tRad, t] of Object.entries(tools)) {
         append(`${t.name}`);
         for( const loc of t.locs ) {
-            append(`X${fmt_float(0.1 * loc[0] / 2.54)}Y${fmt_float(0.1 * loc[1] / 2.54)}`)
+            append(`X${fmt_float(0.1 * loc.x / 2.54)}Y${fmt_float(0.1 * loc.z / 2.54)}`)
         }
     }
     append(`T0`);
