@@ -3,7 +3,7 @@ import {tuning} from './tuning.js';
 import * as coremath from './coremath.js';
 import * as gfx from './gfx.js';
 import * as pcb from './pcbOps.js';
-import {Vector3, Space, MeshBuilder, Matrix, Epsilon, Color3, Mesh,
+import {Vector3, Space, MeshBuilder, Matrix, Epsilon, Color3, Color4, Mesh,
         Animation, EasingFunction, QuinticEase, TransformNode} from '@babylonjs/core'
 
 export function refreshOutlines() {
@@ -75,17 +75,17 @@ export function togglePickedKey(id) {
     }
 }
 
-function getPlateCutsWithStabs(id,width,height,kXform,plateCuts) {
+function getPlateCutsWithStabs(id,width,height,kXform,plateCuts,caseIdx) {
     let switchCutDims = [tuning.switchCutout[0]*0.5, tuning.switchCutout[1]*0.5];
     let sXform = kXform;
 
     // wack ass cherry 6u spacebar
-    if(width == 6) {
-        getPlateCutsWithStabs(id,666,height,Matrix.Translation(9.525, 0, 0).multiply(sXform),plateCuts);
+    if(width === 6) {
+        getPlateCutsWithStabs(id,666,height,Matrix.Translation(9.525, 0, 0).multiply(sXform),plateCuts,caseIdx);
     }
     plateCuts.push(coremath.createRectPoly(switchCutDims[0], switchCutDims[1], sXform));
 
-    pcb.addDevice(id, "mx", sXform);
+    pcb.addDevice(id, "mx", sXform, caseIdx);
 
     let span = width;
     if(height >= 1.75) {
@@ -112,7 +112,7 @@ function getPlateCutsWithStabs(id,width,height,kXform,plateCuts) {
         else if(span <= 5.5) {
             stabOffsetXL = stabOffsetXR = 42.8625;
         }
-        else if(span == 666) {
+        else if(span === 666) {
             // cherry 6u again
             stabOffsetXL = 57.15;
             stabOffsetXR = 38.1
@@ -141,7 +141,7 @@ function getPlateCutsWithStabs(id,width,height,kXform,plateCuts) {
 
         for(let j = 0; j < stabXforms.length; j++) {
             plateCuts.push(coremath.createRectPoly(stabCutDims[0], stabCutDims[1], stabXforms[j]));
-            pcb.addDevice(id, "stab", stabPCBXforms[j]);
+            pcb.addDevice(id, "stab", stabPCBXforms[j], caseIdx);
         }
     }
 }
@@ -149,15 +149,11 @@ function getPlateCutsWithStabs(id,width,height,kXform,plateCuts) {
 export function refreshLayout() {
     const scene = globals.scene;
     const bd = globals.boardData;
-    const root = globals.renderData.rootXform;
 
-    pcb.clearPCB();
+    pcb.clearPCBs();
 
     if(!bd.layout) { return; }
 
-    let mins = [100000.0, 100000.0]
-    let maxs = [-100000.0, -100000.0];
-    
     let kRD = globals.renderData.keys;
     // kRD = globals.renderData.keys = [];
     
@@ -168,7 +164,8 @@ export function refreshLayout() {
             kRD[id] = { id:id,
                         mins:[100000.0, 100000.0], maxs:[-100000.0, -100000.0],
                         switchCut:[],
-                        bezelHoles:[]
+                        bezelHoles:[],
+                        caseIdx:k.caseIdx||0
                     };
         }
 
@@ -177,8 +174,9 @@ export function refreshLayout() {
         rd.maxs = [-100000.0, -100000.0];
         rd.switchCut.length = 0;
         rd.bezelHoles.length = 0;
+        const root = globals.renderData.cases[rd.caseIdx].rootXform;
 
-        if(k.type == "oled") {
+        if(k.type === "oled") {
             //oled sizing: greater than 38 x 12    20.1*2 x 14.1 ?
             let oledDim = [(38.1+tuning.bezelGap) / 2, (14.1+tuning.bezelGap) / 2];
     
@@ -198,7 +196,7 @@ export function refreshLayout() {
             
             rd.switchCut.push(coremath.createRectPoly(oledDim[0] + tuning.bezelGap, oledDim[1] + tuning.bezelGap, kXform));
 
-            pcb.addDevice(k.id, k.type, kXform);
+            pcb.addDevice(k.id, k.type, kXform, rd.caseIdx);
 
             rd.outline = getCombinedOutlineFromPolyGroup(keyOutlines);
             if (rd.keycap) {
@@ -226,8 +224,9 @@ export function refreshLayout() {
                 }
             }
         }
-        else if(k.type == "ec11") {
+        else if(k.type === "ec11") {
             let rad = k.encoder_knob_size / 2;
+            console.log(`enc size ${rad}`)
     
             let kPos = [(k.x+0.5) * tuning.base1U[0],
                       -((k.y+0.5) * tuning.base1U[1])]
@@ -249,7 +248,7 @@ export function refreshLayout() {
             
             rd.switchCut.push(coremath.createRectPoly(switchCutDims[0], switchCutDims[1], kXform));
             
-            pcb.addDevice(k.id, k.type, kXform);
+            pcb.addDevice(k.id, k.type, kXform, rd.caseIdx);
             
             rd.outline = getCombinedOutlineFromPolyGroup(keyOutlines);
             if (rd.keycap) {
@@ -298,7 +297,7 @@ export function refreshLayout() {
 
             rd.bezelHoles.push(coremath.createRectPoly(keycapDim[0] + tuning.bezelGap, keycapDim[1] + tuning.bezelGap, kXform));
     
-            if(k.width2 > 0 && k.height2 > 0 && !(k.width == k.width2 && k.height == k.height2 && k.x2 == 0 && k.y2 == 0)) {  
+            if(k.width2 > 0 && k.height2 > 0 && !(k.width === k.width2 && k.height === k.height2 && k.x2 === 0 && k.y2 === 0)) {  
                 let k2Dim = [(tuning.keyDims[0] + tuning.base1U[0] * (k.width2 - 1)) / 2,
                             (tuning.keyDims[1] + tuning.base1U[1] * (k.height2 - 1)) / 2];
                 let k2Pos = [k.x2 * tuning.base1U[0] - keycapDim[0] + k2Dim[0],
@@ -313,7 +312,7 @@ export function refreshLayout() {
                 rd.bezelHoles.push(bezelHole2);
             }
             
-            getPlateCutsWithStabs(k.id,k.width,k.height,kXform,rd.switchCut);
+            getPlateCutsWithStabs(k.id,k.width,k.height,kXform,rd.switchCut,rd.caseIdx);
             
             if(!rd.switch) {
                 const switchGLTF = gfx.switchAsset.container;
@@ -347,7 +346,7 @@ export function refreshLayout() {
                 }
 
                 let primeSearch = k.width;
-                if(k.row == "special") {
+                if(k.row === "special") {
                     primeSearch = k.special;
                 }
                 let searchOpts = {vertical:k.vertical, stepped: k.stepped, nub: k.nub, r:k.row};
@@ -399,18 +398,9 @@ export function refreshLayout() {
             rd.mins[1] = Math.min(rd.mins[1], p.z);
             rd.maxs[1] = Math.max(rd.maxs[1], p.z);
         }
-        mins[0] = Math.min(rd.mins[0], mins[0]);
-        maxs[0] = Math.max(rd.maxs[0], maxs[0]);
-        mins[1] = Math.min(rd.mins[1], mins[1]);
-        maxs[1] = Math.max(rd.maxs[1], maxs[1]);
     }
 
-    bd.layout.bounds = { mins: mins, maxs: maxs };
-
-    pcb.refreshPCBOutline(bd);
-
-    bd.pcbBounds = globals.pcbData.outlineBounds;
-
+    refreshPCBs();
     // refreshOutlines();
 }
 
@@ -444,7 +434,7 @@ function combineOutlines(primary, primaryFillets, secondary, secondaryFillets, i
             const sNorm = new Vector3(sL.z,0,-sL.x).normalize();
             
             let segRes = coremath.segmentToSegment(curr, targ, tL, tNorm, sLine[0], sLine[1]);
-            if(segRes.type == "in_segment" && segRes.intersection) {
+            if(segRes.type === "in_segment" && segRes.intersection) {
                 let dist = segRes.intersection.subtract(curr).lengthSquared();
                 if( dist > Epsilon*Epsilon) {
                     let isEntry = (Vector3.Dot(sNorm, tL) < 0) ^ subtraction;
@@ -543,7 +533,7 @@ function getCombinedOutlineFromPolyGroup(group, ignoreOverlapping) {
     for( const hole of group ) {
         let polyList = ignoreOverlapping?group:hole.overlappingPolys;
         for( const [oId,otherHole] of Object.entries(polyList) ) {
-            if(otherHole.id == hole.id) continue;
+            if(otherHole.id === hole.id) continue;
             for(let iL = hole.outlineLines.length-1; iL >= 0; iL--) {
                 let lL = hole.outlineLines[iL];
                 let lDir = lL[1].subtract(lL[0]);
@@ -626,7 +616,7 @@ function getCombinedOutlineFromPolyGroup(group, ignoreOverlapping) {
     for( const hole of group ) {
         let polyList = ignoreOverlapping?group:hole.overlappingPolys;
         for( const [oId,oHole] of Object.entries(polyList) ) {
-            if(hole.id == oHole.id) continue;
+            if(hole.id === oHole.id) continue;
             for(let iL = hole.outlineLines.length - 1; iL >= 0; iL--) {
                 let l = hole.outlineLines[iL];
                 let lL = l[1].subtract(l[0]);
@@ -637,11 +627,11 @@ function getCombinedOutlineFromPolyGroup(group, ignoreOverlapping) {
                 let oPoints = oHole.points;
                 for(let iOP = 0; iOP < oPoints.length; iOP++) {
                     let segRes = coremath.segmentToSegment(l[0], l[1], lL, lNorm, oPoints[iOP], oPoints[(iOP+1)%oPoints.length]);
-                    if(segRes.type == "in_segment" && segRes.intersection) {
+                    if(segRes.type === "in_segment" && segRes.intersection) {
                         // console.log(`intersecting ${rd.id} line ${iL} with ${otherRD.id} line ${iOP}` )
                         intersections.push(segRes.intersection);
                     }
-                    else if(segRes.type == "colinear") {
+                    else if(segRes.type === "colinear") {
                         // console.log(`bailing colinear ${rd.id} line ${iL} with ${otherRD.id} line ${iOP}`);
                         // we're colinear with an edge, so we don't have anything to clip with this box
                         colinear = true;
@@ -659,7 +649,7 @@ function getCombinedOutlineFromPolyGroup(group, ignoreOverlapping) {
                     // console.log(`removing line ${iL} from ${rd.id}`);
                     hole.outlineLines.splice(iL, 1);
                 }
-                else if(intersections.length == 1) {
+                else if(intersections.length === 1) {
                     // console.log(`splitting (one intersection) line ${iL} from ${rd.id}`);
                     // console.log(`start ${isStartInPoly} end ${isEndInPoly}`);
                     if(isStartInPoly) {
@@ -688,7 +678,7 @@ function getCombinedOutlineFromPolyGroup(group, ignoreOverlapping) {
                         } 
                         // console.log(`${rd.id} mid is ${intersections[i-1]} ${intersections[i]}`);
                     }
-                    if(intersections.length % 2 == 0) {
+                    if(intersections.length % 2 === 0) {
                         if( intersections[intersections.length-1].subtract(tmp).lengthSquared() > Epsilon*Epsilon) {
                             hole.outlineLines.push([intersections[intersections.length-1],tmp]);
                             // console.log(`${rd.id} end is ${intersections[intersections.length-1]} ${tmp}`);
@@ -719,7 +709,7 @@ function getCombinedOutlineFromPolyGroup(group, ignoreOverlapping) {
             if(nextLineIndex >= 0) break;
         }
 
-        if(nextLineIndex == -1)
+        if(nextLineIndex === -1)
             break;
         
         let outline = [];
@@ -764,7 +754,7 @@ function getCombinedOutlineFromPolyGroup(group, ignoreOverlapping) {
     
             let polyList = ignoreOverlapping?group:nextHole.overlappingPolys;
             for( const [oId,oHole] of Object.entries(polyList) ) {
-                if(nextHole.id == oHole.id) continue;
+                if(nextHole.id === oHole.id) continue;
                 for( let jL = 0; jL < oHole.outlineLines.length; jL++ ) {
                     if(!oHole.parsedOutlineLines[jL]) {
                         checkNext(oHole.outlineLines[jL],oHole,jL);
@@ -781,7 +771,7 @@ function getCombinedOutlineFromPolyGroup(group, ignoreOverlapping) {
     return bestOutline;
 }
 
-function findOverlappingGroups(kRD, groupName) {
+function findOverlappingGroups(kRD, groupName, caseIdx) {
     let gID = 0;
     let groups = {};
 
@@ -825,7 +815,7 @@ function findOverlappingGroups(kRD, groupName) {
                 let oKG = poly2.overlapGroupId;
                 for(const [otherId, oRD] of Object.entries(kRD)) {
                     for(const poly of oRD[groupName]) {
-                        if(poly.overlapGroupId == oKG) {
+                        if(poly.overlapGroupId === oKG) {
                             poly.overlapGroupId = pKG;
                         }
                     }
@@ -844,13 +834,18 @@ function findOverlappingGroups(kRD, groupName) {
     }
 
     for (const [id, rd] of Object.entries(kRD)) {
+        if(rd.caseIdx != caseIdx)  {
+            continue;
+        }
         for(const [ip, poly] of rd[groupName].entries()) {
             for (const [otherId, otherRD] of Object.entries(kRD)) {
-                for(const [op, otherPoly] of otherRD[groupName].entries()) {
-                    if(otherId == id && ip == op) {
-                        continue;
+                if(otherRD.caseIdx == rd.caseIdx) {
+                    for(const [op, otherPoly] of otherRD[groupName].entries()) {
+                        if(otherId === id && ip === op) {
+                            continue;
+                        }
+                        checkOverlap(poly,otherPoly);
                     }
-                    checkOverlap(poly,otherPoly);
                 }
             }
     
@@ -861,6 +856,9 @@ function findOverlappingGroups(kRD, groupName) {
     }
 
     for (const [id, rd] of Object.entries(kRD)) {
+        if(rd.caseIdx != caseIdx)  {
+            continue;
+        }
         for(const [ip, poly] of rd[groupName].entries()) {
             // console.log(`${otherId} is in kgid: ${oRD.keyGroupId}`);
             if(!groups[poly.overlapGroupId]) {
@@ -893,12 +891,12 @@ function getScrewBoss() {
     return tuning.screwTypes[screwType].minBoss;
 }
 
-export function addScrewHoles(outline, bezelWithPort) {
+export function addScrewHoles(cRD, outline, bezelWithPort) {
     const screwBoss = getScrewBoss();
     const screwRadius = getScrewRadius();
     const bezelOffset = (tuning.bezelThickness - screwBoss * 2.0) * tuning.screwBezelBias + tuning.bezelGap + screwBoss;
     let screwLocs = coremath.offsetOutlinePoints(outline,bezelOffset);
-    globals.renderData.screwData = [];
+    cRD.screwData = [];
 
     let minDist =  screwRadius + screwBoss;
     if(minDist > Epsilon) {
@@ -968,22 +966,22 @@ export function addScrewHoles(outline, bezelWithPort) {
     for(let i = screwLocs.length-1; i >= 0; i--) {
         let loc = screwLocs[i];
         const int = coremath.segmentToPoly(loc, externalPoint, bezelWithPort);
-        if(int.numIntersections == 0 || int.numIntersections % 2 == 0 || int.nearestDistSq < minEdgeDistSq) {
+        if(int.numIntersections === 0 || int.numIntersections % 2 === 0 || int.nearestDistSq < minEdgeDistSq) {
             screwLocs.splice(i,1);
         }
     }
 
     globals.boardData.screwLocations = screwLocs;
     for(const loc of screwLocs) {
-        globals.renderData.screwData.push(new coremath.Circle(loc,screwRadius));
+        cRD.screwData.push(new coremath.Circle(loc,screwRadius));
     }
 }
 
 function getFootShape(layerName, layerDef, cRD, bd) {
     const scene = globals.scene;
-    const root = globals.renderData.rootXform;
+    const root = cRD.rootXform;
     const mats = globals.renderData.mats;
-    let feet = getFeet(bd);
+    let feet = getFeet(bd, cRD);
     cRD.layers[layerName] = {name:layerName,outlines:[],meshes:[],outlineBounds:{mins:(new Vector3(10000000.0,1000000.0,1000000.0)), maxs:(new Vector3(-10000000,-1000000,-1000000))}};
     for(const foot of feet) {
         const p0 = foot.screws[0];
@@ -1025,18 +1023,20 @@ export const layerDefs = {
     "edge2":{height:3,offset:-4.5,stackOrder:-2,visFilter:"drawCase",shape:"caseFrameWithPortCut",holes:["screwHoles", "cavityInnerEdge"],mat:"case",physicalMat:"acrylic"},
     "edge3":{height:3,offset:-7.5,stackOrder:-3,visFilter:"drawCase",shape:"caseFrameWithPortCut",holes:["screwHoles", "cavityInnerEdge"],mat:"case",physicalMat:"acrylic"},
     "bottom":{height:3,offset:-10.5,stackOrder:-4,visFilter:"drawCase",shape:"caseFrame",holes:["screwHoles"],mat:"case",physicalMat:"acrylic"},
-    "feet2":{height:3,offset:-13.5,stackOrder:-5,visFilter:"drawCase",mat:"case",customShape:getFootShape,chin:2.0,physicalMat:"acrylic"},
-    "feet1":{height:3,offset:-16.5,stackOrder:-6,visFilter:"drawCase",mat:"case",customShape:getFootShape,chin:1.0,physicalMat:"acrylic"},
-    "feet":{height:3,offset:-19.5,stackOrder:-7,visFilter:"drawCase",mat:"case",customShape:getFootShape,chin:0.0,physicalMat:"acrylic"}
+    "feet4":{height:3,offset:-13.5,stackOrder:-5,visFilter:"drawCase",mat:"case",customShape:getFootShape,chin:4.0,physicalMat:"acrylic"},
+    "feet3":{height:3,offset:-16.5,stackOrder:-6,visFilter:"drawCase",mat:"case",customShape:getFootShape,chin:3.0,physicalMat:"acrylic"},
+    "feet2":{height:3,offset:-19.5,stackOrder:-7,visFilter:"drawCase",mat:"case",customShape:getFootShape,chin:2.0,physicalMat:"acrylic"},
+    "feet1":{height:3,offset:-22.5,stackOrder:-8,visFilter:"drawCase",mat:"case",customShape:getFootShape,chin:1.0,physicalMat:"acrylic"},
+    "feet":{height:3,offset:-25.5,stackOrder:-9,visFilter:"drawCase",mat:"case",customShape:getFootShape,chin:0.0,physicalMat:"acrylic"}
 };
 
-function addUSBPort() {
+function addUSBPort(cRD) {
     let portDim = [15 / 2,
                     tuning.bezelThickness*2];
 
     let portPos = globals.boardData.usbPortPos * tuning.base1U[0];
 
-    const boardBounds = globals.boardData.layout.bounds;
+    const boardBounds = cRD.bounds;
     
     if(globals.boardData.usbPortCentered) {
         portPos = boardBounds.mins[0] + (boardBounds.maxs[0] - boardBounds.mins[0])/2;
@@ -1050,7 +1050,7 @@ function addUSBPort() {
     //     kXform = kXform.multiply(Matrix.RotationY(k.rotation_angle * Math.PI / 180.0))
     //     kXform = kXform.multiply(Matrix.Translation(k.rotation_x * tuning.base1U[0], 0, -k.rotation_y * tuning.base1U[1]));
     // }
-    globals.boardData.portCut = [new coremath.Poly([
+    cRD.portCut = [new coremath.Poly([
         Vector3.TransformCoordinates(new Vector3(-portDim[0], 0, -portDim[1]), kXform),
         Vector3.TransformCoordinates(new Vector3(portDim[0], 0, -portDim[1]), kXform),
         Vector3.TransformCoordinates(new Vector3(portDim[0], 0, portDim[1]), kXform),
@@ -1058,7 +1058,7 @@ function addUSBPort() {
     ])];
 }
 
-function getFeet(bd) {
+function getFeet(bd, cRD) {
     let screwLocs = bd.screwLocations;
     let feet = [];
 
@@ -1066,7 +1066,7 @@ function getFeet(bd) {
         return feet;
     }
 
-    let bounds = bd.layout.bounds;
+    let bounds = cRD.bounds;
     let midZ = bounds.mins[1] + (bounds.maxs[1]-bounds.mins[1])/2;
     let maxLoc = -10000.0;
     for(const l of screwLocs) {
@@ -1097,241 +1097,425 @@ function getFeet(bd) {
     return feet;
 }
 
+export function refreshPCBs() {
+    const bd = globals.boardData;
+    for(let caseIdx = 0; caseIdx < bd.cases.length; caseIdx++ ) {
+        const cRD = globals.renderData.cases[caseIdx];
+        pcb.refreshPCBOutline(bd, caseIdx, cRD);
+
+        // bd.pcbBounds[caseIdx] = globals.pcbData[caseIdx].outlineBounds;
+    }
+}
+
 export function refreshCase() {
     const scene = globals.scene;
     const bd = globals.boardData;
     const kRD = globals.renderData.keys;
     const mats = globals.renderData.mats;
-    const root = globals.renderData.rootXform;
 
-    let cRD = globals.renderData.case;
-    
-    for(const [layerName, layer] of Object.entries(cRD.layers)) {
-        if(layer.mesh) {
-            layer.mesh.parent = null;
-            scene.removeMesh(layer.mesh);
-            layer.mesh.dispose();
+    for(let caseIdx = 0; caseIdx < bd.cases.length; caseIdx++ ) {
+        if(!globals.renderData.cases[caseIdx]) {
+            globals.renderData.cases.push({layers:{}});
         }
-        if(layer.meshes) {
-            for(const m of layer.meshes) {
-                m.parent = null;
-                scene.removeMesh(m);
-                m.dispose();
+        const cRD = globals.renderData.cases[caseIdx];
+
+        for(const [layerName, layer] of Object.entries(cRD.layers)) {
+            if(layer.mesh) {
+                layer.mesh.parent = null;
+                scene.removeMesh(layer.mesh);
+                layer.mesh.dispose();
             }
-            layer.meshes.length = 0;
+            if(layer.meshes) {
+                for(const m of layer.meshes) {
+                    m.parent = null;
+                    scene.removeMesh(m);
+                    m.dispose();
+                }
+                layer.meshes.length = 0;
+            }
         }
-    }
+        
+        cRD.layers = {};
+        const root = cRD.rootXform;
+        root.position.x = 50*caseIdx;
     
-    cRD.layers = {};
+        // if(!bd.layout || Object.keys(bd.layout.keys).length < 1) {
+        //     return;
+        // }
+    
+    
+        let keyGroups = findOverlappingGroups(kRD, "bezelHoles", caseIdx);
+        if( Object.keys(keyGroups).length <= 0 ) {
+            continue;
+        }
 
-    if(!bd.layout || Object.keys(bd.layout.keys).length < 1) {
-        return;
-    }
+        let kgOutlines = {};
+        let combinedKeyOutlines = [];
+    
+        let vectorGeo = {};
+        let tesselatedGeo = {};
+        vectorGeo["bezel"] = []
+        tesselatedGeo["bezel"] = [];
+        
+        let mins = [100000.0, 100000.0]
+        let maxs = [-100000.0, -100000.0];
+        for (const [id, rd] of Object.entries(globals.renderData.keys)) {
+            if(rd.caseIdx == caseIdx ) {
+                mins[0] = Math.min(rd.mins[0], mins[0]);
+                maxs[0] = Math.max(rd.maxs[0], maxs[0]);
+                mins[1] = Math.min(rd.mins[1], mins[1]);
+                maxs[1] = Math.max(rd.maxs[1], maxs[1]);
+            }
+        }
+        cRD.bounds = { mins: mins, maxs: maxs };
 
-    if(bd.caseType == "convex") {
-        let kPs = [];
-        for( let [id,rd] of Object.entries(kRD) ) {
-            if(rd.outline) {
-                for( let p of rd.outline ) {
-                    kPs.push(p)
+        // let dbglines = [];
+        for(const [kgId, KG] of Object.entries(keyGroups)) {
+            let outline = getCombinedOutlineFromPolyGroup(KG);
+            kgOutlines[kgId] = outline;
+            combinedKeyOutlines = combinedKeyOutlines.concat(outline);
+    
+            let bezelOutlineVec = coremath.offsetAndFilletOutline(outline, 0.0, tuning.bezelCornerFillet, false);
+            vectorGeo["bezel"].push(bezelOutlineVec);
+            tesselatedGeo["bezel"].push(coremath.genPointsFromVectorPath(bezelOutlineVec));
+            
+            // for( const poly of KG ) {
+            //     for(let iL = 0; iL < poly.outlineLines.length; iL++) {
+            //         dbglines.push(poly.outlineLines[iL])
+            //     }
+            // } 
+            // for(let i = 0; i < outline.length; i++) {
+            //     dbglines.push([outline[i], outline[(i+1)%outline.length]]);
+            // }
+        }
+    
+        if(bd.caseType === "convex") {
+            let kPs = [];
+            for( let [id,rd] of Object.entries(kRD) ) {
+                if(rd.caseIdx === caseIdx) {
+                    if(rd.outline) {
+                        for( let p of rd.outline ) {
+                            kPs.push(p)
+                        }
+                    }
                 }
             }
-        }
-        for(let p of globals.pcbData.outline) {
-            kPs.push(p);
-        }
-        bd.outline = coremath.convexHull2d(kPs);
-
-        if(bd.forceSymmetrical) {
-            let midPoint = (bd.layout.bounds.maxs[0] - bd.layout.bounds.mins[0]) * 0.5 + bd.layout.bounds.mins[0];
-            for(let oP of bd.outline) {
-                kPs.push(new Vector3(midPoint - (oP.x - midPoint), oP.y, oP.z));
+            for(let p of globals.pcbData[caseIdx].outline) {
+                kPs.push(p);
             }
             bd.outline = coremath.convexHull2d(kPs);
+    
+            if(bd.forceSymmetrical) {
+                let midPoint = (cRD.bounds.maxs[0] - cRD.bounds.mins[0]) * 0.5 + cRD.bounds.mins[0];
+                for(let oP of bd.outline) {
+                    kPs.push(new Vector3(midPoint - (oP.x - midPoint), oP.y, oP.z));
+                }
+                bd.outline = coremath.convexHull2d(kPs);
+            }
         }
-    }
-    else if(bd.caseType == "concave") {
-        let kPs = [];
-        for( let [id,rd] of Object.entries(kRD) ) {
-            if(rd.outline) {
-                for( let p of rd.outline ) {
-                    kPs.push(p)
+        else if(bd.caseType === "concave") {
+            let kPs = [];
+    
+            for(let p of globals.pcbData[caseIdx].outline) {
+                kPs.push(p);
+            }
+    
+            // for(const [kgId, outline] of Object.entries(keyGroups)) {
+            // }
+            for(let p of combinedKeyOutlines) {
+                kPs.push(p);
+            }
+    
+            if(bd.forceSymmetrical) {
+                let midPoint = (cRD.bounds.maxs[0] - cRD.bounds.mins[0]) * 0.5 + cRD.bounds.mins[0];
+                let kpLen = kPs.length;
+                for(let i = 0; i < kpLen; i++) {
+                    const kP = kPs[i];
+                    kPs.push(new Vector3(midPoint - (kP.x - midPoint), kP.y, kP.z));
+                }
+            }
+    
+            const vRes = coremath.createVoronoi(kPs);
+    
+            let dbglines = [];
+            let lineColors = [];
+            let edgeColor = new Color4(1,0,0,1);
+            let dtColor = new Color4(0,1,1,1);
+            let vColor = new Color4(0,0,1,1);
+    
+    
+            // for(const [kgId, outline] of Object.entries(keyGroups)) {
+            // }
+    
+            for(let i = 0; i < combinedKeyOutlines.length; i++) {
+                const p1 = combinedKeyOutlines[i];
+                const p2 = combinedKeyOutlines[(i+1)%combinedKeyOutlines.length];
+                dbglines.push([p1, p2]);
+                lineColors.push([dtColor,dtColor]);
+            }
+    
+            const theta = tuning.bezelConcavity*tuning.bezelConcavity*100;
+            const thetaSq = theta*theta;
+            let epSq = Epsilon*Epsilon;
+            for(const edge of vRes.edges) {
+                dbglines.push([new Vector3(edge.va.x,0,edge.va.y), new Vector3(edge.vb.x,0,edge.vb.y)]);
+                lineColors.push([vColor,vColor]);
+                if(edge.lSite && edge.rSite) {
+                    let lP = null;
+                    let rP = null;
+                    for(const p of kPs) {
+                        let lD = Math.pow(edge.lSite.x-p.x,2)+Math.pow(edge.lSite.y-p.z,2);
+                        if(lD < epSq) {
+                            lP = p;
+                        }
+                        else {
+                            let rD = Math.pow(edge.rSite.x-p.x,2)+Math.pow(edge.rSite.y-p.z,2);
+                            if(rD < epSq) {
+                                rP = p;
+                            }
+                        }
+    
+    
+                        if(lP && rP) {
+                            break;
+                        }
+                    }
+                    if(!lP || !rP ) {
+                        console.log(`couldn't find points`);
+                        continue;
+                    }
+    
+                    const centerP = lP.add(rP).scale(0.5);
+                    const rToL = lP.subtract(rP);
+                    const dist = rToL.length();
+                    if(dist > theta*2 || dist < Epsilon) {
+                        continue;
+                    }
+    
+                    let circumscribedRadius = function(a,b,c) {
+                        return (a*b*c) / Math.sqrt((a+b+c)*(b+c-a)*(c+a-b)*(a+b-c));
+                    }
+    
+                    const lToR = rP.subtract(lP);
+                    const rNorm = new Vector3(rToL.z, 0, -rToL.x).normalizeToNew();
+    
+                    let allOutsideL = true;
+                    let allOutsideR = true;
+                    for(const p of kPs) {
+                        if(p === lP || p === rP) {
+                            continue;
+                        }
+    
+                        const rToP = p.subtract(rP);
+                        const lToP = p.subtract(lP);
+                        let lPDist = lToP.length();
+                        let rPDist = rToP.length();
+                        if( lPDist < Epsilon || rPDist < Epsilon) {
+                            continue;
+                        }
+                        const pToCDist = centerP.subtract(p).length();
+                        let nDot = Vector3.Dot(rNorm,rToP);
+    
+                        let circleRadius = circumscribedRadius(lPDist,rPDist,dist);
+    
+                        if(pToCDist*2 <= dist) {
+                            // between the two!
+                            if(nDot >= 0) {
+                                allOutsideR = false;
+                            }
+                            else {
+                                allOutsideL = false;
+                            }
+    
+                            if(circleRadius >= theta) {
+                                // dbglines.push([p, rP]);
+                                // lineColors.push([dtColor,dtColor]);
+                                if(nDot <= 0) {
+                                    allOutsideR = false;
+                                }
+                                else {
+                                    allOutsideL = false;
+                                }
+                            }
+                        }
+                        else {
+                            if(circleRadius <= theta) {
+                                if(nDot >= 0) {
+                                    allOutsideR = false;
+                                }
+                                else {
+                                    allOutsideL = false;
+                                }
+                            }
+                        }
+    
+    
+                        if(!allOutsideL && !allOutsideR) {
+                            break;
+                        }
+                    }
+    
+                    if(allOutsideL || allOutsideR){
+                        dbglines.push([new Vector3(edge.lSite.x,0,edge.lSite.y), new Vector3(edge.rSite.x,0,edge.rSite.y)]);
+                        lineColors.push([edgeColor,edgeColor]);
+                    } 
+                    // else {
+                    //     dbglines.push([new Vector3(edge.lSite.x,0,edge.lSite.y), new Vector3(edge.rSite.x,0,edge.rSite.y)]);
+                    //     lineColors.push([dtColor,dtColor]);
+                    // }
+                }
+            }
+            
+            if( globals.voronoiLines ) {
+                globals.scene.removeMesh(globals.voronoiLines);
+            }
+    
+            globals.voronoiLines = MeshBuilder.CreateLineSystem("voronoiLines", {lines: dbglines, colors:lineColors}, globals.scene);
+    
+            bd.outline = coremath.convexHull2d(kPs);
+        }
+        else
+        {
+            let pcbBounds = globals.pcbData[caseIdx].outlineBound;
+            let bounds = cRD.bounds;
+            bd.outline = [
+                new Vector3(Math.min(bounds.mins[0],pcbBounds.mins[0]), 0, Math.min(bounds.mins[1],pcbBounds.mins[1])),
+                new Vector3(Math.max(bounds.maxs[0],pcbBounds.maxs[0]), 0, Math.min(bounds.mins[1],pcbBounds.mins[1])),
+                new Vector3(Math.max(bounds.maxs[0],pcbBounds.maxs[0]), 0, Math.max(bounds.maxs[1],pcbBounds.maxs[1])),
+                new Vector3(Math.min(bounds.mins[0],pcbBounds.mins[0]), 0, Math.max(bounds.maxs[1],pcbBounds.maxs[1]))
+            ];
+        }
+    
+        vectorGeo["cavityInnerEdge"] = [coremath.offsetAndFilletOutline(bd.outline, tuning.bezelGap, tuning.bezelCornerFillet, false)];
+        tesselatedGeo["cavityInnerEdge"] = vectorGeo["cavityInnerEdge"].map((a) => coremath.genPointsFromVectorPath(a,8));
+        vectorGeo["caseFrame"] = coremath.offsetAndFilletOutline(bd.outline, tuning.bezelGap + tuning.bezelThickness, tuning.caseCornerFillet, false);
+        tesselatedGeo["caseFrame"] = coremath.genPointsFromVectorPath(vectorGeo["caseFrame"],8);
+        vectorGeo["caseFrameTaper"] = coremath.offsetAndFilletOutline(bd.outline, tuning.bezelGap + tuning.bezelThickness*.9, tuning.caseCornerFillet, false);
+        tesselatedGeo["caseFrameTaper"] = coremath.genPointsFromVectorPath(vectorGeo["caseFrameTaper"],8);
+    
+    
+        if(bd.hasUSBPort) {
+            addUSBPort(cRD);
+            let portCut = cRD.portCut;
+            let portOutline = getCombinedOutlineFromPolyGroup(portCut);
+            let portFillets = (new Array(portOutline.length)).fill(0);
+            let interiorShape = coremath.offsetOutlinePoints(bd.outline,tuning.bezelGap);
+            let interiorFillets = (new Array(interiorShape.length)).fill(tuning.bezelCornerFillet);
+            let comboFillets = [];
+            let intersectionFillet = 1.0;
+            let combo = combineOutlines(interiorShape,interiorFillets, portOutline, portFillets, intersectionFillet, comboFillets);
+            combo.reverse();
+            comboFillets.reverse();
+            let outlineFillets = (new Array(bd.outline.length)).fill(tuning.caseCornerFillet);
+            let exteriorShape = coremath.offsetOutlinePoints(bd.outline,tuning.bezelGap+tuning.bezelThickness);
+            let finFillets = [];
+            combo = combineOutlines(exteriorShape,outlineFillets,combo,comboFillets, intersectionFillet, finFillets, true);
+    
+            vectorGeo["caseFrameWithPortCut"] = coremath.offsetAndFilletOutline(combo, 0, finFillets, false);
+            tesselatedGeo["caseFrameWithPortCut"] = coremath.genPointsFromVectorPath(vectorGeo["caseFrameWithPortCut"],8);
+            vectorGeo["cavityInnerEdge"].length = 0;
+            tesselatedGeo["cavityInnerEdge"].length = 0;
+        } else {
+            vectorGeo["caseFrameWithPortCut"] = vectorGeo["caseFrame"];
+            tesselatedGeo["caseFrameWithPortCut"] = tesselatedGeo["caseFrame"];
+        }
+    
+        addScrewHoles(cRD, bd.outline, tesselatedGeo["caseFrameWithPortCut"]);
+    
+        vectorGeo["screwHoles"] = cRD.screwData;
+        tesselatedGeo["screwHoles"] = vectorGeo["screwHoles"].map((a) => coremath.genArrayForCircle(a,0,19));
+        
+        // let dbglines = [];
+        // for(let i = 0; i < combo.length; i++) {
+        //     dbglines.push([combo[i], combo[(i+1)%combo.length]]);
+        // }
+        // if( globals.lineSystem ) {
+        //     globals.scene.removeMesh(globals.lineSystem)
+        // }
+        // globals.lineSystem = MeshBuilder.CreateLineSystem("lineSystem", {lines: dbglines}, globals.scene);
+    
+        let plateGroups = findOverlappingGroups(kRD, "switchCut", caseIdx);
+        vectorGeo["switchCuts"] = [];
+        tesselatedGeo["switchCuts"] = [];
+        for(const [gId, G] of Object.entries(plateGroups)) {
+            let outline = getCombinedOutlineFromPolyGroup(G);
+            let switchOutlineVec = coremath.offsetAndFilletOutline(outline, 0.0, 0.5, false);
+            vectorGeo["switchCuts"].push(switchOutlineVec);
+            const genPoints = coremath.genPointsFromVectorPath(switchOutlineVec);
+            tesselatedGeo["switchCuts"].push(genPoints);
+    
+            // for(let i = 0; i < genPoints.length; i++) {
+            //     dbglines.push([genPoints[i], genPoints[(i+1)%genPoints.length]]);
+            // }
+    
+    
+            // for( const poly of KG ) {
+            //     for(let iL = 0; iL < poly.outlineLines.length; iL++) {
+            //         dbglines.push(poly.outlineLines[iL])
+            //     }
+            // } 
+        }
+    
+        // if( globals.lineSystem ) {
+        //     globals.scene.removeMesh(globals.lineSystem)
+        // }
+        // globals.lineSystem = MeshBuilder.CreateLineSystem("lineSystem", {lines: dbglines}, globals.scene);
+    
+        vectorGeo["pcbOutline"] = coremath.offsetAndFilletOutline(globals.pcbData[caseIdx].outline, 0.0, 2.0, false);
+        tesselatedGeo["pcbOutline"] = coremath.genPointsFromVectorPath(vectorGeo["pcbOutline"]);
+    
+        for(const [layerName, layerDef] of Object.entries(layerDefs)) {
+            if( tuning[layerDef.visFilter] ) {
+                if(layerDef.customShape) {
+                    layerDef.customShape(layerName, layerDef, cRD, bd);
+                }
+                else {
+                    cRD.layers[layerName] = {name:layerName,outlines:[vectorGeo[layerDef.shape]],meshes:[]};
+                    const polyShape = tesselatedGeo[layerDef.shape];
+                    let polyHoles = [];
+                    for(const holeLayer of layerDef.holes) {
+                        if(vectorGeo[holeLayer] != null) {
+                            cRD.layers[layerName].outlines = cRD.layers[layerName].outlines.concat(vectorGeo[holeLayer]);
+                        }
+                        if(tesselatedGeo[holeLayer] != null) {
+                            polyHoles = polyHoles.concat(tesselatedGeo[holeLayer]);
+                        }
+                    }
+                    // console.log("adding layer "+layerName);
+                    const mesh = MeshBuilder.CreatePolygon(layerName, { shape: polyShape, depth:layerDef.height, smoothingThreshold: 0.1, holes:polyHoles }, scene);
+                    mesh.parent = root;
+                    mesh.position.y = layerDef.offset;
+                    mesh.material = mats[layerDef.mat];
+                    cRD.layers[layerName].meshes.push(mesh);
+                    cRD.layers[layerName].outlineBounds = coremath.getVectorPathBounds(vectorGeo[layerDef.shape]);
                 }
             }
         }
-        for(let p of cRD.pcbOutline) {
-            kPs.push(p);
-        }
-        bd.outline = coremath.convexHull2d(kPs);
-    }
-    else
-    {
-        let pcbBounds = bd.pcbBounds;
-        let bounds = bd.layout.bounds;
-        bd.outline = [
-            new Vector3(Math.min(bounds.mins[0],pcbBounds.mins[0]), 0, Math.min(bounds.mins[1],pcbBounds.mins[1])),
-            new Vector3(Math.max(bounds.maxs[0],pcbBounds.maxs[0]), 0, Math.min(bounds.mins[1],pcbBounds.mins[1])),
-            new Vector3(Math.max(bounds.maxs[0],pcbBounds.maxs[0]), 0, Math.max(bounds.maxs[1],pcbBounds.maxs[1])),
-            new Vector3(Math.min(bounds.mins[0],pcbBounds.mins[0]), 0, Math.max(bounds.maxs[1],pcbBounds.maxs[1]))
-        ];
-    }
-
-    let vectorGeo = {};
-    let tesselatedGeo = {};
-    vectorGeo["cavityInnerEdge"] = [coremath.offsetAndFilletOutline(bd.outline, tuning.bezelGap, tuning.bezelCornerFillet, false)];
-    tesselatedGeo["cavityInnerEdge"] = vectorGeo["cavityInnerEdge"].map((a) => coremath.genPointsFromVectorPath(a,8));
-    vectorGeo["caseFrame"] = coremath.offsetAndFilletOutline(bd.outline, tuning.bezelGap + tuning.bezelThickness, tuning.caseCornerFillet, false);
-    tesselatedGeo["caseFrame"] = coremath.genPointsFromVectorPath(vectorGeo["caseFrame"],8);
-    vectorGeo["caseFrameTaper"] = coremath.offsetAndFilletOutline(bd.outline, tuning.bezelGap + tuning.bezelThickness*.9, tuning.caseCornerFillet, false);
-    tesselatedGeo["caseFrameTaper"] = coremath.genPointsFromVectorPath(vectorGeo["caseFrameTaper"],8);
-
-
-    if(bd.hasUSBPort) {
-        addUSBPort();
-        let portCut = globals.boardData.portCut;
-        let portOutline = getCombinedOutlineFromPolyGroup(portCut);
-        let portFillets = (new Array(portOutline.length)).fill(0);
-        let interiorShape = coremath.offsetOutlinePoints(bd.outline,tuning.bezelGap);
-        let interiorFillets = (new Array(interiorShape.length)).fill(tuning.bezelCornerFillet);
-        let comboFillets = [];
-        let intersectionFillet = 1.0;
-        let combo = combineOutlines(interiorShape,interiorFillets, portOutline, portFillets, intersectionFillet, comboFillets);
-        combo.reverse();
-        comboFillets.reverse();
-        let outlineFillets = (new Array(bd.outline.length)).fill(tuning.caseCornerFillet);
-        let exteriorShape = coremath.offsetOutlinePoints(bd.outline,tuning.bezelGap+tuning.bezelThickness);
-        let finFillets = [];
-        combo = combineOutlines(exteriorShape,outlineFillets,combo,comboFillets, intersectionFillet, finFillets, true);
-
-        vectorGeo["caseFrameWithPortCut"] = coremath.offsetAndFilletOutline(combo, 0, finFillets, false);
-        tesselatedGeo["caseFrameWithPortCut"] = coremath.genPointsFromVectorPath(vectorGeo["caseFrameWithPortCut"],8);
-        vectorGeo["cavityInnerEdge"].length = 0;
-        tesselatedGeo["cavityInnerEdge"].length = 0;
-    } else {
-        vectorGeo["caseFrameWithPortCut"] = vectorGeo["caseFrame"];
-        tesselatedGeo["caseFrameWithPortCut"] = tesselatedGeo["caseFrame"];
-    }
-
-    addScrewHoles(bd.outline, tesselatedGeo["caseFrameWithPortCut"]);
-
-    vectorGeo["screwHoles"] = globals.renderData.screwData;
-    tesselatedGeo["screwHoles"] = vectorGeo["screwHoles"].map((a) => coremath.genArrayForCircle(a,0,19));
-    
-    // let dbglines = [];
-    // for(let i = 0; i < combo.length; i++) {
-    //     dbglines.push([combo[i], combo[(i+1)%combo.length]]);
-    // }
-    // if( globals.lineSystem ) {
-    //     globals.scene.removeMesh(globals.lineSystem)
-    // }
-    // globals.lineSystem = MeshBuilder.CreateLineSystem("lineSystem", {lines: dbglines}, globals.scene);
-
-    vectorGeo["bezel"] = []
-    tesselatedGeo["bezel"] = [];
-    
-
-    let keyGroups = findOverlappingGroups(kRD, "bezelHoles");
-
-    // let dbglines = [];
-    for(const [kgId, KG] of Object.entries(keyGroups)) {
-        let outline = getCombinedOutlineFromPolyGroup(KG);
-
-        let bezelOutlineVec = coremath.offsetAndFilletOutline(outline, 0.0, tuning.bezelCornerFillet, false);
-        vectorGeo["bezel"].push(bezelOutlineVec);
-        tesselatedGeo["bezel"].push(coremath.genPointsFromVectorPath(bezelOutlineVec));
         
-        // for( const poly of KG ) {
-        //     for(let iL = 0; iL < poly.outlineLines.length; iL++) {
-        //         dbglines.push(poly.outlineLines[iL])
-        //     }
-        // } 
-        // for(let i = 0; i < outline.length; i++) {
-        //     dbglines.push([outline[i], outline[(i+1)%outline.length]]);
-        // }
-    }
-
-
-    let plateGroups = findOverlappingGroups(kRD, "switchCut");
-    vectorGeo["switchCuts"] = [];
-    tesselatedGeo["switchCuts"] = [];
-    for(const [gId, G] of Object.entries(plateGroups)) {
-        let outline = getCombinedOutlineFromPolyGroup(G);
-        let switchOutlineVec = coremath.offsetAndFilletOutline(outline, 0.0, 0.5, false);
-        vectorGeo["switchCuts"].push(switchOutlineVec);
-        const genPoints = coremath.genPointsFromVectorPath(switchOutlineVec);
-        tesselatedGeo["switchCuts"].push(genPoints);
-
-        // for(let i = 0; i < genPoints.length; i++) {
-        //     dbglines.push([genPoints[i], genPoints[(i+1)%genPoints.length]]);
-        // }
-
-
-        // for( const poly of KG ) {
-        //     for(let iL = 0; iL < poly.outlineLines.length; iL++) {
-        //         dbglines.push(poly.outlineLines[iL])
-        //     }
-        // } 
-    }
-
-    // if( globals.lineSystem ) {
-    //     globals.scene.removeMesh(globals.lineSystem)
-    // }
-    // globals.lineSystem = MeshBuilder.CreateLineSystem("lineSystem", {lines: dbglines}, globals.scene);
-
-    vectorGeo["pcbOutline"] = coremath.offsetAndFilletOutline(globals.pcbData.outline, 0.0, 2.0, false);
-    tesselatedGeo["pcbOutline"] = coremath.genPointsFromVectorPath(vectorGeo["pcbOutline"]);
-
-    for(const [layerName, layerDef] of Object.entries(layerDefs)) {
-        if( tuning[layerDef.visFilter] ) {
-            if(layerDef.customShape) {
-                layerDef.customShape(layerName, layerDef, cRD, bd);
+        if(bd.hasFeet) {
+            let footMinY = 1000000.0;
+            let footMinZ = 1000000.0;
+            let footDepth = 15;
+            for(const footMesh of cRD.layers["feet"].meshes) {
+                const meshBounds = footMesh.getBoundingInfo();
+                footMinY = Math.min(footMinY,meshBounds.minimum.y);
+                footMinZ = Math.min(footMinZ,meshBounds.minimum.z);
             }
-            else {
-                cRD.layers[layerName] = {name:layerName,outlines:[vectorGeo[layerDef.shape]],meshes:[]};
-                const polyShape = tesselatedGeo[layerDef.shape];
-                let polyHoles = [];
-                for(const holeLayer of layerDef.holes) {
-                    if(vectorGeo[holeLayer] != null) {
-                        cRD.layers[layerName].outlines = cRD.layers[layerName].outlines.concat(vectorGeo[holeLayer]);
-                    }
-                    if(tesselatedGeo[holeLayer] != null) {
-                        polyHoles = polyHoles.concat(tesselatedGeo[holeLayer]);
-                    }
-                }
-                // console.log("adding layer "+layerName);
-                const mesh = MeshBuilder.CreatePolygon(layerName, { shape: polyShape, depth:layerDef.height, smoothingThreshold: 0.1, holes:polyHoles }, scene);
-                mesh.parent = root;
-                mesh.position.y = layerDef.offset;
-                mesh.material = mats[layerDef.mat];
-                cRD.layers[layerName].meshes.push(mesh);
-                cRD.layers[layerName].outlineBounds = coremath.getVectorPathBounds(vectorGeo[layerDef.shape]);
-            }
-        }
-    }
+            
+            const baseBounds = cRD.layers["bottom"].meshes[0].getBoundingInfo();
+            let baseMinY = baseBounds.minimum.y;
+            let baseMinZ = baseBounds.minimum.z;
     
-    if(bd.hasFeet) {
-        let footMinY = 1000000.0;
-        let footMinZ = 1000000.0;
-        let footDepth = 9;
-        for(const footMesh of cRD.layers["feet"].meshes) {
-            const meshBounds = footMesh.getBoundingInfo();
-            footMinY = Math.min(footMinY,meshBounds.minimum.y);
-            footMinZ = Math.min(footMinZ,meshBounds.minimum.z);
+            // could use (footMinY - baseMinY) but the bounds aren't transformed. :/
+            console.log(`foot: ${footMinZ} base: ${baseMinZ}`)
+            bd.typingAngle = Math.atan2(-footDepth,(footMinZ - baseMinZ));
         }
-        
-        const baseBounds = cRD.layers["bottom"].meshes[0].getBoundingInfo();
-        let baseMinY = baseBounds.minimum.y;
-        let baseMinZ = baseBounds.minimum.z;
-
-        // could use (footMinY - baseMinY) but the bounds aren't transformed. :/
-        console.log(`foot: ${footMinZ} base: ${baseMinZ}`)
-        bd.typingAngle = Math.atan2(-footDepth,(footMinZ - baseMinZ));
+        else {
+            bd.typingAngle = 0;
+        }
+        updateRotation(cRD);
+        console.log(`typing angle: ${bd.typingAngle * 180 / Math.PI}`)
     }
-    else {
-        bd.typingAngle = 0;
-    }
-    updateRotation();
-    console.log(`typing angle: ${bd.typingAngle * 180 / Math.PI}`)
 }
 
 export function refreshKeyboard() {
@@ -1340,10 +1524,10 @@ export function refreshKeyboard() {
     refreshCase();
 }
 
-export function updateRotation() {
-    let root = globals.renderData.rootXform;
+export function updateRotation(cRD) {
+    let root = cRD.rootXform;
     let targetRot = globals.boardData.typingAngle || 0;
-    if(globals.renderData.viewRotation == "flat") {
+    if(globals.renderData.viewRotation === "flat") {
         targetRot = 0;
     }
 
@@ -1355,32 +1539,46 @@ export function updateRotation() {
                         Animation.ANIMATIONLOOPMODE_CONSTANT, easingFunction); 
 }
 
-export function setFlatRotation() {
-    globals.renderData.viewRotation = "flat";
-    updateRotation();
+export function setFlatRotation(cRD) {
+    cRD.viewRotation = "flat";
+    updateRotation(cRD);
 }
 
-export function setNaturalRotation() {
-    globals.renderData.viewRotation = "natural";
-    updateRotation();
+export function setFlatRotations(cRD) {
+    for(const cRD of globals.renderData.cases ) {
+        setFlatRotation(cRD);
+    }
+}
+
+export function setNaturalRotation(cRD) {
+    cRD.viewRotation = "natural";
+    updateRotation(cRD);
+}
+
+export function setNaturalRotations() {
+    for(const cRD of globals.renderData.cases ) {
+        setNaturalRotation(cRD);
+    }
 }
 
 export function expandLayers() {
-    let cRDL = globals.renderData.case.layers;
     let easingFunction = new QuinticEase();
     // For each easing function, you can choose between EASEIN (default), EASEOUT, EASEINOUT
     easingFunction.setEasingMode(EasingFunction.EASINGMODE_EASEINOUT);
-    for(const [layerName, layerDef] of Object.entries(layerDefs)) {
-        if (cRDL[layerName]) {
-            for(const mesh of cRDL[layerName].meshes) {
-                Animation.CreateAndStartAnimation("expand", mesh, "position.y", 30, 20,
-                mesh.position.y, (layerDef.offset + layerDef.stackOrder * 15),
-                Animation.ANIMATIONLOOPMODE_CONSTANT, easingFunction); 
+
+    for(const cRD of globals.renderData.cases ) {
+        let cRDL = cRD.layers;
+        for(const [layerName, layerDef] of Object.entries(layerDefs)) {
+            if (cRDL[layerName]) {
+                for(const mesh of cRDL[layerName].meshes) {
+                    Animation.CreateAndStartAnimation("expand", mesh, "position.y", 30, 20,
+                    mesh.position.y, (layerDef.offset + layerDef.stackOrder * 15),
+                    Animation.ANIMATIONLOOPMODE_CONSTANT, easingFunction); 
+                }
             }
         }
+        setFlatRotation(cRD);
     }
-    setFlatRotation();
-
     let kRD = globals.renderData.keys;
     for(const [id, rd] of Object.entries(kRD)) {
         if (rd.keycap) {
@@ -1395,25 +1593,25 @@ export function expandLayers() {
             Animation.ANIMATIONLOOPMODE_CONSTANT, easingFunction, () => {rd.switch.setEnabled(false)}); 
         }
     }
-
-    // Animation.CreateAndStartAnimation("flip",root,"rotation."
 }
 
 export function collapseLayers() {
-    let cRDL = globals.renderData.case.layers;
     let easingFunction = new QuinticEase();
     // For each easing function, you can choose between EASEIN (default), EASEOUT, EASEINOUT
     easingFunction.setEasingMode(EasingFunction.EASINGMODE_EASEINOUT);
-    for(const [layerName, layerDef] of Object.entries(layerDefs)) {
-        if (cRDL[layerName]) {
-            for(const mesh of cRDL[layerName].meshes) {
-                Animation.CreateAndStartAnimation("collapse", mesh, "position.y", 30, 20,
-                                                mesh.position.y, layerDef.offset,
-                                                Animation.ANIMATIONLOOPMODE_CONSTANT, easingFunction); 
+
+    for(const cRD of globals.renderData.cases ) {
+        let cRDL = cRD.layers;
+        for(const [layerName, layerDef] of Object.entries(layerDefs)) {
+            if (cRDL[layerName]) {
+                for(const mesh of cRDL[layerName].meshes) {
+                    Animation.CreateAndStartAnimation("collapse", mesh, "position.y", 30, 20,
+                                                    mesh.position.y, layerDef.offset,
+                                                    Animation.ANIMATIONLOOPMODE_CONSTANT, easingFunction); 
+                }
             }
         }
     }
-
 
     let kRD = globals.renderData.keys;
     // clear the renderdata (cache this later?)
@@ -1487,7 +1685,6 @@ export function loadKeyboard(data) {
     // console.log(data);
     let mats = globals.renderData.mats;
 
-    globals.renderData.rootXform = new TransformNode("keebRoot");
 
     for(const [id, rd] of Object.entries(globals.renderData.keys)) {
         if (rd.keycap) {
@@ -1503,6 +1700,24 @@ export function loadKeyboard(data) {
     }
     globals.renderData.keys = {};
 
+    for(const cRD of globals.renderData.cases ) {
+        for(const [layerName, layer] of Object.entries(cRD.layers)) {
+            if(layer.mesh) {
+                layer.mesh.parent = null;
+                globals.scene.removeMesh(layer.mesh);
+                layer.mesh.dispose();
+            }
+            if(layer.meshes) {
+                for(const m of layer.meshes) {
+                    m.parent = null;
+                    globals.scene.removeMesh(m);
+                    m.dispose();
+                }
+                layer.meshes.length = 0;
+            }
+        }
+    }
+
     let bd = {};
     bd.meta = data.meta;
     bd.forceSymmetrical = true;
@@ -1511,7 +1726,7 @@ export function loadKeyboard(data) {
     bd.usbPortPos = 1.85;
     bd.usbPortCentered = true;
     bd.caseType = "convex";
-    bd.case = data.case;
+    bd.cases = data.cases?data.cases:[{}];
     bd.hasFeet = true;
     bd.layout = {keys: {}};
     let kIdx = 0
@@ -1520,6 +1735,7 @@ export function loadKeyboard(data) {
                         special: "standard",
                         x: k.x,
                         y: k.y,
+                        caseIdx: k.caseIdx||0,
                         width: k.width,
                         height: k.height,
                         rotation_x: k.rotation_x,
@@ -1532,16 +1748,16 @@ export function loadKeyboard(data) {
                         };
         keyInfo.matName = k.color;
 
-        if( k.width == 1 && k.height > 1) {
+        if( k.width === 1 && k.height > 1) {
             keyInfo.vertical = true;
         }
         
-        if(!(k.width2 == k.width && k.height2 == k.height && k.x2 == 0 && k.y2 == 0)) {
-            if(k.width2 == 1.5 && k.height2 == 1 && k.width == 1.25 && k.height == 2 && k.x2 == -0.25 ) {
+        if(!(k.width2 === k.width && k.height2 === k.height && k.x2 === 0 && k.y2 === 0)) {
+            if(k.width2 === 1.5 && k.height2 === 1 && k.width === 1.25 && k.height === 2 && k.x2 === -0.25 ) {
                 keyInfo.row = "special";
                 keyInfo.special = "ISO";
             }
-            else if(k.width2 == 1.75 && k.height2 == 1 && k.width == 1.25 && k.x2 == 0) {
+            else if(k.width2 === 1.75 && k.height2 === 1 && k.width === 1.25 && k.x2 === 0) {
                 // stepped is..uhhh...weird.            
                 // keyInfo.width = 1.75;
             }
@@ -1555,13 +1771,22 @@ export function loadKeyboard(data) {
             gfx.createKeyMaterial(keyInfo.matName,Color3.FromHexString(keyInfo.matName));
         }
         
-        bd.layout.keys[keyInfo.id] = keyInfo;
+        //todo: handle decals better
+        if(k.decal === false && k.ghost === false) {
+            bd.layout.keys[keyInfo.id] = keyInfo;
+        }
     }
     globals.boardData = bd;
+
+    globals.renderData.cases = [];
+    for(let i = 0; i < globals.boardData.cases.length; i++ ) {
+        const cRD = {layers:{}, rootXform: new TransformNode(`case${i}Root`)};
+        globals.renderData.cases.push(cRD);
+        setNaturalRotation(cRD);
+    }
     
     gfx.createMaterials();
     refreshKeyboard();
-    setNaturalRotation();
     gfx.snapCamera("angle");
 }
 

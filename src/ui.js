@@ -32,7 +32,7 @@ function downloadSVGs() {
     let layerInfoCSV = `Layer Name,Material,Thickness(mm),Part Width(mm),PartHeight(mm)\n`
     for(const [layerName, layerDef] of Object.entries(boardOps.layerDefs)) {
         let layerData = cRD.layers[layerName];
-        zip.file(`${layerName}.svg`, svg.exportLayerString(layerData));
+        zip.file(`${layerName}.svg`, svg.exportLayerString(layerData, bd.meta.name));
         layerInfoCSV += `${layerName},${layerDef.physicalMat},${layerDef.height},`;
         layerInfoCSV += `${format_float(layerData.outlineBounds.maxs.x-layerData.outlineBounds.mins.x)},`
         layerInfoCSV += `${format_float(layerData.outlineBounds.maxs.z-layerData.outlineBounds.mins.z)}\n`;
@@ -293,7 +293,7 @@ export const kbgbGUI = {
                 
                 globals.screengui.addControl(ctrlBar);
                 kbgbGUI.activeModeCtrl = ctrlBar;
-                boardOps.setFlatRotation();
+                boardOps.setFlatRotations();
             },
             remove: () => {
                 globals.screengui.removeControl(kbgbGUI.activeModeCtrl);
@@ -334,6 +334,22 @@ export const kbgbGUI = {
                 }
             
             
+                let createSlider = function(txt, initialVal, min, max, onChangeFunc) {
+                    let label = kbgbGUI.addLabel(txt + initialVal)
+                    var slider = new Slider();
+                    slider.minimum = min;
+                    slider.maximum = max;
+                    slider.value = tuning.bezelThickness;
+                    slider.height = "15px";
+                    slider.width = "100px";
+                    slider.onValueChangedObservable.add(function(value) {
+                        label.text = txt + value;
+                        onChangeFunc(value, label);
+                    });
+                    ctrlBar.addControl(label);   
+                    ctrlBar.addControl(slider); 
+                }
+
                 let radioCtrl = new StackPanel();  
                 radioCtrl.height = "1";
                 radioCtrl.width = "200px";
@@ -343,9 +359,13 @@ export const kbgbGUI = {
                 addRadio("concave", radioCtrl);
                 ctrlBar.addControl(radioCtrl);
 
+                createSlider("Fit: ", tuning.bezelConcavity, 0.1, 5, (v) => {
+                    tuning.bezelConcavity = v; boardOps.refreshCase();
+                });
+
                 var checkbox = new Checkbox();
-                checkbox.width = "20px";
-                checkbox.height = "20px";
+                checkbox.width = "10px";
+                checkbox.height = "10px";
                 checkbox.isChecked = globals.boardData.forceSymmetrical;
                 checkbox.color = "green";
                 checkbox.onIsCheckedChangedObservable.add(function(value) {
@@ -357,8 +377,8 @@ export const kbgbGUI = {
                 ctrlBar.addControl(checkbox);
 
                 var ftbx = new Checkbox();
-                ftbx.width = "20px";
-                ftbx.height = "20px";
+                ftbx.width = "10px";
+                ftbx.height = "10px";
                 ftbx.isChecked = globals.boardData.hasFeet;
                 ftbx.color = "green";
                 ftbx.onIsCheckedChangedObservable.add(function(value) {
@@ -368,22 +388,6 @@ export const kbgbGUI = {
 
                 ctrlBar.addControl(kbgbGUI.addLabel("FEET: "));
                 ctrlBar.addControl(ftbx);
-
-                let createSlider = function(txt, initialVal, min, max, onChangeFunc) {
-                    let label = kbgbGUI.addLabel(txt + initialVal)
-                    var slider = new Slider();
-                    slider.minimum = min;
-                    slider.maximum = max;
-                    slider.value = tuning.bezelThickness;
-                    slider.height = "15px";
-                    slider.width = "100px";
-                    slider.onValueChangedObservable.add(function(value) {
-                        label.text = label + value;
-                        onChangeFunc(value);
-                    });
-                    ctrlBar.addControl(label);   
-                    ctrlBar.addControl(slider); 
-                }
 
                 createSlider("Thickness: ", tuning.bezelThickness, 5.5, 50, (v) => {
                     tuning.bezelThickness = v; boardOps.refreshCase();
@@ -401,7 +405,7 @@ export const kbgbGUI = {
                 globals.screengui.addControl(ctrlBar);
                 kbgbGUI.activeModeCtrl = ctrlBar;
 
-                boardOps.setNaturalRotation();
+                boardOps.setNaturalRotations();
             },
             remove: () => {
                 globals.screengui.removeControl(kbgbGUI.activeModeCtrl);
@@ -462,7 +466,7 @@ export const kbgbGUI = {
                 globals.screengui.addControl(ctrlBar);
                 kbgbGUI.activeModeCtrl = ctrlBar;
 
-                boardOps.setNaturalRotation();
+                boardOps.setNaturalRotations();
             },
             remove: () => {
                 globals.screengui.removeControl(kbgbGUI.activeModeCtrl);

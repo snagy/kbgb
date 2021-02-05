@@ -83,14 +83,22 @@ export function createMaterials() {
 }
 
 export function snapCamera(mode) {
+    const mins = [100000,100000];
+    const maxs = [-100000,-100000];
+    for(const cRD of globals.renderData.cases ) {
+        for(let i = 0; i < 2; i++) {
+            mins[i] = Math.min(mins[i],cRD.bounds.mins[i]);
+            maxs[i] = Math.max(maxs[i],cRD.bounds.maxs[i]);
+        }
+    }
+
     const bd = globals.boardData;
-    const bounds = bd.layout.bounds;
-    const w = bounds.maxs[0] - bounds.mins[0] + tuning.bezelThickness * 2;
-    const h = bounds.maxs[1] - bounds.mins[1] + tuning.bezelThickness * 2;
+    const w = maxs[0] - mins[0] + tuning.bezelThickness * 2;
+    const h = maxs[1] - mins[1] + tuning.bezelThickness * 2;
     const dim = Math.max(w,h);
     let cam = globals.camera;
-    cam.setTarget(new Vector3(bounds.mins[0] + (bounds.maxs[0] - bounds.mins[0]) / 2.0,
-        0, bounds.mins[1] + (bounds.maxs[1] - bounds.mins[1]) / 2.0));
+    cam.setTarget(new Vector3(mins[0] + (maxs[0] - mins[0]) / 2.0,
+        0, mins[1] + (maxs[1] - mins[1]) / 2.0));
     
     let nextAlpha = -Math.PI / 3.5;
     let nextBeta = Math.PI / 3.5;

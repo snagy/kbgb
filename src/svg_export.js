@@ -10,9 +10,7 @@ const formatter = new Intl.NumberFormat('en-US', {
  function f(a) { return formatter.format(a)}
 
 
-export function exportLayerString(layerData) {
-    const bd = globals.boardData;
-
+export function exportLayerString(layerData, boardName) {
     const svg = [];
     function append(...values) {
         svg.push.apply(svg, values);
@@ -27,9 +25,9 @@ export function exportLayerString(layerData) {
     //begin svg
     append(`<svg width="${f(w)}mm" height="${f(h)}mm" viewBox="${f(layerData.outlineBounds.mins.x-padding)} ${f(-layerData.outlineBounds.maxs.z-padding)} ${f(w)} ${f(h)}" xmlns="http://www.w3.org/2000/svg" version="1.1">`);
 
-    append(`<title>${bd.meta.name} ${layerData.name} layer</title>`);
+    append(`<title>${boardName} ${layerData.name} layer</title>`);
     
-    append(`<desc>The ${bd.meta.name} ${layerData.name} layer</desc>`);
+    append(`<desc>The ${boardName} ${layerData.name} layer</desc>`);
 
     if( layerData.outlines ) {
         let pathStr = `<path fill="red" fill-rule="evenodd" stroke="blue" stroke-width="1" d="`

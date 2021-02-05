@@ -34,7 +34,7 @@
       "rotation_y": 0,
       "rotation_angle": 0,
       "type":"ec11",
-      "encoder_knob_size":18.0,
+      "encoder_knob_size":19.05,
       "decal": false,
       "ghost": false,
       "stepped": false,

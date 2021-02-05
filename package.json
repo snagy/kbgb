@@ -40,6 +40,7 @@
     "@svgdotjs/svg.js": "^3.0.16",
     "aws-amplify": "^3.3.13",
     "flatqueue": "^1.2.1",
-    "jszip": "^3.5.0"
+    "jszip": "^3.5.0",
+    "rbush": "^3.0.1"
   }
 }

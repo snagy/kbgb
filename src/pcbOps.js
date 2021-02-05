@@ -1,7 +1,7 @@
 import {globals} from './globals.js';
 import {tuning} from './tuning.js';
 import * as coremath from './coremath.js';
-import {Matrix, Vector3, Epsilon} from '@babylonjs/core'
+import {Matrix, Vector3, Epsilon, MeshBuilder, Color4} from '@babylonjs/core'
 import FlatQueue from 'flatqueue';
 import { find } from '@svgdotjs/svg.js';
 
@@ -86,15 +86,18 @@ const footprintDefs = {
     }
 };
 
-export function clearPCB() {
-    globals.pcbData = {outline:[], devices:{}, nets:{}};
+export function clearPCBs() {
+    globals.pcbData = [];
+    for(let i = 0; i < globals.boardData.cases.length; i++ ) {
+        globals.pcbData.push({outline:[], devices:{}, nets:{}});
+    }
 }
 
-export function addDevice(id, t, xForm) {
-    if(!globals.pcbData.devices[id]) {
-        globals.pcbData.devices[id] = {footprints:[],type:t,id:id};
+export function addDevice(id, t, xForm, caseIdx) {
+    if(!globals.pcbData[caseIdx].devices[id]) {
+        globals.pcbData[caseIdx].devices[id] = {footprints:[],type:t,id:id, caseIdx:caseIdx};
     }
-    let d = globals.pcbData.devices[id];
+    let d = globals.pcbData[caseIdx].devices[id];
 
     let newDef = footprintDefs[t];
     let newFootprint = {pths:[],pins:[],pads:[]};
@@ -141,8 +144,8 @@ export function addDevice(id, t, xForm) {
 }
 
 function createMatrix(pcb) {
-    let maxCols = 16;
-    let maxRows = 16;
+    let maxCols = 26;
+    let maxRows = 26;
     let maxW = Math.min(maxCols,Math.ceil((pcb.outlineBounds.maxs[0] - pcb.outlineBounds.mins[0])/tuning.base1U[0]));
     let maxH = Math.min(maxRows,Math.ceil((pcb.outlineBounds.maxs[1] - pcb.outlineBounds.mins[1])/tuning.base1U[1]));
     let matrix = [];
@@ -177,7 +180,63 @@ function createMatrix(pcb) {
 }
 
 function genVoronoi(pcb) {
+    var vSites = [];
+    var bbox = {xl:1000000, xr:-100000, yt:1000000, yb:-1000000};
 
+    let addSite = function(x,y) {
+        const site = {x:x,y:y};
+        vSites.push(site);
+        bbox.xl = Math.min(site.x,bbox.xl);
+        bbox.xr = Math.max(site.x,bbox.xr);
+        bbox.yt = Math.min(site.y,bbox.yt);
+        bbox.yb = Math.max(site.y,bbox.yb);
+    }
+
+    for( let [id,d] of Object.entries(pcb.devices) ) {
+        for(let f of d.footprints) {
+            for( const pth of f.pths ) {
+                addSite(pth.location.x,pth.location.z);
+            }
+        }
+    }
+
+    // // hrm: add outline points?
+    // for(let p of pcb.outline) {
+    //     addSite(p.x,p.z);
+    // }
+
+    bbox.xl -= 100000;
+    bbox.yt -= 100000;
+    bbox.xr += 100000;
+    bbox.yb += 100000;
+                
+    // xl, xr means x left, x right
+    // yt, yb means y top, y bottom
+    var voronoi = new Voronoi();
+    // pass an object which exhibits xl, xr, yt, yb properties. The bounding
+    // box will be used to connect unbound edges, and to close open cells
+    const vRes = voronoi.compute(vSites, bbox);
+    // render, further analyze, etc.
+
+    console.log(`voronoi!`);
+    console.log(vRes);
+
+    let dbglines = [];
+    let lineColors = [];
+    let dtColor = new Color4(1,0,0,1);
+    let vColor = new Color4(0,0,1,1);
+    for(const edge of vRes.edges) {
+        if(edge.lSite && edge.rSite) {
+            dbglines.push([new Vector3(edge.lSite.x,0,edge.lSite.y), new Vector3(edge.rSite.x,0,edge.rSite.y)]);
+            lineColors.push([dtColor,dtColor]);
+        }
+        dbglines.push([new Vector3(edge.va.x,0,edge.va.y), new Vector3(edge.vb.x,0,edge.vb.y)]);
+        lineColors.push([vColor,vColor]);
+    }
+    if( globals.voronoiLines ) {
+        globals.scene.removeMesh(globals.voronoiLines)
+    }
+    globals.voronoiLines = MeshBuilder.CreateLineSystem("voronoiLines", {lines: dbglines, colors:lineColors}, globals.scene);
 }
 
 function genSDF(pcb) {
@@ -189,12 +248,17 @@ function genSDF(pcb) {
     let w = Math.ceil((pcb.outlineBounds.maxs[0] - pcb.outlineBounds.mins[0]) * cellSizeMMInv);
     let h = Math.ceil((pcb.outlineBounds.maxs[1] - pcb.outlineBounds.mins[1]) * cellSizeMMInv);
 
+    console.log(`SDF: ${w} cols ${h} rows`)
+
+    if( w <= 0 || h <= 0 ) {
+        console.log(`No PCB SDF`)
+        return;
+    }
     let sdf = [];
     for(let i = 0; i < h; i++) {
         sdf.push(new Array(w).fill(100000.0));
     }
 
-    console.log(`SDF: ${w} cols ${h} rows`)
     // splat some 3x3 blocks circles into things
     for( let [id,d] of Object.entries(pcb.devices) ) {
         for(let f of d.footprints) {
@@ -219,7 +283,7 @@ function genSDF(pcb) {
         }
     }
 
-    console.log("preblur");
+    // console.log("preblur");
     //blur it
     const dirs = [{d:[1,0],pX:[w-1,-1,-1],pY:[0,h,1]},
                   {d:[-1,0],pX:[0,w,1],pY:[0,h,1]},
@@ -227,11 +291,11 @@ function genSDF(pcb) {
                   {d:[0,-1],pX:[0,w,1],pY:[0,h,1]}];
 
     for(const dir of dirs) {
-        for(let y = 0; y < h; y++) {
-            console.log(sdf[y]);
-        }
-        console.log("blur");
-        console.log(dir);
+        // for(let y = 0; y < h; y++) {
+        //     console.log(sdf[y]);
+        // }
+        // console.log("blur");
+        // console.log(dir);
         for(let y = dir.pY[0]; y != dir.pY[1]; y+=dir.pY[2]) {
             const oY = y + dir.d[1];
             for(let x = dir.pX[0]; x != dir.pX[1]; x+=dir.pX[2]) {
@@ -247,9 +311,9 @@ function genSDF(pcb) {
 
     let maxD = -10000;
     let coords = [0,0];
-    console.log("postblur");
+    // console.log("postblur");
     for(let y = 0; y < h; y++) {
-        console.log(sdf[y]);
+        // console.log(sdf[y]);
         for(let x = 0; x < w; x++) {
             if(sdf[y][x] > maxD) {
                 maxD = sdf[y][x];
@@ -268,7 +332,7 @@ function genSDF(pcb) {
     let kXform = Matrix.RotationY(45.0 * Math.PI / 180.0);
     kXform = kXform.multiply(Matrix.Translation(maxPos[0], 0, maxPos[1]));
 
-    addDevice("MCU", "UFQFPN48", kXform);
+    addDevice("MCU", "UFQFPN48", kXform, pcb.caseIdx);
 }
 
 export function createNets(pcb) {
@@ -538,8 +602,8 @@ export function createNets(pcb) {
     // }
 }
 
-export function refreshPCBOutline(bd) {
-    const pD = globals.pcbData;
+export function refreshPCBOutline(bd, caseIdx, cRD) {
+    const pD = globals.pcbData[caseIdx];
     let kPs = [];
     for( let [id,d] of Object.entries(pD.devices) ) {
         for(let f of d.footprints) {
@@ -550,7 +614,6 @@ export function refreshPCBOutline(bd) {
             }
         }
     }
-    const cRD = globals.renderData.case;
     pD.outline = coremath.convexHull2d(kPs);
     // if(bd.forcePCBSymmetrical) {
     //     let midPoint = (bd.layout.bounds.maxs[0] - bd.layout.bounds.mins[0]) * 0.5 + bd.layout.bounds.mins[0];
@@ -570,7 +633,8 @@ export function refreshPCBOutline(bd) {
     }
     pD.trackWidth = defaultTrackWidth;
 
-    const sdf = genSDF(pD);
+    // const voronoi = genVoronoi(pD);
+    // const sdf = genSDF(pD);
 
-    createNets(pD);
+    // createNets(pD);
 }
