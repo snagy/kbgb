@@ -401,6 +401,8 @@ export function refreshLayout() {
     }
 
     refreshPCBs();
+
+    finalizeLayout();
     // refreshOutlines();
 }
 
@@ -1097,6 +1099,25 @@ function getFeet(bd, cRD) {
     return feet;
 }
 
+function finalizeLayout() {
+    const bd = globals.boardData;
+    const kRD = globals.renderData.keys;
+    globals.renderData.layoutData = [];
+    for(let caseIdx = 0; caseIdx < bd.cases.length; caseIdx++ ) {
+        let keyGroups = findOverlappingGroups(kRD, "bezelHoles", caseIdx);
+        let kgOutlines = {};
+
+        if( Object.keys(keyGroups).length > 0 ) {
+            for(const [kgId, KG] of Object.entries(keyGroups)) {
+                let outline = getCombinedOutlineFromPolyGroup(KG);
+                kgOutlines[kgId] = outline;
+            }
+        }
+
+        globals.renderData.layoutData.push({keyGroups:keyGroups, kgOutlines:kgOutlines});
+    }
+}
+
 export function refreshPCBs() {
     const bd = globals.boardData;
     for(let caseIdx = 0; caseIdx < bd.cases.length; caseIdx++ ) {
@@ -1143,14 +1164,14 @@ export function refreshCase() {
         //     return;
         // }
     
+        const layoutData = globals.renderData.layoutData[caseIdx];
     
-        let keyGroups = findOverlappingGroups(kRD, "bezelHoles", caseIdx);
+        let keyGroups = layoutData.keyGroups;
         if( Object.keys(keyGroups).length <= 0 ) {
             continue;
         }
 
-        let kgOutlines = {};
-        let combinedKeyOutlines = [];
+        let kgOutlines = layoutData.kgOutlines;
     
         let vectorGeo = {};
         let tesselatedGeo = {};
@@ -1169,24 +1190,10 @@ export function refreshCase() {
         }
         cRD.bounds = { mins: mins, maxs: maxs };
 
-        // let dbglines = [];
-        for(const [kgId, KG] of Object.entries(keyGroups)) {
-            let outline = getCombinedOutlineFromPolyGroup(KG);
-            kgOutlines[kgId] = outline;
-            combinedKeyOutlines = combinedKeyOutlines.concat(outline);
-    
+        for(const [id,outline] of Object.entries(kgOutlines)) {
             let bezelOutlineVec = coremath.offsetAndFilletOutline(outline, 0.0, tuning.bezelCornerFillet, false);
             vectorGeo["bezel"].push(bezelOutlineVec);
             tesselatedGeo["bezel"].push(coremath.genPointsFromVectorPath(bezelOutlineVec));
-            
-            // for( const poly of KG ) {
-            //     for(let iL = 0; iL < poly.outlineLines.length; iL++) {
-            //         dbglines.push(poly.outlineLines[iL])
-            //     }
-            // } 
-            // for(let i = 0; i < outline.length; i++) {
-            //     dbglines.push([outline[i], outline[(i+1)%outline.length]]);
-            // }
         }
     
         if(bd.caseType === "convex") {
@@ -1215,76 +1222,72 @@ export function refreshCase() {
         }
         else if(bd.caseType === "concave") {
             let kPs = [];
+            let epSq = Epsilon*Epsilon;
     
-            for(let p of globals.pcbData[caseIdx].outline) {
-                kPs.push(p);
-            }
+            let pid = 0;
+            // for(let p of globals.pcbData[caseIdx].outline) {
+            //     p.connectedPoints = [];
+            //     p.pointIdx = pid++;
+            //     kPs.push(p);
+            // }
     
             // for(const [kgId, outline] of Object.entries(keyGroups)) {
             // }
-            for(let p of combinedKeyOutlines) {
-                kPs.push(p);
+            for(const [id,o] of Object.entries(kgOutlines)) {
+                for(let p of o) {
+                    p.connectedPoints = [];
+                    p.pointIdx = pid++;
+                    kPs.push(p);
+                }
             }
     
-            if(bd.forceSymmetrical) {
+            // not implemented yet
+            if(false && bd.forceSymmetrical) {
                 let midPoint = (cRD.bounds.maxs[0] - cRD.bounds.mins[0]) * 0.5 + cRD.bounds.mins[0];
                 let kpLen = kPs.length;
                 for(let i = 0; i < kpLen; i++) {
                     const kP = kPs[i];
-                    kPs.push(new Vector3(midPoint - (kP.x - midPoint), kP.y, kP.z));
+                    const p = new Vector3(midPoint - (kP.x - midPoint), kP.y, kP.z);
+                    p.connectedPoints = [];
+                    p.pointIdx = pid++;
+                    kPs.push(p);
                 }
             }
     
             const vRes = coremath.createVoronoi(kPs);
-    
+
             let dbglines = [];
             let lineColors = [];
             let edgeColor = new Color4(1,0,0,1);
             let dtColor = new Color4(0,1,1,1);
             let vColor = new Color4(0,0,1,1);
     
-    
-            // for(const [kgId, outline] of Object.entries(keyGroups)) {
-            // }
-    
-            for(let i = 0; i < combinedKeyOutlines.length; i++) {
-                const p1 = combinedKeyOutlines[i];
-                const p2 = combinedKeyOutlines[(i+1)%combinedKeyOutlines.length];
-                dbglines.push([p1, p2]);
-                lineColors.push([dtColor,dtColor]);
+            for(const [id,o] of Object.entries(kgOutlines)) {
+                for(let i = 0; i < o.length; i++) {
+                    const p1 = o[i];
+                    const p2 = o[(i+1)%o.length];
+                    dbglines.push([p1, p2]);
+                    lineColors.push([dtColor,dtColor]);
+                }
             }
     
-            const theta = tuning.bezelConcavity*tuning.bezelConcavity*100;
+            const theta = tuning.bezelConcavity;
             const thetaSq = theta*theta;
-            let epSq = Epsilon*Epsilon;
             for(const edge of vRes.edges) {
-                dbglines.push([new Vector3(edge.va.x,0,edge.va.y), new Vector3(edge.vb.x,0,edge.vb.y)]);
-                lineColors.push([vColor,vColor]);
+                // dbglines.push([new Vector3(edge.va.x,0,edge.va.y), new Vector3(edge.vb.x,0,edge.vb.y)]);
+                // lineColors.push([vColor,vColor]);
                 if(edge.lSite && edge.rSite) {
-                    let lP = null;
-                    let rP = null;
-                    for(const p of kPs) {
-                        let lD = Math.pow(edge.lSite.x-p.x,2)+Math.pow(edge.lSite.y-p.z,2);
-                        if(lD < epSq) {
-                            lP = p;
-                        }
-                        else {
-                            let rD = Math.pow(edge.rSite.x-p.x,2)+Math.pow(edge.rSite.y-p.z,2);
-                            if(rD < epSq) {
-                                rP = p;
-                            }
-                        }
-    
-    
-                        if(lP && rP) {
-                            break;
-                        }
-                    }
-                    if(!lP || !rP ) {
+                    if(edge.lSite.pointIdx > kPs.length || edge.rSite.pointIdx > kPs.length ) {
                         console.log(`couldn't find points`);
                         continue;
                     }
+
+                    let lP = kPs[edge.lSite.pointIdx];
+                    let rP = kPs[edge.rSite.pointIdx];
     
+                    if((lP.pointIdx === 1 || lP.pointIdx === 2) && (rP.pointIdx === 1 || rP.pointIdx === 2)) {
+                        console.log(`trying the point 1 2 line`)
+                    }
                     const centerP = lP.add(rP).scale(0.5);
                     const rToL = lP.subtract(rP);
                     const dist = rToL.length();
@@ -1293,16 +1296,23 @@ export function refreshCase() {
                     }
     
                     let circumscribedRadius = function(a,b,c) {
-                        return (a*b*c) / Math.sqrt((a+b+c)*(b+c-a)*(c+a-b)*(a+b-c));
+                        const v = (a+b+c)*(b+c-a)*(c+a-b)*(a+b-c);
+                        const sqrt = Math.sqrt(v);
+                        if(v < 0 || sqrt < Epsilon) {
+                            return 10000000.0;
+                        }
+                        return (a*b*c) / sqrt;
                     }
     
                     const lToR = rP.subtract(lP);
                     const rNorm = new Vector3(rToL.z, 0, -rToL.x).normalizeToNew();
     
-                    let allOutsideL = true;
-                    let allOutsideR = true;
+                    let minThetaL = dist/2;
+                    let maxThetaL = 1000000;
+                    let minThetaR = dist/2;
+                    let maxThetaR = 1000000;
                     for(const p of kPs) {
-                        if(p === lP || p === rP) {
+                        if(p.pointIdx === lP.pointIdx || p.pointIdx === rP.pointIdx) {
                             continue;
                         }
     
@@ -1317,47 +1327,46 @@ export function refreshCase() {
                         let nDot = Vector3.Dot(rNorm,rToP);
     
                         let circleRadius = circumscribedRadius(lPDist,rPDist,dist);
-    
+
                         if(pToCDist*2 <= dist) {
                             // between the two!
+                            // one side or the other is ALWAYS inside, the other is a minimal value (theta needs to be bigger
+                            // and as the circle grows it approaches a line between the main points, which excludes a half space)
                             if(nDot >= 0) {
-                                allOutsideR = false;
+                                minThetaL = Math.max(minThetaL,circleRadius);
+                                maxThetaR = 0;
                             }
                             else {
-                                allOutsideL = false;
-                            }
-    
-                            if(circleRadius >= theta) {
-                                // dbglines.push([p, rP]);
-                                // lineColors.push([dtColor,dtColor]);
-                                if(nDot <= 0) {
-                                    allOutsideR = false;
-                                }
-                                else {
-                                    allOutsideL = false;
-                                }
+                                minThetaR = Math.max(minThetaR,circleRadius);
+                                maxThetaL = 0;
                             }
                         }
                         else {
-                            if(circleRadius <= theta) {
-                                if(nDot >= 0) {
-                                    allOutsideR = false;
-                                }
-                                else {
-                                    allOutsideL = false;
-                                }
+                            if(nDot >= 0) {
+                                maxThetaR = Math.min(maxThetaR, circleRadius);
+                            }
+                            else {
+                                maxThetaL = Math.min(maxThetaL, circleRadius);
                             }
                         }
     
-    
-                        if(!allOutsideL && !allOutsideR) {
+                        // this means that there's a point between the endpoints that will always be covered by a circle that direction.
+                        if((maxThetaR - minThetaR) < Epsilon && (maxThetaL - minThetaL) < Epsilon) {
                             break;
                         }
                     }
+
+                    let minTheta = Math.max(minThetaR,minThetaL);
+                    let maxTheta = Math.max(maxThetaR,maxThetaL);
     
-                    if(allOutsideL || allOutsideR){
+                    // we only consider this line part of the whole deal if either of these things are true and we already passed
+                    // the dist > theta * 2 check from earlier. (and dist > eps)
+
+                    if(theta >= minTheta && theta <= maxTheta) {
+                        lP.connectedPoints.push(rP);
+                        rP.connectedPoints.push(lP);
                         dbglines.push([new Vector3(edge.lSite.x,0,edge.lSite.y), new Vector3(edge.rSite.x,0,edge.rSite.y)]);
-                        lineColors.push([edgeColor,edgeColor]);
+                        lineColors.push([edgeColor,dtColor]);
                     } 
                     // else {
                     //     dbglines.push([new Vector3(edge.lSite.x,0,edge.lSite.y), new Vector3(edge.rSite.x,0,edge.rSite.y)]);
@@ -1365,14 +1374,72 @@ export function refreshCase() {
                     // }
                 }
             }
+
+            let lastP = null;
+            let firstP = null;
+            let thisP = null;
+
+            for(const p of kPs) {
+                if(p.connectedPoints.length == 2) {
+                    if(!firstP || p.z <= firstP.z) {
+                        if(!firstP || p.x <= firstP.x) {
+                            thisP = p;
+                            firstP = p;
+                        }
+                    }
+                }
+                if(p.connectedPoints.length == 1 || p.connectedPoints.length > 2) {
+                    console.log(`bad point`);
+                    console.log(p)
+                }
+            }
+            while(lastP == null) {
+                if(thisP.connectedPoints.length === 2) {
+                    let b = thisP.connectedPoints[0];
+                    let c = thisP.connectedPoints[1];
+
+                    let ab = b.subtract(thisP);
+                    let ac = c.subtract(thisP);
+                    let xp = Vector3.Cross(ab,ac);
+                    if(xp.y > Epsilon) {
+                        lastP = thisP;
+                        thisP = c;
+                    } else {
+                        // if(xp.y < -Epsilon) { // try to skip along 180s
+                            lastP = thisP;
+                        // }
+                        thisP = b;
+                    }
+                } else {
+                    console.log(`failed to find start due to split/end`);
+                }
+            }
+            bd.outline = [];
+            while(thisP) {
+                for(const oP of thisP.connectedPoints) {
+                    if(!lastP || oP.pointIdx !== lastP.pointIdx) {
+                        bd.outline.push(thisP);
+                        lastP = thisP;
+                        thisP = oP;
+                        break;
+                    }
+                }
+                if(thisP.connectedPoints.length !== 2) {
+                    console.log(`breaking out due to split/end`);
+                    console.log(thisP)
+                    break;
+                }
+                if(thisP.pointIdx === firstP.pointIdx) {
+                    break;
+                }
+            }
+            console.log(`outline has ${bd.outline.length} points`)
             
             if( globals.voronoiLines ) {
                 globals.scene.removeMesh(globals.voronoiLines);
             }
     
             globals.voronoiLines = MeshBuilder.CreateLineSystem("voronoiLines", {lines: dbglines, colors:lineColors}, globals.scene);
-    
-            bd.outline = coremath.convexHull2d(kPs);
         }
         else
         {
