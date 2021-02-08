@@ -289,26 +289,25 @@ export function convexHull2d(points) {
 
 export function createVoronoi(points) {
     var vSites = [];
-    var bbox = {xl:1000000, xr:-100000, yt:1000000, yb:-1000000};
+    var bbox = {xl:1000000, xr:-100000, zt:1000000, zb:-1000000};
 
-    let addSite = function(x,y,vId) {
-        const site = {x:x,y:y,pointIdx:vId};
+    let addSite = function(site) {
         vSites.push(site);
         bbox.xl = Math.min(site.x,bbox.xl);
         bbox.xr = Math.max(site.x,bbox.xr);
-        bbox.yt = Math.min(site.y,bbox.yt);
-        bbox.yb = Math.max(site.y,bbox.yb);
+        bbox.zt = Math.min(site.z,bbox.zt);
+        bbox.zb = Math.max(site.z,bbox.zb);
     }
 
     for( const p of points ) {
-        addSite(p.x,p.z,p.pointIdx);
+        addSite(p);
     }
 
     const bbump = 10000;
     bbox.xl -= bbump;
-    bbox.yt -= bbump;
+    bbox.zt -= bbump;
     bbox.xr += bbump;
-    bbox.yb += bbump;
+    bbox.zb += bbump;
 
     var voronoi = new Voronoi();
     const vRes = voronoi.compute(vSites, bbox);
