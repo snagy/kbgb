@@ -121,9 +121,10 @@ function initKBGB() {
         'testkbs/threekeyoffset.kle',
         'testkbs/one_bigass.kle',
         'testkbs/twoonone.kle',
-        'testkbs/keysize_test.kle' //20
+        'testkbs/three_key_vtest.kle', //20
+        'testkbs/keysize_test.kle' 
     ]
-    let kbdidx = 13;
+    let kbdidx = 20;
     // load a keyboard
     loadKeyboardFromPath(keyboards[kbdidx]);
 

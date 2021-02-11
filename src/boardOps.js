@@ -972,6 +972,7 @@ export function addScrewHoles(cRD, outline, bezelWithPort) {
             screwLocs.splice(i,1);
         }
     }
+    // screwLocs.length = 0;
 
     globals.boardData.screwLocations = screwLocs;
     for(const loc of screwLocs) {
@@ -1162,9 +1163,16 @@ function finalizeLayout() {
 
                 let lP = edge.lSite;
                 let rP = edge.rSite;
+                let outlineEdge = false;
                 const rToL = lP.subtract(rP);
+                let dist = rToL.length();
+                if(dist < Epsilon) {
+                    continue;
+                }
                 if(lP.outlinePoints.includes(rP.pointIdx)) {
-                    // a real edge!
+                    // an actual edge!
+                    outlineEdge = true;
+                    // continue;
                 }
                 else {
                     const prevToR = rP.subtract(kPs[rP.outlinePoints[0]]);
@@ -1186,10 +1194,6 @@ function finalizeLayout() {
                 }
 
                 const centerP = lP.add(rP).scale(0.5);
-                const dist = rToL.length();
-                if(dist < Epsilon) {
-                    continue;
-                }
 
                 let circumscribedRadius = function(a,b,c) {
                     const v = (a+b+c)*(b+c-a)*(c+a-b)*(a+b-c);
@@ -1203,9 +1207,9 @@ function finalizeLayout() {
                 const lToR = rP.subtract(lP);
                 const rNorm = new Vector3(rToL.z, 0, -rToL.x).normalizeToNew();
 
-                let minThetaL = 0;
+                let minThetaL = dist/2;
                 let maxThetaL = 1000000;
-                let minThetaR = 0;
+                let minThetaR = dist/2;
                 let maxThetaR = 1000000;
                 for(const p of kPs) {
                     if(p.pointIdx === lP.pointIdx || p.pointIdx === rP.pointIdx) {
@@ -1254,12 +1258,47 @@ function finalizeLayout() {
 
                 let minTheta = Math.max(minThetaR,minThetaL);
                 let maxTheta = Math.max(maxThetaR,maxThetaL);
-                console.log(`thetas: ${minTheta} ${maxTheta}`)
-                lP.delaunayPoints.push({p:rP,minTheta:minTheta,maxTheta:maxTheta});
-                rP.delaunayPoints.push({p:lP,minTheta:minTheta,maxTheta:maxTheta});
+
+                if(outlineEdge) {
+                    minTheta = 0;
+                }
+                lP.delaunayPoints.push({p:rP,dist:dist,minTheta:minTheta,maxTheta:maxTheta});
+                rP.delaunayPoints.push({p:lP,dist:dist,minTheta:minTheta,maxTheta:maxTheta});
             }
         }
-        globals.renderData.layoutData.push({keyGroups:keyGroups, kgOutlines:kgOutlines, kPs:kPs});
+        const thetaValues = [];
+        for(const p of kPs) {
+            console.log(`point ${p.pointIdx}`)
+            console.log(p);
+
+            const pToPrev = p.subtract(kPs[p.outlinePoints[0]]).normalize();
+            const pToNext = p.subtract(kPs[p.outlinePoints[1]]).normalize();
+            const prevAngle = coremath.getRotFromNormal(pToPrev);
+            const compVal =  Math.PI * 2 - prevAngle + Epsilon;
+            const nextAngle = coremath.getRotFromNormal(pToNext);
+            console.log(`prevAngle ${prevAngle}`)
+
+            p.delaunayPoints.sort((a,b) => {
+                const pToA = (coremath.getRotFromNormal(p.subtract(a.p).normalize()) + compVal) % (Math.PI * 2);
+                const pToB = (coremath.getRotFromNormal(p.subtract(b.p).normalize()) + compVal) % (Math.PI * 2);
+                return pToA - pToB;
+            });
+            for(const dp of p.delaunayPoints) {
+                if(!thetaValues.includes(dp.minTheta)) {
+                    thetaValues.push(dp.minTheta);
+                }
+                if(!thetaValues.includes(dp.maxTheta)) {
+                    thetaValues.push(dp.maxTheta);
+                }
+                // ok we have a radially sorted list of lines, 0 is input and the end is output
+                console.log(`thetas: ${dp.minTheta} ${dp.maxTheta} / dist: ${dp.dist} / rot: ${coremath.getRotFromNormal(p.subtract(dp.p).normalize())}`)
+                console.log(dp.p);
+            }
+            console.log(`nextAngle ${nextAngle}`)
+        }
+        thetaValues.sort((a,b) => {return a > b});
+        console.log(thetaValues);
+        globals.renderData.layoutData.push({keyGroups:keyGroups, kgOutlines:kgOutlines, kPs:kPs,thetaValues:thetaValues});
     }
 }
 
@@ -1374,7 +1413,8 @@ export function refreshCase() {
 
             // we only consider this line part of the whole deal if either of these things are true and we already passed
             // the dist > theta * 2 check from earlier. (and dist > eps)
-            const theta = tuning.bezelConcavity;
+            const theta = layoutData.thetaValues[Math.floor(tuning.bezelConcavity*(layoutData.thetaValues.length-1))];
+            console.log(`bc ${tuning.bezelConcavity} theta idx ${Math.floor(tuning.bezelConcavity*layoutData.thetaValues.length)} of ${layoutData.thetaValues.length} = ${theta}`)
             bd.outline = [];
 
             const getDPoints = function(p) {
@@ -1386,59 +1426,67 @@ export function refreshCase() {
                 }
                 return dps;
             }
-            
-            for(const p of kPs) {
-                const dps = getDPoints(p);
-                if(dps.length == 2) {
-                    if(!firstP || p.z <= firstP.z) {
-                        if(!firstP || p.x <= firstP.x) {
-                            thisP = p;
-                            firstP = p;
+
+            const getNextDPoint = function(p,prevIdx) {
+                let foundLast = false;
+                for(const d of p.delaunayPoints) {
+                    if(foundLast) {
+                        if(theta >= d.minTheta && theta <= d.maxTheta) {
+                            return d.p;
+                        }
+                    } else {
+                        if(d.p.pointIdx == prevIdx) {
+                            foundLast = true;
                         }
                     }
                 }
-                if(dps.length == 1 || dps.length > 2) {
-                    console.log(`bad point`);
-                    console.log(p)
+                console.log(`failed to find next point after ${prevIdx}`)
+                console.log(p)
+                // return dps;
+            }
+            
+            for(const p of kPs) {
+                if(!firstP || p.z <= firstP.z) {
+                    if(!firstP || p.x <= firstP.x) {
+                        thisP = p;
+                        firstP = p;
+                    }
                 }
             }
-            while(lastP == null) {
-                const dps = getDPoints(thisP);
-                if(dps.length === 2) {
-                    let b = dps[0];
-                    let c = dps[1];
+            const dps = getDPoints(thisP);
+            if(dps.length === 2) {
+                let b = dps[0];
+                let c = dps[1];
 
-                    let ab = b.subtract(thisP);
-                    let ac = c.subtract(thisP);
-                    let xp = Vector3.Cross(ab,ac);
-                    if(xp.y > Epsilon) {
-                        lastP = thisP;
-                        thisP = c;
-                    } else {
-                        // if(xp.y < -Epsilon) { // try to skip along 180s
-                            lastP = thisP;
-                        // }
-                        thisP = b;
-                    }
-
-                    bd.outline.push(lastP);
+                let ab = b.subtract(thisP);
+                let ac = c.subtract(thisP);
+                let xp = Vector3.Cross(ab,ac);
+                if(xp.y > Epsilon) {
+                    lastP = thisP;
+                    thisP = c;
                 } else {
-                    console.log(`failed to find start due to split/end`);
+                    lastP = thisP;
+                    thisP = b;
                 }
+
+                bd.outline.push(lastP);
+            } else {
+                console.log(`failed to find start due to split/end`);
+                console.log(thisP);
+                console.log(dps);
+                thisP = null;
             }
+
             while(thisP) {
-                const dps = getDPoints(thisP);
-                for(const oP of dps) {
-                    if(!lastP || oP.pointIdx !== lastP.pointIdx) {
-                        bd.outline.push(thisP);
-                        lastP = thisP;
-                        thisP = oP;
-                        break;
-                    }
+                const oP = getNextDPoint(thisP, lastP.pointIdx);
+                if(oP) {
+                    bd.outline.push(thisP);
+                    lastP = thisP;
+                    thisP = oP;
                 }
-                if(dps.length !== 2) {
-                    console.log(`breaking out due to split/end`);
-                    console.log(thisP)
+                else {
+                    console.log(`breaking out due to split/end ${theta}`);
+                    console.log(lastP)
                     break;
                 }
                 if(thisP.pointIdx === firstP.pointIdx) {
@@ -1502,14 +1550,18 @@ export function refreshCase() {
         vectorGeo["screwHoles"] = cRD.screwData;
         tesselatedGeo["screwHoles"] = vectorGeo["screwHoles"].map((a) => coremath.genArrayForCircle(a,0,19));
         
-        // let dbglines = [];
-        // for(let i = 0; i < combo.length; i++) {
-        //     dbglines.push([combo[i], combo[(i+1)%combo.length]]);
-        // }
-        // if( globals.lineSystem ) {
-        //     globals.scene.removeMesh(globals.lineSystem)
-        // }
-        // globals.lineSystem = MeshBuilder.CreateLineSystem("lineSystem", {lines: dbglines}, globals.scene);
+        let dbglines = [];
+        let color1 = new Color4(1,0,0,1);
+        let color2 = new Color4(0,1,0,1);
+        let linecolors = [];
+        for(let i = 0; i < tesselatedGeo["caseFrameWithPortCut"].length; i++) {
+            dbglines.push([tesselatedGeo["caseFrameWithPortCut"][i], tesselatedGeo["caseFrameWithPortCut"][(i+1)%tesselatedGeo["caseFrameWithPortCut"].length]]);
+            linecolors.push([color1,color2])
+        }
+        if( globals.lineSystem ) {
+            globals.scene.removeMesh(globals.lineSystem)
+        }
+        globals.lineSystem = MeshBuilder.CreateLineSystem("lineSystem", {lines: dbglines, colors:linecolors}, globals.scene);
     
         let plateGroups = findOverlappingGroups(kRD, "switchCut", caseIdx);
         vectorGeo["switchCuts"] = [];

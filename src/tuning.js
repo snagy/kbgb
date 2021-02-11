@@ -4,7 +4,7 @@ export const tuning = {
     base1U: [19.05, 19.05],
     bezelGap: 1.05,
     bezelThickness: 12,
-    bezelConcavity: 60,
+    bezelConcavity: 0.1,
     caseCornerFillet: 6,
     bezelCornerFillet: 1.0,
     screwTypes:{"m2_simple":      {minBoss:1.5,screwHoleRadius:2.3/2.0},

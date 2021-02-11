@@ -121,13 +121,13 @@ Voronoi.prototype.reset = function() {
 
 Voronoi.prototype.sqrt = Math.sqrt;
 Voronoi.prototype.abs = Math.abs;
-Voronoi.prototype.ε = Voronoi.ε = 1e-9;
+Voronoi.prototype.ε = Voronoi.ε = 1e-7;
 Voronoi.prototype.invε = Voronoi.invε = 1.0 / Voronoi.ε;
-Voronoi.prototype.equalWithEpsilon = function(a,b){return this.abs(a-b)<1e-9;};
-Voronoi.prototype.greaterThanWithEpsilon = function(a,b){return a-b>1e-9;};
-Voronoi.prototype.greaterThanOrEqualWithEpsilon = function(a,b){return b-a<1e-9;};
-Voronoi.prototype.lessThanWithEpsilon = function(a,b){return b-a>1e-9;};
-Voronoi.prototype.lessThanOrEqualWithEpsilon = function(a,b){return a-b<1e-9;};
+Voronoi.prototype.equalWithEpsilon = function(a,b){return this.abs(a-b)<Voronoi.ε;};
+Voronoi.prototype.greaterThanWithEpsilon = function(a,b){return a-b>Voronoi.ε;};
+Voronoi.prototype.greaterThanOrEqualWithEpsilon = function(a,b){return b-a<Voronoi.ε;};
+Voronoi.prototype.lessThanWithEpsilon = function(a,b){return b-a>Voronoi.ε;};
+Voronoi.prototype.lessThanOrEqualWithEpsilon = function(a,b){return a-b<Voronoi.ε;};
 
 // ---------------------------------------------------------------------------
 // Red-Black tree code (based on C version of "rbtree" by Franck Bui-Huu
@@ -817,7 +817,7 @@ Voronoi.prototype.removeBeachsection = function(beachsection) {
 
     // look left
     var lArc = previous;
-    while (lArc.circleEvent && abs_fn(x-lArc.circleEvent.x)<1e-9 && abs_fn(y-lArc.circleEvent.zcenter)<1e-9) {
+    while (lArc.circleEvent && abs_fn(x-lArc.circleEvent.x)<Voronoi.ε && abs_fn(y-lArc.circleEvent.zcenter)<Voronoi.ε) {
         previous = lArc.rbPrevious;
         disappearingTransitions.unshift(lArc);
         this.detachBeachsection(lArc); // mark for reuse
@@ -832,7 +832,7 @@ Voronoi.prototype.removeBeachsection = function(beachsection) {
 
     // look right
     var rArc = next;
-    while (rArc.circleEvent && abs_fn(x-rArc.circleEvent.x)<1e-9 && abs_fn(y-rArc.circleEvent.zcenter)<1e-9) {
+    while (rArc.circleEvent && abs_fn(x-rArc.circleEvent.x)<Voronoi.ε && abs_fn(y-rArc.circleEvent.zcenter)<Voronoi.ε) {
         next = rArc.rbNext;
         disappearingTransitions.push(rArc);
         this.detachBeachsection(rArc); // mark for reuse
@@ -884,7 +884,7 @@ Voronoi.prototype.addBeachsection = function(site) {
     while (node) {
         dxl = this.leftBreakPoint(node,directrix)-x;
         // x lessThanWithEpsilon xl => falls somewhere before the left edge of the beachsection
-        if (dxl > 1e-9) {
+        if (dxl > Voronoi.ε) {
             // this case should never happen
             // if (!node.rbLeft) {
             //    rArc = node.rbLeft;
@@ -895,7 +895,7 @@ Voronoi.prototype.addBeachsection = function(site) {
         else {
             dxr = x-this.rightBreakPoint(node,directrix);
             // x greaterThanWithEpsilon xr => falls somewhere after the right edge of the beachsection
-            if (dxr > 1e-9) {
+            if (dxr > Voronoi.ε) {
                 if (!node.rbRight) {
                     lArc = node;
                     break;
@@ -904,12 +904,12 @@ Voronoi.prototype.addBeachsection = function(site) {
                 }
             else {
                 // x equalWithEpsilon xl => falls exactly on the left edge of the beachsection
-                if (dxl > -1e-9) {
+                if (dxl > -Voronoi.ε) {
                     lArc = node.rbPrevious;
                     rArc = node;
                     }
                 // x equalWithEpsilon xr => falls exactly on the right edge of the beachsection
-                else if (dxr > -1e-9) {
+                else if (dxr > -Voronoi.ε) {
                     lArc = node;
                     rArc = node.rbNext;
                     }
@@ -1410,7 +1410,7 @@ Voronoi.prototype.clipEdges = function(bbox) {
         //   it is looking more like a point than a line
         if (!this.connectEdge(edge, bbox) ||
             !this.clipEdge(edge, bbox) ||
-            (abs_fn(edge.va.x-edge.vb.x)<1e-9 && abs_fn(edge.va.z-edge.vb.z)<1e-9)) {
+            (abs_fn(edge.va.x-edge.vb.x)<Voronoi.ε && abs_fn(edge.va.z-edge.vb.z)<Voronoi.ε)) {
             edge.va = edge.vb = null;
             edges.splice(iEdge,1);
             }
@@ -1461,7 +1461,7 @@ Voronoi.prototype.closeCells = function(bbox) {
             vz = halfedges[(iLeft+1) % nHalfedges].getStartpoint();
             // if end point is not equal to start point, we need to add the missing
             // halfedge(s) up to vz
-            if (abs_fn(va.x-vz.x)>=1e-9 || abs_fn(va.z-vz.z)>=1e-9) {
+            if (abs_fn(va.x-vz.x)>=Voronoi.ε || abs_fn(va.z-vz.z)>=Voronoi.ε) {
 
                 // rhill 2013-12-02:
                 // "Holes" in the halfedges are not necessarily always adjacent.

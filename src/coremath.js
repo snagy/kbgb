@@ -346,42 +346,37 @@ export function offsetOutlinePoints(outline, offset) {
     return newOutline;
 }
 
-// offset is + to the left, - to right
-export function offsetAndFilletOutline(outline, offset, fillets, close) {
+export function filletOutline(outline, fillets, close) {
     let vectorOutline = [];
     //todo turn fillets into array if it's just a value
     if(fillets && !Array.isArray(fillets)) {
         fillets = (new Array(outline.length)).fill(fillets)
     }
     for (let i = 0; i < outline.length; i++) {
-        let point = outline[i];
-        let next = outline[(i + 1) % outline.length];
-        let prev = outline[(i - 1 + outline.length) % outline.length];
-        let nextDir = next.subtract(point).normalize();
-        let prevDir = point.subtract(prev).normalize();
-        let nextNorm = new Vector3(nextDir.z, 0, -nextDir.x);
-        let prevNorm = new Vector3(prevDir.z, 0, -prevDir.x);
-        let inPoint = point.add(prevNorm.scale(offset));
-        let outPoint = point.add(nextNorm.scale(offset));
-
-        let intersection = lineLineIntersection(inPoint, prevNorm,
-            outPoint, nextNorm);
-        if (intersection === null) {
-            // console.log("Skipping colinear point");
-            continue;
-        }
+        const point = outline[i];
+        const next = outline[(i + 1) % outline.length];
+        const prev = outline[(i - 1 + outline.length) % outline.length];
+        const nextVec = next.subtract(point);
+        const nextLen = nextVec.length();
+        const nextDir = nextVec.normalizeFromLength(nextLen);
+        const prevVec = point.subtract(prev);
+        const prevLen = prevVec.length();
+        const prevDir = prevVec.normalizeFromLength(prevLen);
+        const nextNorm = new Vector3(nextDir.z, 0, -nextDir.x);
+        const prevNorm = new Vector3(prevDir.z, 0, -prevDir.x);
 
         if (!fillets) {
             vectorOutline.push(new Point(intersection));
         }
         else {
-            let fillet = fillets[i];
+            // todo:  should this be offset or some kind of scaled offset from inPoint/outPoint etc?
+            let fillet = Math.min(fillets[i],Math.min(prevLen,nextLen)*0.5);
             let flip = Vector3.Dot(prevNorm,nextDir) > 0;
             if( flip ) {
                 fillet = -fillet;
             }
-            let filletCenter = lineLineIntersection(inPoint.add(prevNorm.scale(-fillet)), prevNorm,
-                                                    outPoint.add(nextNorm.scale(-fillet)), nextNorm);
+            let filletCenter = lineLineIntersection(point.add(prevNorm.scale(-fillet)), prevNorm,
+                                                    point.add(nextNorm.scale(-fillet)), nextNorm);
 
             vectorOutline.push(new Point(filletCenter.add(prevNorm.scale(fillet))));
 
@@ -407,7 +402,18 @@ export function offsetAndFilletOutline(outline, offset, fillets, close) {
         vectorOutline.push(vectorOutline[0]);
     }
 
-    return vectorOutline;
+    return vectorOutline;    
+}
+
+// offset is + to the left, - to right
+export function offsetAndFilletOutline(outline, offset, fillets, close) {
+    const offsetPoints = offsetOutlinePoints(outline,offset)
+    if(fillets) {
+        return filletOutline(offsetPoints,fillets,close);
+    }
+    else {
+        return offsetPoints;
+    }
 }
 
 export function genPointsFromVectorPath(vectorPath, segmentsPerFillet) {

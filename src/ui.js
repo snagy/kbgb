@@ -359,7 +359,7 @@ export const kbgbGUI = {
                 addRadio("concave", radioCtrl);
                 ctrlBar.addControl(radioCtrl);
 
-                createSlider("Fit: ", tuning.bezelConcavity, 5, 700, (v) => {
+                createSlider("Fit: ", tuning.bezelConcavity, 0, 1, (v) => {
                     tuning.bezelConcavity = v; boardOps.refreshCase();
                 });
 
