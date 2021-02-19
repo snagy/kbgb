@@ -412,7 +412,11 @@ export function offsetAndFilletOutline(outline, offset, fillets, close) {
         return filletOutline(offsetPoints,fillets,close);
     }
     else {
-        return offsetPoints;
+        let vectorPath = []
+        for(const p of offsetPoints) {
+            vectorPath.push(new Point(p))
+        }
+        return vectorPath;
     }
 }
 

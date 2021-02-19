@@ -399,10 +399,10 @@ export function refreshLayout() {
             rd.maxs[1] = Math.max(rd.maxs[1], p.z);
         }
     }
-
+    
+    finalizeLayout();
     refreshPCBs();
 
-    finalizeLayout();
     // refreshOutlines();
 }
 
@@ -457,7 +457,7 @@ function combineOutlines(primary, primaryFillets, secondary, secondaryFillets, i
         }
         if( entry || exit ) {
             if(closestExit < closestEntry) {
-                // console.log("started inside");
+                console.log("started inside");
                 // we're in it.  uhhhh.
                 // target remains the same and push the entry point on the stack
                 output.pop();
@@ -493,6 +493,8 @@ function combineOutlines(primary, primaryFillets, secondary, secondaryFillets, i
         // console.log(`len ${curr.subtract(output[0]).lengthSquared()}`)
         if(output.length > 10000) {
             console.log("boolean output overflow");
+            output = [];
+            outputFillets = [];
             break;
         }
     }  while(curr.subtract(output[0]).lengthSquared() > Epsilon*Epsilon);
@@ -1175,18 +1177,26 @@ function finalizeLayout() {
                     // continue;
                 }
                 else {
-                    const prevToR = rP.subtract(kPs[rP.outlinePoints[0]]);
-                    const rToNext = kPs[rP.outlinePoints[1]].subtract(rP);
+                    let checkExterior = function(cP, pToL) {
+                        const prevToC = cP.subtract(kPs[cP.outlinePoints[0]]);
+                        const cToNext = kPs[cP.outlinePoints[1]].subtract(cP);
+    
+                        const prevNorm = new Vector3(prevToC.z,0,-prevToC.x);
+                        const nextNorm = new Vector3(cToNext.z,0,-cToNext.x);
+                        // todo: figure out epsilons
+                        const isAcute = Vector3.Dot(prevNorm,cToNext) > Epsilon;
+    
+                        const pDot = Vector3.Dot(pToL, prevNorm);
+                        const nDot = Vector3.Dot(pToL, nextNorm);
+    
+                        return (pDot > Epsilon && (!isAcute || nDot > Epsilon)) || (pDot < Epsilon && !isAcute && nDot > Epsilon);
+                    }
+                    let isExterior = checkExterior(rP, rToL);
+                    if(lP.outlineIdx !== rP.outlineIdx) {
+                        const lToR = rP.subtract(lP);
+                        isExterior = isExterior & checkExterior(lP, lToR);
+                    }
 
-                    const prevNorm = new Vector3(prevToR.z,0,-prevToR.x);
-                    const nextNorm = new Vector3(rToNext.z,0,-rToNext.x);
-                    // todo: figure out epsilons
-                    const isAcute = Vector3.Dot(prevNorm,rToNext) > 0;
-
-                    const pDot = Vector3.Dot(rToL, prevNorm);
-                    const nDot = Vector3.Dot(rToL, nextNorm);
-
-                    const isExterior = (pDot > 0 && (!isAcute || nDot > 0)) || (pDot < 0 && !isAcute && nDot > 0);
                     if(!isExterior) {
                         // skip this edge
                         continue;
@@ -1256,8 +1266,16 @@ function finalizeLayout() {
                     }
                 }
 
-                let minTheta = Math.max(minThetaR,minThetaL);
-                let maxTheta = Math.max(maxThetaR,maxThetaL);
+                let minTheta = minThetaL;
+                let maxTheta = maxThetaL;
+                // lets just always bias to the larger side
+                if(maxThetaR >= maxThetaL) {
+                    minTheta = minThetaR;
+                    maxTheta = maxThetaR;
+                }
+                minTheta = Math.round(minTheta*100000)/100000;
+                maxTheta = Math.round(maxTheta*100000)/100000;
+
 
                 if(outlineEdge) {
                     minTheta = 0;
@@ -1267,38 +1285,155 @@ function finalizeLayout() {
             }
         }
         const thetaValues = [];
+        let dbglines = [];
+        let color1 = new Color4(1,0,0,1);
+        let color2 = new Color4(0,1,0,1);
+        let linecolors = [];
+        let outlineLinks = {};
         for(const p of kPs) {
-            console.log(`point ${p.pointIdx}`)
-            console.log(p);
+            // console.log(`point ${p.pointIdx}`)
+            // console.log(p);
 
             const pToPrev = p.subtract(kPs[p.outlinePoints[0]]).normalize();
             const pToNext = p.subtract(kPs[p.outlinePoints[1]]).normalize();
             const prevAngle = coremath.getRotFromNormal(pToPrev);
             const compVal =  Math.PI * 2 - prevAngle + Epsilon;
             const nextAngle = coremath.getRotFromNormal(pToNext);
-            console.log(`prevAngle ${prevAngle}`)
+            // console.log(`prevAngle ${prevAngle}`)
+
+            if(p.delaunayPoints.length == 2) {
+                p.isOnConvexHull = true;
+            }
 
             p.delaunayPoints.sort((a,b) => {
                 const pToA = (coremath.getRotFromNormal(p.subtract(a.p).normalize()) + compVal) % (Math.PI * 2);
                 const pToB = (coremath.getRotFromNormal(p.subtract(b.p).normalize()) + compVal) % (Math.PI * 2);
                 return pToA - pToB;
             });
+            // ok we have a radially sorted list of lines, 0 is input and the end is output
+            const joinTheta = 10;
             for(const dp of p.delaunayPoints) {
+                if(p.outlineIdx !== dp.p.outlineIdx) {
+                    const outlinePairName = `${Math.min(p.outlineIdx,dp.p.outlineIdx)}_${Math.max(p.outlineIdx,dp.p.outlineIdx)}`
+                    if(!outlineLinks[outlinePairName]) {
+                        outlineLinks[outlinePairName] = [];
+                    }
+                    outlineLinks[outlinePairName].push({p:p,dp:dp});
+                }
+
                 if(!thetaValues.includes(dp.minTheta)) {
                     thetaValues.push(dp.minTheta);
                 }
                 if(!thetaValues.includes(dp.maxTheta)) {
                     thetaValues.push(dp.maxTheta);
                 }
-                // ok we have a radially sorted list of lines, 0 is input and the end is output
-                console.log(`thetas: ${dp.minTheta} ${dp.maxTheta} / dist: ${dp.dist} / rot: ${coremath.getRotFromNormal(p.subtract(dp.p).normalize())}`)
-                console.log(dp.p);
+                // console.log(`thetas: ${dp.minTheta} ${dp.maxTheta} / dist: ${dp.dist} / rot: ${coremath.getRotFromNormal(p.subtract(dp.p).normalize())}`)
+                // console.log(dp.p);
             }
-            console.log(`nextAngle ${nextAngle}`)
+            // console.log(`nextAngle ${nextAngle}`)
         }
-        thetaValues.sort((a,b) => {return a > b});
-        console.log(thetaValues);
-        globals.renderData.layoutData.push({keyGroups:keyGroups, kgOutlines:kgOutlines, kPs:kPs,thetaValues:thetaValues});
+        // this might not work, we might need an actual o -> o linkage
+        for(const [ooId,ooEdges] of Object.entries(outlineLinks)) {
+            ooEdges.sort((a,b) => {return a.dp.dist > b.dp.dist});
+            let linkedPts = [];
+            let minEdges = [];
+            console.log(ooEdges);
+            const edgeDiffMax = 2;
+
+            // find all of the edges that are within some epsilon (the edgeDiffMax) of the shortest edge
+            for(const e of ooEdges) {
+                if(linkedPts.length >= 4 && e.dp.dist > (ooEdges[0].dp.dist + edgeDiffMax)) {
+                    break;
+                }
+                if(!linkedPts.includes(e.p.pointIdx) && !linkedPts.includes(e.dp.p.pointIdx)) {
+                    linkedPts.push(e.p.pointIdx);
+                    linkedPts.push(e.dp.p.pointIdx);
+                    minEdges.push(e);
+                }
+            }
+
+            // out of the set of short edges, find the two that are the farthest apart (in the center, maybe do seg->seg in the future?)
+            let maxDist = -1;
+            let bestEdges = [];
+            for(const e of minEdges) {
+                for(const oE of minEdges) {
+                    if(e.p.pointIdx !== oE.p.pointIdx) {
+                        const e_center = (kPs[e.p.pointIdx].add(kPs[e.dp.p.pointIdx]).scale(0.5));
+                        const oE_center = (kPs[oE.p.pointIdx].add(kPs[oE.dp.p.pointIdx]).scale(0.5))
+                        let dist = e_center.subtract(oE_center).lengthSquared();
+                        if( dist > maxDist ) {
+                            maxDist = dist;
+                            bestEdges = [e,oE];
+                        }
+                    }
+                }
+            }
+
+
+            // set the linking edges in the points  (todo: this should be an array that we rotationally sort)
+            let bestEdgesRev = [];
+            for(const e of bestEdges) {
+                if(!e.p.linkingEdges) {
+                    e.p.linkingEdges = [];
+                }
+                e.p.linkingEdges.push(e.dp);
+                const revP = kPs[e.dp.p.pointIdx];
+                for(const dp of revP.delaunayPoints) {
+                    if(dp.p.pointIdx === e.p.pointIdx) {
+                        if(!revP.linkingEdges) {
+                            revP.linkingEdges = [];
+                        }
+                        revP.linkingEdges.push(dp);
+                        break;
+                    }
+                }
+            }
+        }
+
+        // ok, find the minimal outline by starting at a known edge point and walking the outline (taking every linkingEdge)
+        // until we get back to the start
+        let firstP = null;
+        for(const p of kPs) {
+            if(p.isOnConvexHull && !p.linkingEdges) {
+                firstP = p;
+            }
+        }
+        let thisP = firstP;
+        let lastP = thisP;
+
+        let realOutline = [];
+        do {
+            realOutline.push(thisP);
+            let linked = false;
+            // once we change this to be a sorted array, pick the rightmost one and nuke the rest (that might fail some outlines)
+            if(thisP.linkingEdges) {
+                console.log(`n linked edges: ${thisP.linkingEdges.length}`)
+                for(const edge of thisP.linkingEdges) {
+                    if(edge.p.pointIdx != lastP.pointIdx) {
+                        lastP = thisP;
+                        thisP = edge.p;
+                        linked = true;
+                        break;
+                    }
+                }
+            }
+            if(!linked) {
+                lastP = thisP;
+                thisP = kPs[thisP.outlinePoints[1]];
+            }
+        } while(thisP.pointIdx != firstP.pointIdx)
+
+        for(let i = 0; i < realOutline.length; i++) {
+            dbglines.push([realOutline[i],realOutline[(i+1)%realOutline.length]])
+            linecolors.push([color1,color1]);
+        }
+
+        if( globals.voronoiDbgLines ) {
+            globals.scene.removeMesh(globals.voronoiDbgLines)
+        }
+        // globals.voronoiDbgLines = MeshBuilder.CreateLineSystem("voronoiDbgLines", {lines: dbglines, colors:linecolors}, globals.scene);
+        thetaValues.sort((a,b) => a - b);
+        globals.renderData.layoutData.push({keyGroups:keyGroups, kgOutlines:kgOutlines,minOutline:realOutline,kPs:kPs,thetaValues:thetaValues});
     }
 }
 
@@ -1306,7 +1441,9 @@ export function refreshPCBs() {
     const bd = globals.boardData;
     for(let caseIdx = 0; caseIdx < bd.cases.length; caseIdx++ ) {
         const cRD = globals.renderData.cases[caseIdx];
-        pcb.refreshPCBOutline(bd, caseIdx, cRD);
+        const layoutData = globals.renderData.layoutData[caseIdx];
+
+        pcb.refreshPCBOutline(layoutData.minOutline, caseIdx, cRD);
 
         // bd.pcbBounds[caseIdx] = globals.pcbData[caseIdx].outlineBounds;
     }
@@ -1405,6 +1542,9 @@ export function refreshCase() {
             }
         }
         else if(bd.caseType === "concave") {
+            bd.outline = layoutData.minOutline;
+        }
+        else if(bd.caseType === "concave_slider") {
             let kPs = layoutData.kPs;
 
             let lastP = null;
@@ -1413,26 +1553,29 @@ export function refreshCase() {
 
             // we only consider this line part of the whole deal if either of these things are true and we already passed
             // the dist > theta * 2 check from earlier. (and dist > eps)
-            const theta = layoutData.thetaValues[Math.floor(tuning.bezelConcavity*(layoutData.thetaValues.length-1))];
+            console.log(`thetas`);
+            console.log(layoutData.thetaValues);
+            const theta = Math.min(layoutData.thetaValues[Math.floor(tuning.bezelConcavity*(layoutData.thetaValues.length-1))] + Epsilon / 2,
+                                   layoutData.thetaValues[layoutData.thetaValues.length-1] - Epsilon / 2);
             console.log(`bc ${tuning.bezelConcavity} theta idx ${Math.floor(tuning.bezelConcavity*layoutData.thetaValues.length)} of ${layoutData.thetaValues.length} = ${theta}`)
             bd.outline = [];
 
-            const getDPoints = function(p) {
+            const getDPoints = function(p,prevIdx) {
+                let foundLast = prevIdx < 0;
                 const dps = [];
-                for(const d of p.delaunayPoints) {
-                    if(theta >= d.minTheta && theta <= d.maxTheta) {
-                        dps.push(d.p);
+
+                if(p.linkingEdge && prevIdx >= 0) {
+                    // exiting on the linking edge!
+                    if(p.linkingEdge.p.pointIdx != prevIdx) {
+                        dps.push(p.linkingEdge.p);
+                        return dps;
                     }
                 }
-                return dps;
-            }
 
-            const getNextDPoint = function(p,prevIdx) {
-                let foundLast = false;
                 for(const d of p.delaunayPoints) {
                     if(foundLast) {
-                        if(theta >= d.minTheta && theta <= d.maxTheta) {
-                            return d.p;
+                        if(theta > d.minTheta && theta <= d.maxTheta) {
+                            dps.push(d.p);
                         }
                     } else {
                         if(d.p.pointIdx == prevIdx) {
@@ -1440,21 +1583,19 @@ export function refreshCase() {
                         }
                     }
                 }
-                console.log(`failed to find next point after ${prevIdx}`)
-                console.log(p)
-                // return dps;
+                return dps;
             }
             
             for(const p of kPs) {
-                if(!firstP || p.z <= firstP.z) {
-                    if(!firstP || p.x <= firstP.x) {
-                        thisP = p;
-                        firstP = p;
-                    }
+                // find a point guaranteed to be on the convex hull (so we can guess winding order below)
+                if(!firstP || p.z < firstP.z || (Math.abs(p.z-firstP.z) < Epsilon && p.x <= firstP.x)) {
+                    thisP = p;
+                    firstP = p;
                 }
             }
-            const dps = getDPoints(thisP);
+            const dps = getDPoints(thisP, -1);
             if(dps.length === 2) {
+                // find the winding of the edges of first point
                 let b = dps[0];
                 let c = dps[1];
 
@@ -1469,7 +1610,7 @@ export function refreshCase() {
                     thisP = b;
                 }
 
-                bd.outline.push(lastP);
+                // bd.outline.push(lastP);
             } else {
                 console.log(`failed to find start due to split/end`);
                 console.log(thisP);
@@ -1477,21 +1618,60 @@ export function refreshCase() {
                 thisP = null;
             }
 
-            while(thisP) {
-                const oP = getNextDPoint(thisP, lastP.pointIdx);
-                if(oP) {
-                    bd.outline.push(thisP);
-                    lastP = thisP;
-                    thisP = oP;
+            let dbglines = [];
+            let color1 = new Color4(1,0,0,1);
+            let color2 = new Color4(0,0,1,1);
+            let linecolors = [];
+            let followOutline = function(o,tP,lP) {
+                const dPs = getDPoints(tP, lP.pointIdx);
+                if(dPs.length === 0 || o.length > kPs.length) {
+                    console.log(`breaking out due to end/overflow`);
+                    console.log(dPs);
+                    console.log(tP);
+                    console.log(lP);
+                    console.log(o);
+                    return null;
                 }
-                else {
-                    console.log(`breaking out due to split/end ${theta}`);
-                    console.log(lastP)
-                    break;
+                if(o.includes(tP.pointIdx)) {
+                    console.log(`loop detected, discarding`);
+                    console.log(tP);
+                    console.log(o);
+                    return null;
                 }
-                if(thisP.pointIdx === firstP.pointIdx) {
-                    break;
+                o.push(tP.pointIdx);
+                lP = tP;
+                if(tP.pointIdx === firstP.pointIdx) {
+                    console.log(`found end point!`);
+                    return o;
                 }
+                for(let i = 0; i < dPs.length; i++) {
+                    tP = dPs[i];
+                    const nextO = i>0?[...o]:o;
+                    let newO = followOutline(nextO,tP,lP);
+                    if(newO != null) {
+                        return newO;
+                    }
+                }
+
+                for(let i = 1; i < o.length; i++) {
+                    dbglines.push([kPs[o[i-1]], kPs[o[i]]]);
+                    let c = i==(o.length-1)?color1:color2;
+                    linecolors.push([c,c]);
+                }
+                console.log(`i think this means we failed to get any outline`);
+                return null;
+            }
+
+            const idxOutline = followOutline([],thisP,lastP);
+            console.log(`showing ${dbglines.length} lines `)
+            if( globals.lineSystem ) {
+                globals.scene.removeMesh(globals.lineSystem)
+            }
+            globals.lineSystem = MeshBuilder.CreateLineSystem("lineSystem", {lines: dbglines, colors:linecolors}, globals.scene);
+
+            bd.outline = [];
+            for(const idx of idxOutline) {
+                bd.outline.push(kPs[idx]);
             }
             console.log(`outline has ${bd.outline.length} points`)
             
@@ -1550,18 +1730,18 @@ export function refreshCase() {
         vectorGeo["screwHoles"] = cRD.screwData;
         tesselatedGeo["screwHoles"] = vectorGeo["screwHoles"].map((a) => coremath.genArrayForCircle(a,0,19));
         
-        let dbglines = [];
-        let color1 = new Color4(1,0,0,1);
-        let color2 = new Color4(0,1,0,1);
-        let linecolors = [];
-        for(let i = 0; i < tesselatedGeo["caseFrameWithPortCut"].length; i++) {
-            dbglines.push([tesselatedGeo["caseFrameWithPortCut"][i], tesselatedGeo["caseFrameWithPortCut"][(i+1)%tesselatedGeo["caseFrameWithPortCut"].length]]);
-            linecolors.push([color1,color2])
-        }
-        if( globals.lineSystem ) {
-            globals.scene.removeMesh(globals.lineSystem)
-        }
-        globals.lineSystem = MeshBuilder.CreateLineSystem("lineSystem", {lines: dbglines, colors:linecolors}, globals.scene);
+        // let dbglines = [];
+        // let color1 = new Color4(1,0,0,1);
+        // let color2 = new Color4(0,1,0,1);
+        // let linecolors = [];
+        // for(let i = 0; i < tesselatedGeo["caseFrameWithPortCut"].length; i++) {
+        //     dbglines.push([tesselatedGeo["caseFrameWithPortCut"][i], tesselatedGeo["caseFrameWithPortCut"][(i+1)%tesselatedGeo["caseFrameWithPortCut"].length]]);
+        //     linecolors.push([color1,color2])
+        // }
+        // if( globals.lineSystem ) {
+        //     globals.scene.removeMesh(globals.lineSystem)
+        // }
+        // globals.lineSystem = MeshBuilder.CreateLineSystem("lineSystem", {lines: dbglines, colors:linecolors}, globals.scene);
     
         let plateGroups = findOverlappingGroups(kRD, "switchCut", caseIdx);
         vectorGeo["switchCuts"] = [];

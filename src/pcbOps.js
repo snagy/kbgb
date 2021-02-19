@@ -46,6 +46,7 @@ function genPads(centerToPadStart, sideWidth, nPadsPerSide, padH, padW, padPitch
     return pads;
 }
 
+//bounds are half width / half height
 const footprintDefs = {
     "mx":{
         pthDefs: {
@@ -602,19 +603,10 @@ export function createNets(pcb) {
     // }
 }
 
-export function refreshPCBOutline(bd, caseIdx, cRD) {
+export function refreshPCBOutline(minOutline, caseIdx, cRD) {
     const pD = globals.pcbData[caseIdx];
-    let kPs = [];
-    for( let [id,d] of Object.entries(pD.devices) ) {
-        for(let f of d.footprints) {
-            if(f.box) {
-                for( let p of f.box.points) {
-                    kPs.push(p)
-                }
-            }
-        }
-    }
-    pD.outline = coremath.convexHull2d(kPs);
+
+    pD.outline = minOutline;
     // if(bd.forcePCBSymmetrical) {
     //     let midPoint = (bd.layout.bounds.maxs[0] - bd.layout.bounds.mins[0]) * 0.5 + bd.layout.bounds.mins[0];
     //     for(let oP of pD.outline) {

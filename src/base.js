@@ -124,7 +124,7 @@ function initKBGB() {
         'testkbs/three_key_vtest.kle', //20
         'testkbs/keysize_test.kle' 
     ]
-    let kbdidx = 20;
+    let kbdidx = 0;
     // load a keyboard
     loadKeyboardFromPath(keyboards[kbdidx]);
 
