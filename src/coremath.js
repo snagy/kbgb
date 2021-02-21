@@ -318,6 +318,197 @@ export function createVoronoi(points) {
     return vRes;
 }
 
+// combine two outlines.  'subtract' assumes one is being cut from the other, the other assumes they are being added
+// they must intersect (todo: fix that assumption)
+export function combineOutlines(primary, primaryFillets, secondary, secondaryFillets, intersectionFillet, subtraction) {
+    let output = [];
+    let outputFillets = [];
+    let walkingShape = primary;
+    let walkingFillets = primaryFillets;
+    let targetShape = secondary;
+    let targetFillets = secondaryFillets;
+    output.push(walkingShape[0]);
+    outputFillets.push(primaryFillets[0])
+    let curr = walkingShape[0];
+    let currFillet = walkingFillets[0];
+    let targ = walkingShape[1];
+    let targFillet = walkingFillets[1];
+    let nextWalkingIdx = 2;
+    do {
+        let tL = targ.subtract(curr);
+        const tNorm = new Vector3(tL.z,0,-tL.x).normalize();
+        let closestEntry = 1000000000.0;
+        let entry = null;
+        let entryNextIdx = 0;
+        let closestExit = 1000000000.0;
+        let exit = null;
+
+        const maxLen = (tL.lengthSquared() - Epsilon*Epsilon);
+        for(let j = 0; j < targetShape.length; j++) {
+            const sLine = [targetShape[j], targetShape[(j+1)%targetShape.length]];
+            const sL = sLine[1].subtract(sLine[0]);
+            const sNorm = new Vector3(sL.z,0,-sL.x).normalize();
+            
+            let segRes = segmentToSegment(curr, targ, tL, tNorm, sLine[0], sLine[1]);
+            if(segRes.type === "in_segment" && segRes.intersection) {
+                let dist = segRes.intersection.subtract(curr).lengthSquared();
+                if( dist > Epsilon*Epsilon && dist < maxLen) {
+                    let isEntry = (Vector3.Dot(sNorm, tL) < 0) ^ subtraction;
+                    if(isEntry) {
+                        if( dist < closestEntry ) {
+                            closestEntry = dist;
+                            entry = segRes.intersection;
+                            entryNextIdx = (j+1)%targetShape.length;
+                        }
+                    } else {
+                        if( dist < closestExit ) {
+                            closestExit = dist;
+                            exit = segRes.intersection;
+                        }
+                    }
+                }
+            }
+        }
+        if( entry || exit ) {
+            if(closestExit < closestEntry) {
+                console.log("started inside");
+                // we're in it.  uhhhh.
+                // target remains the same and push the entry point on the stack
+                output.pop();
+                outputFillets.pop();
+                curr = exit;
+                currFillet = intersectionFillet;
+            } else {
+                // console.log(`swapping at ${entry}`);
+                curr = entry;
+                currFillet = intersectionFillet;
+                let tmp = targetShape;
+                targetShape = walkingShape;
+                walkingShape = tmp;
+                tmp = targetFillets;
+                targetFillets = walkingFillets;
+                walkingFillets = tmp;
+                nextWalkingIdx = entryNextIdx;
+                targ = walkingShape[nextWalkingIdx];
+                targFillet = walkingFillets[nextWalkingIdx];
+                nextWalkingIdx = (nextWalkingIdx+1)%walkingShape.length;
+            }
+        }
+        else {
+            // console.log(`walking to ${targ}`);
+            curr = targ;
+            currFillet = targFillet;
+            targ = walkingShape[nextWalkingIdx];
+            targFillet = walkingFillets[nextWalkingIdx];
+            nextWalkingIdx = (nextWalkingIdx+1)%walkingShape.length;
+        }
+        output.push(curr);
+        outputFillets.push(currFillet);
+        // console.log(`len ${curr.subtract(output[0]).lengthSquared()}`)
+        if(output.length > 10000) {
+            console.log("boolean output overflow");
+            output = [];
+            outputFillets = [];
+            break;
+        }
+    }  while(curr.subtract(output[0]).lengthSquared() > Epsilon*Epsilon);
+    output.pop();
+    outputFillets.pop();
+    return {outline:output,fillets:outputFillets};
+}
+
+// fixup the outline to remove overlaps/etc
+export function fixupOutline(outline, fillets, intersectionFillet) {
+    let output = [];
+    let outputFillets = [];
+
+    let curr = null;
+    let currIdx = 0;
+    for(let i = 0; i < outline.length; i++) {
+        const p = outline[i];
+        // find a point guaranteed to be on the convex hull (so we can guess winding order below)
+        if(!curr || p.z < curr.z || (Math.abs(p.z-curr.z) < Epsilon && p.x <= curr.x)) {
+            curr = p;
+            currIdx = i;
+        }
+    }
+    let currFillet = fillets[currIdx];
+
+    let targIdx = (currIdx+1)%outline.length;
+    let targ = outline[targIdx];
+    let targFillet = fillets[targIdx];
+
+    output.push(curr);
+    outputFillets.push(currFillet)
+
+    do {
+        let tL = targ.subtract(curr);
+        const tNorm = new Vector3(tL.z,0,-tL.x).normalize();
+        let closestEntry = 1000000000.0;
+        let entry = null;
+        let entryNextIdx = 0;
+
+        const maxLen = (tL.lengthSquared() - Epsilon*Epsilon);
+        for(let j = 0; j < outline.length; j++) {
+            const jNext = (j+1)%outline.length;
+            if(j===currIdx || j === targIdx || jNext === currIdx || jNext === targIdx) continue;
+            const sLine = [outline[j], outline[jNext]];
+            const sL = sLine[1].subtract(sLine[0]);
+            const sNorm = new Vector3(sL.z,0,-sL.x).normalize();
+            
+            let segRes = segmentToSegment(curr, targ, tL, tNorm, sLine[0], sLine[1]);
+            if(segRes.type === "in_segment" && segRes.intersection) {
+                let dist = segRes.intersection.subtract(curr).lengthSquared();
+                if( dist > Epsilon*Epsilon && dist < maxLen) {
+                    let isEntry = (Vector3.Dot(sNorm, tL) < 0);
+                    if(isEntry) {
+                        if( dist < closestEntry ) {
+                            closestEntry = dist;
+                            entry = segRes.intersection;
+                            entryNextIdx = jNext;
+                        }
+                    }
+                }
+            }
+        }
+        if( entry ) {
+            // console.log(`swapping at ${entry}`);
+            curr = entry;
+            currFillet = intersectionFillet;
+            currIdx = -1;
+            targIdx = entryNextIdx;
+            targ = outline[targIdx];
+            if(!targ) {
+                console.log(`nulltarg!`)
+            }
+            targFillet = fillets[targIdx];
+        }
+        else {
+            // console.log(`walking to ${targ}`);
+            curr = targ;
+            currFillet = targFillet;
+            currIdx = targIdx;
+            targIdx = (targIdx+1)%outline.length;
+            targ = outline[targIdx];
+            if(!targ) {
+                console.log(`nulltarg!`)
+            }
+            targFillet = fillets[targIdx];
+        }
+        output.push(curr);
+        outputFillets.push(currFillet);
+        // console.log(`len ${curr.subtract(output[0]).lengthSquared()}`)
+        if(output.length > 10000) {
+            console.log("boolean output overflow");
+            output = [];
+            outputFillets = [];
+            break;
+        }
+    }  while(curr.subtract(output[0]).lengthSquared() > Epsilon*Epsilon);
+    output.pop();
+    outputFillets.pop();
+    return {outline:output, fillets:outputFillets};
+}
 
 // offset is + to the left, - to right
 export function offsetOutlinePoints(outline, offset) {
@@ -365,8 +556,10 @@ export function filletOutline(outline, fillets, close) {
         const nextNorm = new Vector3(nextDir.z, 0, -nextDir.x);
         const prevNorm = new Vector3(prevDir.z, 0, -prevDir.x);
 
-        if (!fillets) {
-            vectorOutline.push(new Point(intersection));
+        const nDotP = Vector3.Dot(nextDir,prevDir);
+
+        if (!fillets || Math.abs(nDotP) > 0.9) {
+            vectorOutline.push(new Point(point));
         }
         else {
             // todo:  should this be offset or some kind of scaled offset from inPoint/outPoint etc?
@@ -377,6 +570,11 @@ export function filletOutline(outline, fillets, close) {
             }
             let filletCenter = lineLineIntersection(point.add(prevNorm.scale(-fillet)), prevNorm,
                                                     point.add(nextNorm.scale(-fillet)), nextNorm);
+
+            if(!filletCenter) {
+                vectorOutline.push(new Point(point));
+                continue;
+            }
 
             vectorOutline.push(new Point(filletCenter.add(prevNorm.scale(fillet))));
 
@@ -408,12 +606,22 @@ export function filletOutline(outline, fillets, close) {
 // offset is + to the left, - to right
 export function offsetAndFilletOutline(outline, offset, fillets, close) {
     const offsetPoints = offsetOutlinePoints(outline,offset)
+
+    if(fillets && !Array.isArray(fillets)) {
+        fillets = (new Array(outline.length)).fill(fillets)
+    }
+
+    const fixed = fixupOutline(offsetPoints,fillets,fillets[0]);
+
+    const fixedPoints = fixed.outline;
+    const fixedFillets = fixed.fillets;
+
     if(fillets) {
-        return filletOutline(offsetPoints,fillets,close);
+        return filletOutline(fixedPoints,fixedFillets,close);
     }
     else {
         let vectorPath = []
-        for(const p of offsetPoints) {
+        for(const p of fixedPoints) {
             vectorPath.push(new Point(p))
         }
         return vectorPath;
