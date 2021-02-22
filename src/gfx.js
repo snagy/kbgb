@@ -32,7 +32,7 @@ export function createMaterials() {
     {
         const mat = new PBRMaterial(caseMatName, globals.scene);
         mat.metallic = 0;
-        mat.roughness = 0.8;
+        mat.roughness = 0.2;
         mat.baseColor = new Color3(12/255, 237/255, 239/255);
         // mat.subSurface.isTranslucencyEnabled = true;
         // mat.subSurface.isScatteringEnabled = true;

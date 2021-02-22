@@ -599,6 +599,7 @@ function getCombinedOutlineFromPolyGroup(group, ignoreOverlapping) {
 
     // pick a line at random.  this could actually pick something on an interior island so we should probably
     // run the loop gen algorithm until all the lines are used up and then pick the polygon with the largest area
+    // TODO: we could start with a point on the hull and probably be gtg
     let bestOutline = null;
     let bestOutlineLength = 0;
     while(1) {
@@ -943,7 +944,7 @@ export const layerDefs = {
 function addUSBPort(cRD) {
     const boardBounds = cRD.bounds;
     let portDim = [15 / 2,
-                   (boardBounds.maxs[1] + tuning.bezelThickness/2)*2];
+                   tuning.bezelThickness*2];
 
     let portPos = globals.boardData.usbPortPos * tuning.base1U[0];
 

@@ -94,7 +94,7 @@ export function segmentToSegment(x0, x1, xL, xNorm, y0, y1) {
         let y1Dot = Vector3.Dot(result.intersection.subtract(y1),yL);
         let x0Dot = Vector3.Dot(result.intersection.subtract(x0),xL);
         let x1Dot = Vector3.Dot(result.intersection.subtract(x1),xL);
-        if(y0Dot > -Epsilon && y1Dot < Epsilon &&
+        if(y0Dot > Epsilon && y1Dot < Epsilon &&
            x0Dot > -Epsilon && x1Dot < Epsilon) {
             result.type = "in_segment";
         } else {
@@ -438,10 +438,30 @@ export function fixupOutline(outline, fillets, intersectionFillet) {
     let targ = outline[targIdx];
     let targFillet = fillets[targIdx];
 
+    let targs = [];
+
     output.push(curr);
     outputFillets.push(currFillet)
 
     do {
+        let loopIdx = targs.indexOf(targIdx);
+        if(loopIdx !== -1) {
+            console.log(`LOOP DETECTED at ${targIdx}`);
+            console.log(targs);
+
+            targs.length = loopIdx;
+            output.length = loopIdx;
+            outputFillets.length = loopIdx;
+            
+            curr = targ;
+            currFillet = targFillet;
+            currIdx = targIdx;
+            targIdx = (targIdx+1)%outline.length;
+            output.push(curr);
+            outputFillets.push(currFillet);
+        }
+        targs.push(targIdx);
+
         let tL = targ.subtract(curr);
         const tNorm = new Vector3(tL.z,0,-tL.x).normalize();
         let closestEntry = 1000000000.0;
@@ -455,33 +475,46 @@ export function fixupOutline(outline, fillets, intersectionFillet) {
             const sLine = [outline[j], outline[jNext]];
             const sL = sLine[1].subtract(sLine[0]);
             const sNorm = new Vector3(sL.z,0,-sL.x).normalize();
+            const s0 = sLine[0];
+            const s1 = sLine[1];
             
-            let segRes = segmentToSegment(curr, targ, tL, tNorm, sLine[0], sLine[1]);
+            let segRes = segmentToSegment(curr, targ, tL, tNorm, s0, s1);
             if(segRes.type === "in_segment" && segRes.intersection) {
                 let dist = segRes.intersection.subtract(curr).lengthSquared();
                 if( dist > Epsilon*Epsilon && dist < maxLen) {
-                    let isEntry = (Vector3.Dot(sNorm, tL) < 0);
-                    if(isEntry) {
-                        if( dist < closestEntry ) {
-                            closestEntry = dist;
-                            entry = segRes.intersection;
-                            entryNextIdx = jNext;
+                    if( dist < closestEntry ) {
+                        closestEntry = dist;
+                        entry = segRes.intersection;
+                        entryNextIdx = jNext;
+                        if(entry.subtract(s1).lengthSquared() < Epsilon * Epsilon) {
+                            entryNextIdx = jNext+1;
                         }
                     }
                 }
             }
+            // else if(segRes.type === "colinear") {
+            //     console.log(`hitting the colinear`)
+            //     // check overlap
+            //     let y0In = (Vector3.Dot(s0.subtract(curr),tL) > -Epsilon && Vector3.Dot(s0.subtract(targ),tL) < Epsilon);
+            //     let y1In = (Vector3.Dot(s1.subtract(curr),tL) > -Epsilon && Vector3.Dot(s1.subtract(targ),tL) < Epsilon);
+            //     let x0In = (Vector3.Dot(curr.subtract(s0),sL) > -Epsilon && Vector3.Dot(curr.subtract(s1),sL) < Epsilon);
+            //     let x1In = (Vector3.Dot(targ.subtract(s0),sL) > -Epsilon && Vector3.Dot(targ.subtract(s1),sL) < Epsilon);
+            //     if(y0In || x0In || y1In || x1In) {
+            //         let dist = s0.subtract(curr).lengthSquared();
+            //         if( dist < closestEntry ) {
+            //             closestEntry = dist;
+            //             entry = s0;
+            //             entryNextIdx = jNext;
+            //         }
+            //     }
+            // }
         }
         if( entry ) {
-            // console.log(`swapping at ${entry}`);
+            console.log(`trimming at ${curr} (${currIdx}) to ${targ} (${targIdx}) at ${entry} ${entryNextIdx}`);
             curr = entry;
             currFillet = intersectionFillet;
             currIdx = -1;
             targIdx = entryNextIdx;
-            targ = outline[targIdx];
-            if(!targ) {
-                console.log(`nulltarg!`)
-            }
-            targFillet = fillets[targIdx];
         }
         else {
             // console.log(`walking to ${targ}`);
@@ -489,14 +522,17 @@ export function fixupOutline(outline, fillets, intersectionFillet) {
             currFillet = targFillet;
             currIdx = targIdx;
             targIdx = (targIdx+1)%outline.length;
-            targ = outline[targIdx];
-            if(!targ) {
-                console.log(`nulltarg!`)
-            }
-            targFillet = fillets[targIdx];
         }
+
+        targ = outline[targIdx];
+        if(!targ) {
+            console.log(`nulltarg!`)
+        }
+        targFillet = fillets[targIdx];
+
         output.push(curr);
         outputFillets.push(currFillet);
+
         // console.log(`len ${curr.subtract(output[0]).lengthSquared()}`)
         if(output.length > 10000) {
             console.log("boolean output overflow");
