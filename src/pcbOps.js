@@ -89,8 +89,8 @@ const footprintDefs = {
 
 export function clearPCBs() {
     globals.pcbData = [];
-    for(let i = 0; i < globals.boardData.cases.length; i++ ) {
-        globals.pcbData.push({outline:[], devices:{}, nets:{}});
+    for(const [k,cRD] of Object.entries(globals.renderData.cases)) {
+        globals.pcbData[k] = {outline:[], devices:{}, nets:{}};
     }
 }
 

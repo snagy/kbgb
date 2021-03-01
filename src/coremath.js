@@ -1,4 +1,5 @@
-import {Epsilon, Vector3} from '@babylonjs/core';
+import {Epsilon, Vector3, Color4} from '@babylonjs/core';
+import * as gfx from './gfx.js';
 
 let polyID = 0;
 
@@ -418,9 +419,69 @@ export function combineOutlines(primary, primaryFillets, secondary, secondaryFil
 }
 
 // fixup the outline to remove overlaps/etc
-export function fixupOutline(outline, fillets, intersectionFillet) {
+export function fixupOutline(outline, originalOutline, fillets, intersectionFillet) {
     let output = [];
     let outputFillets = [];
+    // console.log(`outline.len = ${outline.length} oOutline.len = ${originalOutline.length}`)
+
+    for(let i = 0; i < originalOutline.length; i++) {
+        const o = originalOutline[i];
+        const oPrev = originalOutline[(i-1+originalOutline.length)%originalOutline.length];
+        const oNext = originalOutline[(i+1)%originalOutline.length];
+        let oToPrev = oPrev.subtract(o);
+        let oToNext = oNext.subtract(o);
+        let xO = Vector3.Cross(oToPrev,oToNext);
+        o.crossProdY = xO.y;
+        outline[i].opID = i;
+    }
+    
+    
+    let outlineLen = outline.length;
+    do{
+        let parseList = [];
+        outlineLen = outline.length
+        for(let i = 0; i < outline.length; i++) {
+            const p = outline[i];
+            const prev = outline[(i-1+outline.length)%outline.length];
+            const next = outline[(i+1)%outline.length];
+            let pToPrev = prev.subtract(p);
+            let pToNext = next.subtract(p);
+
+            const o = originalOutline[p.opID];
+
+            // don't think xp is what i want here
+            let xP = Vector3.Cross(pToPrev,pToNext);
+            if(xP.y > -Epsilon && xP.y < Epsilon) {
+                // console.log(`not a corner`);
+                parseList.push(i);
+            }
+            else if(xP.y < Epsilon ^ o.crossProdY < Epsilon) {
+                // console.log(`FLIP`);
+                // console.log(p);
+                // console.log(prev);
+                // console.log(next);
+                // console.log(xP);
+                // console.log(o);
+                parseList.push(i);
+            }
+        }
+
+        if(parseList.length > 0) {
+            let red = new Color4(1,0,0,1);
+            let blue = new Color4(0,0,1,1);
+            let green = new Color4(0,1,0,1);
+            let yellow = new Color4(1,1,0,1);
+            // gfx.drawDbgOutline("outline_prev",outline,green,yellow,false);
+            // console.log(`parselist`);
+            // console.log(parseList)
+            for(let i = parseList.length-1; i >= 0; i--) {
+                outline.splice(parseList[i],1);
+            }
+            outline = copyWithoutColinear(outline);
+            // gfx.drawDbgOutline("outline",outline,red,blue,false);
+        }
+    } while(outlineLen != outline.length);
+
 
     let curr = null;
     let currIdx = 0;
@@ -492,22 +553,22 @@ export function fixupOutline(outline, fillets, intersectionFillet) {
                     }
                 }
             }
-            // else if(segRes.type === "colinear") {
-            //     console.log(`hitting the colinear`)
-            //     // check overlap
-            //     let y0In = (Vector3.Dot(s0.subtract(curr),tL) > -Epsilon && Vector3.Dot(s0.subtract(targ),tL) < Epsilon);
-            //     let y1In = (Vector3.Dot(s1.subtract(curr),tL) > -Epsilon && Vector3.Dot(s1.subtract(targ),tL) < Epsilon);
-            //     let x0In = (Vector3.Dot(curr.subtract(s0),sL) > -Epsilon && Vector3.Dot(curr.subtract(s1),sL) < Epsilon);
-            //     let x1In = (Vector3.Dot(targ.subtract(s0),sL) > -Epsilon && Vector3.Dot(targ.subtract(s1),sL) < Epsilon);
-            //     if(y0In || x0In || y1In || x1In) {
-            //         let dist = s0.subtract(curr).lengthSquared();
-            //         if( dist < closestEntry ) {
-            //             closestEntry = dist;
-            //             entry = s0;
-            //             entryNextIdx = jNext;
-            //         }
-            //     }
-            // }
+            else if(segRes.type === "colinear") {
+                // console.log(`hitting the colinear`)
+                // check overlap
+                let y0In = (Vector3.Dot(s0.subtract(curr),tL) > -Epsilon && Vector3.Dot(s0.subtract(targ),tL) < Epsilon);
+                let y1In = (Vector3.Dot(s1.subtract(curr),tL) > -Epsilon && Vector3.Dot(s1.subtract(targ),tL) < Epsilon);
+                let x0In = (Vector3.Dot(curr.subtract(s0),sL) > -Epsilon && Vector3.Dot(curr.subtract(s1),sL) < Epsilon);
+                let x1In = (Vector3.Dot(targ.subtract(s0),sL) > -Epsilon && Vector3.Dot(targ.subtract(s1),sL) < Epsilon);
+                if(y0In || x0In || y1In || x1In) {
+                    let dist = s0.subtract(curr).lengthSquared();
+                    if( dist < closestEntry ) {
+                        closestEntry = dist;
+                        entry = s0;
+                        entryNextIdx = jNext;
+                    }
+                }
+            }
         }
         if( entry ) {
             console.log(`trimming at ${curr} (${currIdx}) to ${targ} (${targIdx}) at ${entry} ${entryNextIdx}`);
@@ -546,6 +607,32 @@ export function fixupOutline(outline, fillets, intersectionFillet) {
     return {outline:output, fillets:outputFillets};
 }
 
+
+export function copyWithoutColinear(oldOutline) {
+    let outline = [...oldOutline];
+    //todo turn fillets into array if it's just a value
+    for (let i = outline.length-1; i >= 0; i--) {
+        let point = outline[i];
+        let next = outline[(i + 1) % outline.length].subtract(point);
+        let prev = point.subtract(outline[(i - 1 + outline.length) % outline.length]);
+        let nextLen = next.length();
+        let prevLen = prev.length();
+        let nextDir = next.normalizeFromLength(nextLen);
+        let prevDir = prev.normalizeFromLength(prevLen);
+
+        let det = prevDir.z * nextDir.x - nextDir.z * prevDir.x;
+        if (Math.abs(det) < Epsilon) // no collision
+        {
+            // console.log("Skipping colinear point");
+            outline.splice(i,1);
+        } else if(nextLen < Epsilon || prevLen < Epsilon ) {
+            // console.log("Skipping colocated points");
+            outline.splice(i,1);
+        }
+    }
+    return outline;
+}
+
 // offset is + to the left, - to right
 export function offsetOutlinePoints(outline, offset) {
     let newOutline = [];
@@ -564,7 +651,7 @@ export function offsetOutlinePoints(outline, offset) {
         let intersection = lineLineIntersection(inPoint, prevNorm,
             outPoint, nextNorm);
         if (intersection === null) {
-            // console.log("Skipping colinear point");
+            console.log("Backup skipping colinear point");
             continue;
         }
 
@@ -641,13 +728,15 @@ export function filletOutline(outline, fillets, close) {
 
 // offset is + to the left, - to right
 export function offsetAndFilletOutline(outline, offset, fillets, close) {
-    const offsetPoints = offsetOutlinePoints(outline,offset)
+    const fixedOutline = copyWithoutColinear(outline);
+    const offsetPoints = offsetOutlinePoints(fixedOutline,offset)
 
+    // gotta fix this for defined fillets
     if(fillets && !Array.isArray(fillets)) {
-        fillets = (new Array(outline.length)).fill(fillets)
+        fillets = (new Array(fixedOutline.length)).fill(fillets)
     }
 
-    const fixed = fixupOutline(offsetPoints,fillets,fillets[0]);
+    const fixed = fixupOutline(offsetPoints,fixedOutline,fillets,fillets[0]);
 
     const fixedPoints = fixed.outline;
     const fixedFillets = fixed.fillets;

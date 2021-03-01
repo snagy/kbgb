@@ -799,10 +799,10 @@ function getScrewBoss() {
     return tuning.screwTypes[screwType].minBoss;
 }
 
-export function addScrewHoles(cRD, outline, bezelWithPort) {
+export function addScrewHoles(cRD, cBD, outline, bezelWithPort) {
     const screwBoss = getScrewBoss();
     const screwRadius = getScrewRadius();
-    const bezelOffset = (tuning.bezelThickness - screwBoss * 2.0) * tuning.screwBezelBias + tuning.bezelGap + screwBoss;
+    const bezelOffset = (cBD.bezelThickness - screwBoss * 2.0) * cBD.screwBezelBias + tuning.bezelGap + screwBoss;
     let screwLocs = coremath.offsetOutlinePoints(outline,bezelOffset);
     cRD.screwData = [];
     globals.boardData.screwLocations = [];
@@ -852,7 +852,7 @@ export function addScrewHoles(cRD, outline, bezelWithPort) {
         }
     }
 
-    const maxSpan = tuning.maxScrewSpan;
+    const maxSpan = bd.maxScrewSpan;
     for(let i = screwLocs.length-1; i >= 0; i--) {
         let loc = screwLocs[i];
         let nexti = (i+screwLocs.length-1)%screwLocs.length;
@@ -888,22 +888,22 @@ export function addScrewHoles(cRD, outline, bezelWithPort) {
     }
 }
 
-function getFootShape(layerName, layerDef, cRD, bd) {
+function getFootShape(layerName, layerDef, cRD, cBD, bd) {
     const scene = globals.scene;
     const root = cRD.rootXform;
     const mats = globals.renderData.mats;
-    let feet = getFeet(bd, cRD);
+    let feet = getFeet(bd, cRD, cBD);
     cRD.layers[layerName] = {name:layerName,outlines:[],meshes:[],outlineBounds:{mins:(new Vector3(10000000.0,1000000.0,1000000.0)), maxs:(new Vector3(-10000000,-1000000,-1000000))}};
     for(const foot of feet) {
         const p0 = foot.screws[0];
         const p1 = foot.screws[1];
-        const offset = tuning.bezelThickness/2;
+        const offset = cBD.bezelThickness/2;
         const z_line = Math.min(p0.z, p1.z)-offset*layerDef.chin; // double offset for aesthetics
         const points = coremath.offsetAndFilletOutline([  new Vector3(p0.x+offset,0,z_line-offset),
                                                         new Vector3(p0.x+offset,0,p0.z+offset),
                                                         new Vector3(p1.x-offset,0,p1.z+offset),
                                                         new Vector3(p1.x-offset,0,z_line-offset)],
-                                            0, Math.min(tuning.caseCornerFillet,tuning.bezelThickness/2), false);
+                                            0, Math.min(cBD.caseCornerFillet,cBD.bezelThickness/2), false);
         cRD.layers[layerName].outlines.push(points)
         let polyHoles = [];
         for(const screw of foot.screws) {
@@ -941,10 +941,10 @@ export const layerDefs = {
     "feet":{height:3,offset:-25.5,stackOrder:-9,visFilter:"drawCase",mat:"case",customShape:getFootShape,chin:0.0,physicalMat:"acrylic"}
 };
 
-function addUSBPort(cRD) {
+function addUSBPort(cRD, cBD) {
     const boardBounds = cRD.bounds;
     let portDim = [15 / 2,
-                   tuning.bezelThickness*2];
+                   cBD.bezelThickness*2];
 
     let portPos = globals.boardData.usbPortPos * tuning.base1U[0];
 
@@ -954,7 +954,7 @@ function addUSBPort(cRD) {
     }
     
     let kPos = [portPos,
-                boardBounds.maxs[1]+tuning.bezelThickness/2]
+                boardBounds.maxs[1]+cBD.bezelThickness/2]
     let kXform = Matrix.Translation(kPos[0], 0, kPos[1]);
     // if (k.rotation_angle != 0) {
     //     kXform = kXform.multiply(Matrix.Translation(-k.rotation_x * tuning.base1U[0], 0, k.rotation_y * tuning.base1U[1]));
@@ -969,7 +969,7 @@ function addUSBPort(cRD) {
     ])];
 }
 
-function getFeet(bd, cRD) {
+function getFeet(bd, cRD, cBD) {
     let screwLocs = bd.screwLocations;
     let feet = [];
 
@@ -1000,7 +1000,7 @@ function getFeet(bd, cRD) {
     for(let i = 0; i < candidates.length; i+=2) {
         const p0 = candidates[i];
         const p1 = candidates[i+1];
-        const offset = tuning.bezelThickness/2;
+        const offset = cBD.bezelThickness/2;
         const z_line = Math.min(p0.z, p1.z); // double offset for aesthetics
         const foot = { screws:[p0, p1]};
         feet.push(foot);
@@ -1012,7 +1012,7 @@ function finalizeLayout() {
     const bd = globals.boardData;
     const kRD = globals.renderData.keys;
     globals.renderData.layoutData = [];
-    for(let caseIdx = 0; caseIdx < bd.cases.length; caseIdx++ ) {
+    for(const [caseIdx,cBD] of Object.entries(bd.cases)) {
         let keyGroups = findOverlappingGroups(kRD, "bezelHoles", caseIdx);
         let kgOutlines = {};
 
@@ -1048,7 +1048,7 @@ function finalizeLayout() {
         }
 
         // not implemented yet
-        if(false && bd.forceSymmetrical) {
+        if(false && cBD.forceSymmetrical) {
             let midPoint = (cRD.bounds.maxs[0] - cRD.bounds.mins[0]) * 0.5 + cRD.bounds.mins[0];
             let kpLen = kPs.length;
             for(let i = 0; i < kpLen; i++) {
@@ -1243,7 +1243,7 @@ function finalizeLayout() {
             ooEdges.sort((a,b) => {return a.dp.dist > b.dp.dist});
             let linkedPts = [];
             let minEdges = [];
-            console.log(ooEdges);
+            // console.log(ooEdges);
             const edgeDiffMax = 2;
 
             // find all of the edges that are within some epsilon (the edgeDiffMax) of the shortest edge
@@ -1352,13 +1352,13 @@ function finalizeLayout() {
 
 export function refreshPCBs() {
     const bd = globals.boardData;
-    for(let caseIdx = 0; caseIdx < bd.cases.length; caseIdx++ ) {
+    for(const [caseIdx,cBD] of Object.entries(bd.cases)) {
         const cRD = globals.renderData.cases[caseIdx];
         const layoutData = globals.renderData.layoutData[caseIdx];
 
         pcb.refreshPCBOutline(layoutData.minOutline, caseIdx, cRD);
 
-        // bd.pcbBounds[caseIdx] = globals.pcbData[caseIdx].outlineBounds;
+        // cBD.pcbBounds = globals.pcbData[caseIdx].outlineBounds;
     }
 }
 
@@ -1368,7 +1368,7 @@ export function refreshCase() {
     const kRD = globals.renderData.keys;
     const mats = globals.renderData.mats;
 
-    for(let caseIdx = 0; caseIdx < bd.cases.length; caseIdx++ ) {
+    for(const [caseIdx,cBD] of Object.entries(bd.cases)) {
         if(!globals.renderData.cases[caseIdx]) {
             globals.renderData.cases.push({layers:{}});
         }
@@ -1430,7 +1430,7 @@ export function refreshCase() {
             tesselatedGeo["bezel"].push(coremath.genPointsFromVectorPath(bezelOutlineVec));
         }
     
-        if(bd.caseType === "convex") {
+        if(cBD.caseType === "convex") {
             let kPs = [];
             for( let [id,rd] of Object.entries(kRD) ) {
                 if(rd.caseIdx === caseIdx) {
@@ -1446,7 +1446,7 @@ export function refreshCase() {
             }
             bd.outline = coremath.convexHull2d(kPs);
     
-            if(bd.forceSymmetrical) {
+            if(cBD.forceSymmetrical) {
                 let midPoint = (cRD.bounds.maxs[0] - cRD.bounds.mins[0]) * 0.5 + cRD.bounds.mins[0];
                 for(let oP of bd.outline) {
                     kPs.push(new Vector3(midPoint - (oP.x - midPoint), oP.y, oP.z));
@@ -1454,10 +1454,10 @@ export function refreshCase() {
                 bd.outline = coremath.convexHull2d(kPs);
             }
         }
-        else if(bd.caseType === "concave") {
+        else if(cBD.caseType === "concave") {
             bd.outline = layoutData.minOutline;
         }
-        else if(bd.caseType === "concave_slider") {
+        else if(cBD.caseType === "concave_slider") {
             let kPs = layoutData.kPs;
 
             let lastP = null;
@@ -1468,9 +1468,9 @@ export function refreshCase() {
             // the dist > theta * 2 check from earlier. (and dist > eps)
             console.log(`thetas`);
             console.log(layoutData.thetaValues);
-            const theta = Math.min(layoutData.thetaValues[Math.floor(tuning.bezelConcavity*(layoutData.thetaValues.length-1))] + Epsilon / 2,
+            const theta = Math.min(layoutData.thetaValues[Math.floor(cBD.bezelConcavity*(layoutData.thetaValues.length-1))] + Epsilon / 2,
                                    layoutData.thetaValues[layoutData.thetaValues.length-1] - Epsilon / 2);
-            console.log(`bc ${tuning.bezelConcavity} theta idx ${Math.floor(tuning.bezelConcavity*layoutData.thetaValues.length)} of ${layoutData.thetaValues.length} = ${theta}`)
+            console.log(`bc ${cBD.bezelConcavity} theta idx ${Math.floor(cBD.bezelConcavity*layoutData.thetaValues.length)} of ${layoutData.thetaValues.length} = ${theta}`)
             bd.outline = [];
 
             const getDPoints = function(p,prevIdx) {
@@ -1590,7 +1590,7 @@ export function refreshCase() {
         }
         else
         {
-            let pcbBounds = globals.pcbData[caseIdx].outlineBound;
+            let pcbBounds = globals.pcbData[caseIdx].outlineBounds;
             let bounds = cRD.bounds;
             bd.outline = [
                 new Vector3(Math.min(bounds.mins[0],pcbBounds.mins[0]), 0, Math.min(bounds.mins[1],pcbBounds.mins[1])),
@@ -1599,17 +1599,19 @@ export function refreshCase() {
                 new Vector3(Math.min(bounds.mins[0],pcbBounds.mins[0]), 0, Math.max(bounds.maxs[1],pcbBounds.maxs[1]))
             ];
         }
+
+        bd.outline = coremath.copyWithoutColinear(bd.outline);
     
         vectorGeo["cavityInnerEdge"] = [coremath.offsetAndFilletOutline(bd.outline, tuning.bezelGap, tuning.bezelCornerFillet, false)];
         tesselatedGeo["cavityInnerEdge"] = vectorGeo["cavityInnerEdge"].map((a) => coremath.genPointsFromVectorPath(a,8));
-        vectorGeo["caseFrame"] = coremath.offsetAndFilletOutline(bd.outline, tuning.bezelGap + tuning.bezelThickness, tuning.caseCornerFillet, false);
+        vectorGeo["caseFrame"] = coremath.offsetAndFilletOutline(bd.outline, tuning.bezelGap + cBD.bezelThickness, cBD.caseCornerFillet, false);
         tesselatedGeo["caseFrame"] = coremath.genPointsFromVectorPath(vectorGeo["caseFrame"],8);
-        vectorGeo["caseFrameTaper"] = coremath.offsetAndFilletOutline(bd.outline, tuning.bezelGap + tuning.bezelThickness*.9, tuning.caseCornerFillet, false);
+        vectorGeo["caseFrameTaper"] = coremath.offsetAndFilletOutline(bd.outline, tuning.bezelGap + cBD.bezelThickness*.9, cBD.caseCornerFillet, false);
         tesselatedGeo["caseFrameTaper"] = coremath.genPointsFromVectorPath(vectorGeo["caseFrameTaper"],8);
     
     
         if(bd.hasUSBPort) {
-            addUSBPort(cRD);
+            addUSBPort(cRD, cBD);
             let portCut = cRD.portCut;
             let portOutline = getCombinedOutlineFromPolyGroup(portCut);
             let portFillets = (new Array(portOutline.length)).fill(0);
@@ -1621,8 +1623,8 @@ export function refreshCase() {
             let comboFillets = combined.fillets;
             combo.reverse();
             comboFillets.reverse();
-            let outlineFillets = (new Array(bd.outline.length)).fill(tuning.caseCornerFillet);
-            let exteriorShape = coremath.offsetOutlinePoints(bd.outline,tuning.bezelGap+tuning.bezelThickness);
+            let outlineFillets = (new Array(bd.outline.length)).fill(cBD.caseCornerFillet);
+            let exteriorShape = coremath.offsetOutlinePoints(bd.outline,tuning.bezelGap+cBD.bezelThickness);
 
             combined = coremath.combineOutlines(exteriorShape,outlineFillets,combo,comboFillets, intersectionFillet, true);
             combo = combined.outline;
@@ -1637,7 +1639,7 @@ export function refreshCase() {
             tesselatedGeo["caseFrameWithPortCut"] = tesselatedGeo["caseFrame"];
         }
     
-        addScrewHoles(cRD, bd.outline, tesselatedGeo["caseFrameWithPortCut"]);
+        addScrewHoles(cRD, cBD, bd.outline, tesselatedGeo["caseFrameWithPortCut"]);
     
         vectorGeo["screwHoles"] = cRD.screwData;
         tesselatedGeo["screwHoles"] = vectorGeo["screwHoles"].map((a) => coremath.genArrayForCircle(a,0,19));
@@ -1686,9 +1688,10 @@ export function refreshCase() {
         tesselatedGeo["pcbOutline"] = coremath.genPointsFromVectorPath(vectorGeo["pcbOutline"]);
     
         for(const [layerName, layerDef] of Object.entries(layerDefs)) {
+            // console.log(`generating layer ${layerName}`);
             if( tuning[layerDef.visFilter] ) {
                 if(layerDef.customShape) {
-                    layerDef.customShape(layerName, layerDef, cRD, bd);
+                    layerDef.customShape(layerName, layerDef, cRD, cBD, bd);
                 }
                 else {
                     cRD.layers[layerName] = {name:layerName,outlines:[vectorGeo[layerDef.shape]],meshes:[]};
@@ -1766,7 +1769,7 @@ export function setFlatRotation(cRD) {
 }
 
 export function setFlatRotations(cRD) {
-    for(const cRD of globals.renderData.cases ) {
+    for(const [k,cRD] of Object.entries(globals.renderData.cases)) {
         setFlatRotation(cRD);
     }
 }
@@ -1777,7 +1780,7 @@ export function setNaturalRotation(cRD) {
 }
 
 export function setNaturalRotations() {
-    for(const cRD of globals.renderData.cases ) {
+    for(const [k,cRD] of Object.entries(globals.renderData.cases)) {
         setNaturalRotation(cRD);
     }
 }
@@ -1787,7 +1790,7 @@ export function expandLayers() {
     // For each easing function, you can choose between EASEIN (default), EASEOUT, EASEINOUT
     easingFunction.setEasingMode(EasingFunction.EASINGMODE_EASEINOUT);
 
-    for(const cRD of globals.renderData.cases ) {
+    for(const [k,cRD] of Object.entries(globals.renderData.cases)) {
         let cRDL = cRD.layers;
         for(const [layerName, layerDef] of Object.entries(layerDefs)) {
             if (cRDL[layerName]) {
@@ -1821,7 +1824,7 @@ export function collapseLayers() {
     // For each easing function, you can choose between EASEIN (default), EASEOUT, EASEINOUT
     easingFunction.setEasingMode(EasingFunction.EASINGMODE_EASEINOUT);
 
-    for(const cRD of globals.renderData.cases ) {
+    for(const [cID,cRD] of Object.entries(globals.renderData.cases) ) {
         let cRDL = cRD.layers;
         for(const [layerName, layerDef] of Object.entries(layerDefs)) {
             if (cRDL[layerName]) {
@@ -1902,11 +1905,7 @@ export function removeKey(kId) {
     delete bd.layout.keys[kId];
 }
 
-export function loadKeyboard(data) {
-    // console.log(data);
-    let mats = globals.renderData.mats;
-
-
+function clearOldBoard() {
     for(const [id, rd] of Object.entries(globals.renderData.keys)) {
         if (rd.keycap) {
             rd.keycap.parent = null;
@@ -1921,7 +1920,7 @@ export function loadKeyboard(data) {
     }
     globals.renderData.keys = {};
 
-    for(const cRD of globals.renderData.cases ) {
+    for(const [k,cRD] of Object.entries(globals.renderData.cases)) {
         for(const [layerName, layer] of Object.entries(cRD.layers)) {
             if(layer.mesh) {
                 layer.mesh.parent = null;
@@ -1938,71 +1937,149 @@ export function loadKeyboard(data) {
             }
         }
     }
+}
 
-    let bd = {};
-    bd.meta = data.meta;
-    bd.forceSymmetrical = true;
-    bd.forcePCBSymmetrical = true;
-    bd.hasUSBPort = false;
-    bd.usbPortPos = 1.85;
-    bd.usbPortCentered = true;
-    bd.caseType = "convex";
-    bd.cases = data.cases?data.cases:[{}];
-    bd.hasFeet = true;
-    bd.layout = {keys: {}};
-    let kIdx = 0
-    for (let k of data.keys) {
-        let keyInfo = {id: "key" + kIdx++,
-                        special: "standard",
-                        x: k.x,
-                        y: k.y,
-                        caseIdx: k.caseIdx||0,
-                        width: k.width,
-                        height: k.height,
-                        rotation_x: k.rotation_x,
-                        rotation_y: k.rotation_y,
-                        rotation_angle: k.rotation_angle,
-                        nub:k.nub,
-                        stepped:k.stepped,
-                        type:k.type,
-                        encoder_knob_size:k.encoder_knob_size
-                        };
-        keyInfo.matName = k.color;
+export function loadKeyboard(data) {
+    // console.log(data);
+    clearOldBoard();
 
-        if( k.width === 1 && k.height > 1) {
-            keyInfo.vertical = true;
-        }
-        
-        if(!(k.width2 === k.width && k.height2 === k.height && k.x2 === 0 && k.y2 === 0)) {
-            if(k.width2 === 1.5 && k.height2 === 1 && k.width === 1.25 && k.height === 2 && k.x2 === -0.25 ) {
-                keyInfo.row = "special";
-                keyInfo.special = "ISO";
+    let mats = globals.renderData.mats;
+
+    if(!data.kbdVersion) {
+        let bd = {};
+        bd.meta = data.meta;
+        bd.forceSymmetrical = true;
+        bd.forcePCBSymmetrical = true;
+        bd.hasUSBPort = false;
+        bd.usbPortPos = 1.85;
+        bd.usbPortCentered = true;
+        bd.cases = data.cases?data.cases:{};
+        bd.hasFeet = true;
+        bd.layout = {keys: {}};
+        let kIdx = 0
+        for (let k of data.keys) {
+            let keyInfo = {id: "key" + kIdx++,
+                            special: "standard",
+                            x: k.x,
+                            y: k.y,
+                            caseIdx: k.caseIdx||0,
+                            width: k.width,
+                            height: k.height,
+                            rotation_x: k.rotation_x,
+                            rotation_y: k.rotation_y,
+                            rotation_angle: k.rotation_angle,
+                            nub:k.nub,
+                            stepped:k.stepped,
+                            type:k.type,
+                            encoder_knob_size:k.encoder_knob_size
+                            };
+
+
+            if(!bd.cases[keyInfo.caseIdx]) {
+                bd.cases[keyInfo.caseIdx]  = Object.assign({}, tuning.defaultCase);
+                // bd.cases[keyInfo.caseIdx] = {bezelThickness:tuning.bezelThickness,caseCornerFillet:tuning.caseCornerFillet};
             }
-            else if(k.width2 === 1.75 && k.height2 === 1 && k.width === 1.25 && k.x2 === 0) {
-                // stepped is..uhhh...weird.            
-                // keyInfo.width = 1.75;
+
+            keyInfo.matName = k.color;
+    
+            if( k.width === 1 && k.height > 1) {
+                keyInfo.vertical = true;
             }
-            keyInfo.width2 = k.width2;
-            keyInfo.height2 = k.height2;
-            keyInfo.x2 = k.x2;
-            keyInfo.y2 = k.y2;
+            
+            if(!(k.width2 === k.width && k.height2 === k.height && k.x2 === 0 && k.y2 === 0)) {
+                if(k.width2 === 1.5 && k.height2 === 1 && k.width === 1.25 && k.height === 2 && k.x2 === -0.25 ) {
+                    keyInfo.row = "special";
+                    keyInfo.special = "ISO";
+                }
+                else if(k.width2 === 1.75 && k.height2 === 1 && k.width === 1.25 && k.x2 === 0) {
+                    // stepped is..uhhh...weird.            
+                    // keyInfo.width = 1.75;
+                }
+                keyInfo.width2 = k.width2;
+                keyInfo.height2 = k.height2;
+                keyInfo.x2 = k.x2;
+                keyInfo.y2 = k.y2;
+            }
+            
+            if(!mats[keyInfo.matName]) {
+                gfx.createKeyMaterial(keyInfo.matName,Color3.FromHexString(keyInfo.matName));
+            }
+            
+            //todo: handle decals better
+            if(k.decal === false && k.ghost === false) {
+                bd.layout.keys[keyInfo.id] = keyInfo;
+            }
         }
-        
-        if(!mats[keyInfo.matName]) {
-            gfx.createKeyMaterial(keyInfo.matName,Color3.FromHexString(keyInfo.matName));
-        }
-        
-        //todo: handle decals better
-        if(k.decal === false && k.ghost === false) {
-            bd.layout.keys[keyInfo.id] = keyInfo;
-        }
+        bd.kbdVersion = "0.0.1";
+        globals.boardData = bd;
     }
-    globals.boardData = bd;
+    else if(data.kbdVersion) {
+        let bd = {};
+        bd.meta = data.meta;
+        bd.forceSymmetrical = true;
+        bd.forcePCBSymmetrical = true;
+        bd.hasUSBPort = false;
+        bd.usbPortPos = 1.85;
+        bd.usbPortCentered = true;
+        bd.caseType = "convex";
+        bd.cases = data.cases?data.cases:[{}];
+        bd.hasFeet = true;
+        bd.layout = {keys: {}};
+        let kIdx = 0
+        for (let k of data.keys) {
+            let keyInfo = {id: "key" + kIdx++,
+                            special: "standard",
+                            x: k.x,
+                            y: k.y,
+                            caseIdx: k.caseIdx||0,
+                            width: k.width,
+                            height: k.height,
+                            rotation_x: k.rotation_x,
+                            rotation_y: k.rotation_y,
+                            rotation_angle: k.rotation_angle,
+                            nub:k.nub,
+                            stepped:k.stepped,
+                            type:k.type,
+                            encoder_knob_size:k.encoder_knob_size
+                            };
+            keyInfo.matName = k.color;
 
-    globals.renderData.cases = [];
-    for(let i = 0; i < globals.boardData.cases.length; i++ ) {
-        const cRD = {layers:{}, rootXform: new TransformNode(`case${i}Root`)};
-        globals.renderData.cases.push(cRD);
+            if( k.width === 1 && k.height > 1) {
+                keyInfo.vertical = true;
+            }
+            
+            if(!(k.width2 === k.width && k.height2 === k.height && k.x2 === 0 && k.y2 === 0)) {
+                if(k.width2 === 1.5 && k.height2 === 1 && k.width === 1.25 && k.height === 2 && k.x2 === -0.25 ) {
+                    keyInfo.row = "special";
+                    keyInfo.special = "ISO";
+                }
+                else if(k.width2 === 1.75 && k.height2 === 1 && k.width === 1.25 && k.x2 === 0) {
+                    // stepped is..uhhh...weird.            
+                    // keyInfo.width = 1.75;
+                }
+                keyInfo.width2 = k.width2;
+                keyInfo.height2 = k.height2;
+                keyInfo.x2 = k.x2;
+                keyInfo.y2 = k.y2;
+            }
+            
+            if(!mats[keyInfo.matName]) {
+                gfx.createKeyMaterial(keyInfo.matName,Color3.FromHexString(keyInfo.matName));
+            }
+            
+            //todo: handle decals better
+            if(k.decal === false && k.ghost === false) {
+                bd.layout.keys[keyInfo.id] = keyInfo;
+            }
+        }
+        globals.boardData = bd;
+    }
+
+
+    globals.renderData.cases = {};
+    for(const [k,c] of Object.entries(globals.boardData.cases)) {
+        const cRD = {layers:{}, rootXform: new TransformNode(`case${k}Root`)};
+        globals.renderData.cases[k] = cRD;
         setNaturalRotation(cRD);
     }
     
@@ -2012,5 +2089,6 @@ export function loadKeyboard(data) {
 }
 
 export function saveKeyboard() {
-    return JSON.stringify(globals.boardData);
+    const blah = globals.boardData;
+    return JSON.stringify(blah);
 }

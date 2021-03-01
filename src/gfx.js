@@ -2,7 +2,7 @@ import {globals} from './globals.js'
 import {tuning} from './tuning.js'
 import {Engine, ArcRotateCamera, CubeTexture, Scene, Vector3, VertexBuffer, 
         VertexData, Color3, DefaultRenderingPipeline, StandardMaterial, PBRMaterial, PBRMetallicRoughnessMaterial,
-        Animation, QuinticEase, EasingFunction, Texture, SceneLoader, Matrix} from '@babylonjs/core'
+        Animation, QuinticEase, EasingFunction, Texture, SceneLoader, Matrix, MeshBuilder} from '@babylonjs/core'
 import {GLTFFileLoader} from "@babylonjs/loaders";
 
 export function createKeyMaterial(name,color) {
@@ -85,7 +85,7 @@ export function createMaterials() {
 export function snapCamera(mode) {
     const mins = [100000,100000];
     const maxs = [-100000,-100000];
-    for(const cRD of globals.renderData.cases ) {
+    for(const [k,cRD] of Object.entries(globals.renderData.cases)) {
         for(let i = 0; i < 2; i++) {
             mins[i] = Math.min(mins[i],cRD.bounds.mins[i]);
             maxs[i] = Math.max(maxs[i],cRD.bounds.maxs[i]);
@@ -93,8 +93,10 @@ export function snapCamera(mode) {
     }
 
     const bd = globals.boardData;
-    const w = maxs[0] - mins[0] + tuning.bezelThickness * 2;
-    const h = maxs[1] - mins[1] + tuning.bezelThickness * 2;
+    // TODO: fix this to work with multiple cases
+    const bezelAdd = 30;
+    const w = maxs[0] - mins[0] + bezelAdd * 2;
+    const h = maxs[1] - mins[1] + bezelAdd * 2;
     const dim = Math.max(w,h);
     let cam = globals.camera;
     cam.setTarget(new Vector3(mins[0] + (maxs[0] - mins[0]) / 2.0,
@@ -133,6 +135,24 @@ export function snapCamera(mode) {
 
 }
 
+const debugLineSystems = {};
+export function drawDbgLines(groupName, dbgLines, lineColors) {
+    if( debugLineSystems[groupName] ) {
+        globals.scene.removeMesh(debugLineSystems[groupName])
+    }
+    debugLineSystems[groupName] = MeshBuilder.CreateLineSystem(groupName, {lines: dbgLines, colors:lineColors}, globals.scene);
+}
+
+export function drawDbgOutline(groupName, points, startColor, endColor, close) {
+    let dbglines = [];
+    let linecolors = [];
+    let end = close?points.length:(points.length-1);
+    for(let i = 0; i < end; i++) {
+        dbglines.push([points[i],points[(i+1)%points.length]])
+        linecolors.push([startColor,endColor]);
+    }
+    drawDbgLines(groupName, dbglines, linecolors);
+}
 
 export function setEnvironmentLight(path) {
     if(!globals.hdrTextures) globals.hdrTextures = {};

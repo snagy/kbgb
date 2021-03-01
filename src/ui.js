@@ -310,6 +310,19 @@ export const kbgbGUI = {
                 ctrlBar.isVertical = false;
                 ctrlBar.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
             
+                let caseOptions = []
+                for(const [k,cBD] of Object.entries(globals.boardData.cases)) {
+                    if(!kbgbGUI.activeCase) {
+                        kbgbGUI.activeCase = k;
+                    }
+                    caseOptions.push({txt:k, val:k});
+                }
+                let caseSelectionAction = (o,a,b) => {
+                    kbgbGUI.activeCase = o.val;
+                }
+                ctrlBar.addControl(
+                    createDropdown(globals.screengui,0, caseOptions, caseSelectionAction));
+
                 ctrlBar.addControl(kbgbGUI.addLabel("Type: "));
 
                 var addRadio = function(text, parent) {
@@ -322,7 +335,7 @@ export const kbgbGUI = {
             
                     button.onIsCheckedChangedObservable.add(function(state) {
                         if(state) {
-                            globals.boardData.caseType = text;
+                            globals.boardData.cases[kbgbGUI.activeCase].caseType = text;
                             boardOps.refreshCase()
                         }
                     }); 
@@ -339,7 +352,7 @@ export const kbgbGUI = {
                     var slider = new Slider();
                     slider.minimum = min;
                     slider.maximum = max;
-                    slider.value = tuning.bezelThickness;
+                    slider.value = initialVal;
                     slider.height = "15px";
                     slider.width = "100px";
                     slider.onValueChangedObservable.add(function(value) {
@@ -359,17 +372,19 @@ export const kbgbGUI = {
                 addRadio("concave", radioCtrl);
                 ctrlBar.addControl(radioCtrl);
 
-                createSlider("Fit: ", tuning.bezelConcavity, 0, 1, (v) => {
-                    tuning.bezelConcavity = v; boardOps.refreshCase();
+                createSlider("Fit: ", globals.boardData.cases[kbgbGUI.activeCase].bezelConcavity, 0, 1, (v) => {
+                    globals.boardData.cases[kbgbGUI.activeCase].bezelConcavity = v; boardOps.refreshCase();
                 });
 
                 var checkbox = new Checkbox();
                 checkbox.width = "10px";
                 checkbox.height = "10px";
-                checkbox.isChecked = globals.boardData.forceSymmetrical;
+                console.log(`case: ${kbgbGUI.activeCase}`)
+                console.log(globals.boardData.cases);
+                checkbox.isChecked = globals.boardData.cases[kbgbGUI.activeCase].forceSymmetrical;
                 checkbox.color = "green";
                 checkbox.onIsCheckedChangedObservable.add(function(value) {
-                    globals.boardData.forceSymmetrical = value;
+                    globals.boardData.cases[kbgbGUI.activeCase].forceSymmetrical = value;
                     boardOps.refreshCase();
                 });
 
@@ -379,27 +394,27 @@ export const kbgbGUI = {
                 var ftbx = new Checkbox();
                 ftbx.width = "10px";
                 ftbx.height = "10px";
-                ftbx.isChecked = globals.boardData.hasFeet;
+                ftbx.isChecked = globals.boardData.cases[kbgbGUI.activeCase].hasFeet;
                 ftbx.color = "green";
                 ftbx.onIsCheckedChangedObservable.add(function(value) {
-                    globals.boardData.hasFeet = value;
+                    globals.boardData.cases[kbgbGUI.activeCase].hasFeet = value;
                     boardOps.refreshCase();
                 });
 
                 ctrlBar.addControl(kbgbGUI.addLabel("FEET: "));
                 ctrlBar.addControl(ftbx);
 
-                createSlider("Thickness: ", tuning.bezelThickness, 5.5, 50, (v) => {
-                    tuning.bezelThickness = v; boardOps.refreshCase();
+                createSlider("Thickness: ", globals.boardData.cases[kbgbGUI.activeCase].bezelThickness, 5.5, 50, (v) => {
+                    globals.boardData.cases[kbgbGUI.activeCase].bezelThickness = v; boardOps.refreshCase();
                 });
-                createSlider("Fillet: ", tuning.caseCornerFillet, 0.5, 30, (v) => {
-                    tuning.caseCornerFillet = v; boardOps.refreshCase();
+                createSlider("Fillet: ", globals.boardData.cases[kbgbGUI.activeCase].caseCornerFillet, 0.5, 30, (v) => {
+                    globals.boardData.cases[kbgbGUI.activeCase].caseCornerFillet = v; boardOps.refreshCase();
                 }); 
-                createSlider("Screw span: ", tuning.maxScrewSpan, 40, 300, (v) => {
-                    tuning.maxScrewSpan = v; boardOps.refreshCase();
+                createSlider("Screw span: ", globals.boardData.cases[kbgbGUI.activeCase].maxScrewSpan, 40, 300, (v) => {
+                    globals.boardData.cases[kbgbGUI.activeCase].maxScrewSpan = v; boardOps.refreshCase();
                 }); 
-                createSlider("Screw offset: ", tuning.screwBezelBias, 0.0, 1.0, (v) => {
-                    tuning.screwBezelBias = v; boardOps.refreshCase();
+                createSlider("Screw offset: ", globals.boardData.cases[kbgbGUI.activeCase].screwBezelBias, 0.0, 1.0, (v) => {
+                    globals.boardData.cases[kbgbGUI.activeCase].screwBezelBias = v; boardOps.refreshCase();
                 }); 
                 
                 globals.screengui.addControl(ctrlBar);
@@ -514,25 +529,38 @@ export const kbgbGUI = {
                 rtBar.isVertical = true;
                 rtBar.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
                 let addSVGButton = function(layerName) {
-                    rtBar.addControl(addButton(layerName, () => {
-                        // downloadSVGs();
-                    }, {height:"60px",width:"120px"}));
+                    let label = kbgbGUI.addLabel(layerName)
+                    label.height = "40px"
+                    var slider = new Slider();
+                    slider.minimum = 0;
+                    slider.maximum = 1;
+                    slider.value = 1;
+                    slider.height = "15px";
+                    slider.width = "100px";
+                    slider.onValueChangedObservable.add(function(value) {
+                        tuning.layerOffsets[layerName] = value;
+                    });
+                    rtBar.addControl(label);   
+                    rtBar.addControl(slider); 
                 }
+
                 addSVGButton("bezel");
                 addSVGButton("plate");
                 addSVGButton("edge");
                 addSVGButton("bottom");
                 addSVGButton("feet");
-                addSVGButton("pcb");
+                // addSVGButton("pcb");
 
                 globals.screengui.addControl(rtBar);
 
+                kbgbGUI.rtBar = rtBar;
                 kbgbGUI.activeModeCtrl = ctrlBar;
                 boardOps.expandLayers();
             },
             remove: () => {
                 boardOps.collapseLayers();
                 globals.screengui.removeControl(kbgbGUI.activeModeCtrl);
+                globals.screengui.removeControl(kbgbGUI.rtBar);
             }
         },
     },

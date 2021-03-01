@@ -10,9 +10,9 @@
     "switchMount": "",
     "switchType": ""
   },
-  "cases": [
-    {}
-  ],
+  "cases": {
+    "0":{}
+  },
   "keys": [
     {
       "color": "#cccccc",
