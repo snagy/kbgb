@@ -1225,6 +1225,8 @@ function finalizeLayout() {
                         outlineLinks[outlinePairName] = [];
                     }
                     outlineLinks[outlinePairName].push({p:p,dp:dp});
+                    // dbglines.push([p,dp.p]);
+                    // linecolors.push([color1, color2]);
                 }
 
                 if(!thetaValues.includes(dp.minTheta)) {
@@ -1244,7 +1246,7 @@ function finalizeLayout() {
             let linkedPts = [];
             let minEdges = [];
             // console.log(ooEdges);
-            const edgeDiffMax = 2;
+            const edgeDiffMax = 2;  // 2 mm
 
             // find all of the edges that are within some epsilon (the edgeDiffMax) of the shortest edge
             for(const e of ooEdges) {
@@ -1261,19 +1263,20 @@ function finalizeLayout() {
             // out of the set of short edges, find the two that are the farthest apart (in the center, maybe do seg->seg in the future?)
             let maxDist = -1;
             let bestEdges = [];
-            for(const e of minEdges) {
-                for(const oE of minEdges) {
-                    if(e.p.pointIdx !== oE.p.pointIdx) {
-                        const e_center = (kPs[e.p.pointIdx].add(kPs[e.dp.p.pointIdx]).scale(0.5));
-                        const oE_center = (kPs[oE.p.pointIdx].add(kPs[oE.dp.p.pointIdx]).scale(0.5))
-                        let dist = e_center.subtract(oE_center).lengthSquared();
-                        if( dist > maxDist ) {
-                            maxDist = dist;
-                            bestEdges = [e,oE];
+                for(const e of minEdges) {
+                    for(const oE of minEdges) {
+                        if(e.p.pointIdx !== oE.p.pointIdx) {
+                            const e_center = (kPs[e.p.pointIdx].add(kPs[e.dp.p.pointIdx]).scale(0.5));
+                            const oE_center = (kPs[oE.p.pointIdx].add(kPs[oE.dp.p.pointIdx]).scale(0.5))
+                            let dist = e_center.subtract(oE_center).lengthSquared();
+                            if( dist > maxDist ) {
+                                maxDist = dist;
+                                bestEdges = [e,oE];
+                            }
                         }
                     }
                 }
-            }
+
 
 
             // set the linking edges in the points  (todo: this should be an array that we rotationally sort)
@@ -1284,6 +1287,8 @@ function finalizeLayout() {
                 }
                 e.p.linkingEdges.push(e.dp);
                 const revP = kPs[e.dp.p.pointIdx];
+                // dbglines.push([e.p,e.dp.p]);
+                // linecolors.push([color1, color2]);
                 for(const dp of revP.delaunayPoints) {
                     if(dp.p.pointIdx === e.p.pointIdx) {
                         if(!revP.linkingEdges) {
@@ -1296,10 +1301,24 @@ function finalizeLayout() {
             }
         }
 
+        
         let convexHull = [];
         for(const p of kPs) {
             if(p.isOnConvexHull) {
                 convexHull.push(p);
+            }
+
+            if(p.linkingEdges && p.linkingEdges.length > 1) {
+                // radially sort the linked edges counter clockwise from the outline start
+                const pToPrev = p.subtract(kPs[p.outlinePoints[0]]).normalize();
+                const pToNext = p.subtract(kPs[p.outlinePoints[1]]).normalize();
+                const prevAngle = coremath.getRotFromNormal(pToPrev);
+                const compVal =  Math.PI * 2 - prevAngle + Epsilon;
+                p.linkingEdges.sort((a,b) => {
+                    const pToA = (coremath.getRotFromNormal(p.subtract(a.p).normalize()) + compVal) % (Math.PI * 2);
+                    const pToB = (coremath.getRotFromNormal(p.subtract(b.p).normalize()) + compVal) % (Math.PI * 2);
+                    return pToA - pToB;
+                });
             }
         }
 
@@ -1315,18 +1334,25 @@ function finalizeLayout() {
         let lastP = thisP;
 
         let realOutline = [];
+        let outlineIdx = [];
         do {
             realOutline.push(thisP);
+            if(outlineIdx.includes(thisP.pointIdx)) {
+                console.log(`oh boy loop detected`);
+                // gfx.drawDbgOutline("badOutline", realOutline);
+                break;
+            }
+            outlineIdx.push(thisP.pointIdx);
             let linked = false;
-            // once we change this to be a sorted array, pick the rightmost one and nuke the rest (that might fail some outlines)
+            // once we change this to be a sorted array, pick the LAST one and nuke the rest (little unsure of this)
             if(thisP.linkingEdges) {
                 console.log(`n linked edges: ${thisP.linkingEdges.length}`)
                 for(const edge of thisP.linkingEdges) {
-                    if(edge.p.pointIdx != lastP.pointIdx) {
+                    // should only need the includes
+                    if(edge.p.pointIdx != lastP.pointIdx && !outlineIdx.includes(edge.p.pointIdx)) {
                         lastP = thisP;
                         thisP = edge.p;
                         linked = true;
-                        break;
                     }
                 }
             }
@@ -1336,14 +1362,10 @@ function finalizeLayout() {
             }
         } while(thisP.pointIdx != firstP.pointIdx)
 
-        for(let i = 0; i < realOutline.length; i++) {
-            dbglines.push([realOutline[i],realOutline[(i+1)%realOutline.length]])
-            linecolors.push([color1,color2]);
-        }
-
-        if( globals.voronoiDbgLines ) {
-            globals.scene.removeMesh(globals.voronoiDbgLines)
-        }
+        // if( globals.voronoiDbgLines ) {
+        //     globals.scene.removeMesh(globals.voronoiDbgLines)
+        // }
+        
         // globals.voronoiDbgLines = MeshBuilder.CreateLineSystem("voronoiDbgLines", {lines: dbglines, colors:linecolors}, globals.scene);
         thetaValues.sort((a,b) => a - b);
         globals.renderData.layoutData.push({keyGroups:keyGroups,convexHull:convexHull,kgOutlines:kgOutlines,minOutline:realOutline,kPs:kPs,thetaValues:thetaValues});

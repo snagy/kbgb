@@ -2,7 +2,7 @@ import {globals} from './globals.js'
 import {tuning} from './tuning.js'
 import {Engine, ArcRotateCamera, CubeTexture, Scene, Vector3, VertexBuffer, 
         VertexData, Color3, DefaultRenderingPipeline, StandardMaterial, PBRMaterial, PBRMetallicRoughnessMaterial,
-        Animation, QuinticEase, EasingFunction, Texture, SceneLoader, Matrix, MeshBuilder} from '@babylonjs/core'
+        Animation, QuinticEase, EasingFunction, Texture, SceneLoader, Matrix, MeshBuilder, Color4} from '@babylonjs/core'
 import {GLTFFileLoader} from "@babylonjs/loaders";
 
 export function createKeyMaterial(name,color) {
@@ -146,6 +146,8 @@ export function drawDbgLines(groupName, dbgLines, lineColors) {
 export function drawDbgOutline(groupName, points, startColor, endColor, close) {
     let dbglines = [];
     let linecolors = [];
+    startColor = startColor || new Color4(1,0,0,1);
+    endColor = endColor || new Color4(0,0,1,1);
     let end = close?points.length:(points.length-1);
     for(let i = 0; i < end; i++) {
         dbglines.push([points[i],points[(i+1)%points.length]])
