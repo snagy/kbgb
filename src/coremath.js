@@ -421,7 +421,7 @@ export function combineOutlines(primary, primaryFillets, secondary, secondaryFil
 // fixup the outline to remove overlaps/etc
 export function fixupOutline(outline, originalOutline, fillets, intersectionFillet) {
     let output = [];
-    let outputFillets = [];
+    let outputFillets = fillets?[]:null;
     // console.log(`outline.len = ${outline.length} oOutline.len = ${originalOutline.length}`)
 
     for(let i = 0; i < originalOutline.length; i++) {
@@ -431,7 +431,7 @@ export function fixupOutline(outline, originalOutline, fillets, intersectionFill
         let oToPrev = oPrev.subtract(o);
         let oToNext = oNext.subtract(o);
         let xO = Vector3.Cross(oToPrev,oToNext);
-        o.crossProdY = xO.y;
+        outline[i].crossProdY = xO.y;
         outline[i].opID = i;
     }
     
@@ -447,7 +447,6 @@ export function fixupOutline(outline, originalOutline, fillets, intersectionFill
             let pToPrev = prev.subtract(p);
             let pToNext = next.subtract(p);
 
-            const o = originalOutline[p.opID];
 
             // don't think xp is what i want here
             let xP = Vector3.Cross(pToPrev,pToNext);
@@ -455,7 +454,7 @@ export function fixupOutline(outline, originalOutline, fillets, intersectionFill
                 // console.log(`not a corner`);
                 parseList.push(i);
             }
-            else if(xP.y < Epsilon ^ o.crossProdY < Epsilon) {
+            else if(xP.y < Epsilon ^ p.crossProdY < Epsilon) {
                 // console.log(`FLIP`);
                 // console.log(p);
                 // console.log(prev);
@@ -464,6 +463,7 @@ export function fixupOutline(outline, originalOutline, fillets, intersectionFill
                 // console.log(o);
                 parseList.push(i);
             }
+            p.crossProdY = xP.y;
         }
 
         if(parseList.length > 0) {
@@ -493,16 +493,21 @@ export function fixupOutline(outline, originalOutline, fillets, intersectionFill
             currIdx = i;
         }
     }
-    let currFillet = fillets[currIdx];
-
+    
     let targIdx = (currIdx+1)%outline.length;
     let targ = outline[targIdx];
-    let targFillet = fillets[targIdx];
-
+    
     let targs = [];
-
+    
     output.push(curr);
-    outputFillets.push(currFillet)
+
+    let targFillet = null;
+    let currFillet = null;
+    if(fillets) {
+        targFillet = fillets[targIdx];
+        currFillet = fillets[currIdx];
+        outputFillets.push(currFillet)
+    }
 
     do {
         let loopIdx = targs.indexOf(targIdx);
@@ -512,14 +517,18 @@ export function fixupOutline(outline, originalOutline, fillets, intersectionFill
 
             targs.length = loopIdx;
             output.length = loopIdx;
-            outputFillets.length = loopIdx;
+            if(fillets) {
+                outputFillets.length = loopIdx;
+            }
             
             curr = targ;
             currFillet = targFillet;
             currIdx = targIdx;
             targIdx = (targIdx+1)%outline.length;
             output.push(curr);
-            outputFillets.push(currFillet);
+            if(fillets) {
+                outputFillets.push(currFillet);
+            }
         }
         targs.push(targIdx);
 
@@ -573,14 +582,18 @@ export function fixupOutline(outline, originalOutline, fillets, intersectionFill
         if( entry ) {
             console.log(`trimming at ${curr} (${currIdx}) to ${targ} (${targIdx}) at ${entry} ${entryNextIdx}`);
             curr = entry;
-            currFillet = intersectionFillet;
+            if(fillets) {
+                currFillet = intersectionFillet;
+            }
             currIdx = -1;
             targIdx = entryNextIdx;
         }
         else {
             // console.log(`walking to ${targ}`);
             curr = targ;
-            currFillet = targFillet;
+            if(fillets) {
+                currFillet = targFillet;
+            }
             currIdx = targIdx;
             targIdx = (targIdx+1)%outline.length;
         }
@@ -589,10 +602,12 @@ export function fixupOutline(outline, originalOutline, fillets, intersectionFill
         if(!targ) {
             console.log(`nulltarg!`)
         }
-        targFillet = fillets[targIdx];
-
+        
         output.push(curr);
-        outputFillets.push(currFillet);
+        if(fillets) {
+            targFillet = fillets[targIdx];
+            outputFillets.push(currFillet);
+        }
 
         // console.log(`len ${curr.subtract(output[0]).lengthSquared()}`)
         if(output.length > 10000) {
@@ -603,13 +618,15 @@ export function fixupOutline(outline, originalOutline, fillets, intersectionFill
         }
     }  while(curr.subtract(output[0]).lengthSquared() > Epsilon*Epsilon);
     output.pop();
-    outputFillets.pop();
+    if(fillets) {
+        outputFillets.pop();
+    }
     return {outline:output, fillets:outputFillets};
 }
 
 
-export function copyWithoutColinear(oldOutline) {
-    let outline = [...oldOutline];
+export function copyWithoutColinear(outline) {
+    // let outline = [...oldOutline];
     //todo turn fillets into array if it's just a value
     for (let i = outline.length-1; i >= 0; i--) {
         let point = outline[i];
@@ -726,8 +743,7 @@ export function filletOutline(outline, fillets, close) {
     return vectorOutline;    
 }
 
-// offset is + to the left, - to right
-export function offsetAndFilletOutline(outline, offset, fillets, close) {
+export function offsetAndFixOutlinePoints(outline, offset, fillets, close) {
     const fixedOutline = copyWithoutColinear(outline);
     const offsetPoints = offsetOutlinePoints(fixedOutline,offset)
 
@@ -736,17 +752,24 @@ export function offsetAndFilletOutline(outline, offset, fillets, close) {
         fillets = (new Array(fixedOutline.length)).fill(fillets)
     }
 
-    const fixed = fixupOutline(offsetPoints,fixedOutline,fillets,fillets[0]);
+    return fixupOutline(offsetPoints,fixedOutline,fillets,fillets?fillets[0]:0.5);
+}
 
-    const fixedPoints = fixed.outline;
-    const fixedFillets = fixed.fillets;
+// offset is + to the left, - to right
+export function offsetAndFilletOutline(outline, offset, fillets, close) {
+    const offsetPoints = offsetOutlinePoints(outline,offset)
+
+    // gotta fix this for defined fillets
+    if(fillets && !Array.isArray(fillets)) {
+        fillets = (new Array(offsetPoints.length)).fill(fillets)
+    }
 
     if(fillets) {
-        return filletOutline(fixedPoints,fixedFillets,close);
+        return filletOutline(offsetPoints,fillets,close);
     }
     else {
         let vectorPath = []
-        for(const p of fixedPoints) {
+        for(const p of offsetPoints) {
             vectorPath.push(new Point(p))
         }
         return vectorPath;

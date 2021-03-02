@@ -1600,13 +1600,13 @@ export function refreshCase() {
             ];
         }
 
-        bd.outline = coremath.copyWithoutColinear(bd.outline);
+        bd.outline = coremath.offsetAndFixOutlinePoints(bd.outline, tuning.bezelGap + cBD.bezelThickness,null).outline;
     
-        vectorGeo["cavityInnerEdge"] = [coremath.offsetAndFilletOutline(bd.outline, tuning.bezelGap, tuning.bezelCornerFillet, false)];
+        vectorGeo["cavityInnerEdge"] = [coremath.offsetAndFilletOutline(bd.outline, -cBD.bezelThickness, tuning.bezelCornerFillet, false)];
         tesselatedGeo["cavityInnerEdge"] = vectorGeo["cavityInnerEdge"].map((a) => coremath.genPointsFromVectorPath(a,8));
-        vectorGeo["caseFrame"] = coremath.offsetAndFilletOutline(bd.outline, tuning.bezelGap + cBD.bezelThickness, cBD.caseCornerFillet, false);
+        vectorGeo["caseFrame"] = coremath.offsetAndFilletOutline(bd.outline, 0, cBD.caseCornerFillet, false);
         tesselatedGeo["caseFrame"] = coremath.genPointsFromVectorPath(vectorGeo["caseFrame"],8);
-        vectorGeo["caseFrameTaper"] = coremath.offsetAndFilletOutline(bd.outline, tuning.bezelGap + cBD.bezelThickness*.9, cBD.caseCornerFillet, false);
+        vectorGeo["caseFrameTaper"] = coremath.offsetAndFilletOutline(bd.outline, -cBD.bezelThickness*.1, cBD.caseCornerFillet, false);
         tesselatedGeo["caseFrameTaper"] = coremath.genPointsFromVectorPath(vectorGeo["caseFrameTaper"],8);
     
     
