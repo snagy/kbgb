@@ -16,7 +16,7 @@ export const tuning = {
     drawPCB:true,
     defaultCase: {
         bezelThickness: 12,
-        bezelConcavity: 0.1,
+        bezelConcavity: 1.0,
         caseCornerFillet: 6,
         screwSideBuffer: 0,
         maxScrewSpan: 150,
@@ -25,6 +25,6 @@ export const tuning = {
         hasUSBPort:false,
         usbPortPos:1.85,
         usbPortCentered:true,
-        caseType:"convex"
+        caseType:"rectangle"
     }
 }

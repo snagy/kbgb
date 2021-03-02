@@ -1430,7 +1430,7 @@ export function refreshCase() {
             tesselatedGeo["bezel"].push(coremath.genPointsFromVectorPath(bezelOutlineVec));
         }
     
-        if(cBD.caseType === "convex") {
+        if(cBD.caseType === "convex_old") {
             let kPs = [];
             for( let [id,rd] of Object.entries(kRD) ) {
                 if(rd.caseIdx === caseIdx) {
@@ -1457,7 +1457,7 @@ export function refreshCase() {
         else if(cBD.caseType === "concave") {
             bd.outline = layoutData.minOutline;
         }
-        else if(cBD.caseType === "concave_slider") {
+        else if(cBD.caseType === "convex") {
             let kPs = layoutData.kPs;
 
             let lastP = null;
