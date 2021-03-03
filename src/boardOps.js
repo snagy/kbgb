@@ -1062,6 +1062,11 @@ function finalizeLayout() {
 
         const vRes = coremath.createVoronoi(kPs);
 
+        let dbglines = [];
+        let color1 = new Color4(1,0,0,1);
+        let color2 = new Color4(0,1,0,1);
+        let linecolors = [];
+
         for(const edge of vRes.edges) {
             if(edge.lSite && edge.rSite) {
                 if(edge.lSite.pointIdx > kPs.length || edge.rSite.pointIdx > kPs.length ) {
@@ -1081,6 +1086,8 @@ function finalizeLayout() {
                     // an actual edge!
                     outlineEdge = true;
                     // continue;
+                    // dbglines.push([lP,rP]);
+                    // linecolors.push([color1, color1]);
                 }
                 else {
                     let checkExterior = function(cP, pToL) {
@@ -1107,7 +1114,10 @@ function finalizeLayout() {
                         // skip this edge
                         continue;
                     }
+                    // dbglines.push([lP,rP]);
+                    // linecolors.push([color2, color2]);
                 }
+
 
                 const centerP = lP.add(rP).scale(0.5);
 
@@ -1181,6 +1191,7 @@ function finalizeLayout() {
                 }
                 minTheta = Math.round(minTheta*100000)/100000;
                 maxTheta = Math.round(maxTheta*100000)/100000;
+                maxTheta = Math.min(maxTheta, 10000);
 
 
                 if(outlineEdge) {
@@ -1191,10 +1202,6 @@ function finalizeLayout() {
             }
         }
         const thetaValues = [];
-        let dbglines = [];
-        let color1 = new Color4(1,0,0,1);
-        let color2 = new Color4(0,1,0,1);
-        let linecolors = [];
         let outlineLinks = {};
         for(const p of kPs) {
             // console.log(`point ${p.pointIdx}`)
@@ -1247,10 +1254,11 @@ function finalizeLayout() {
             let minEdges = [];
             // console.log(ooEdges);
             const edgeDiffMax = 2;  // 2 mm
+            const edgeMin = 19.05/4;
 
             // find all of the edges that are within some epsilon (the edgeDiffMax) of the shortest edge
             for(const e of ooEdges) {
-                if(linkedPts.length >= 4 && e.dp.dist > (ooEdges[0].dp.dist + edgeDiffMax)) {
+                if(linkedPts.length >= 4 && e.dp.dist > (ooEdges[0].dp.dist + edgeDiffMax) && e.dp.dist > edgeMin) {
                     break;
                 }
                 if(!linkedPts.includes(e.p.pointIdx) && !linkedPts.includes(e.dp.p.pointIdx)) {
@@ -1362,11 +1370,11 @@ function finalizeLayout() {
             }
         } while(thisP.pointIdx != firstP.pointIdx)
 
-        // if( globals.voronoiDbgLines ) {
-        //     globals.scene.removeMesh(globals.voronoiDbgLines)
-        // }
+        if( globals.voronoiDbgLines ) {
+            globals.scene.removeMesh(globals.voronoiDbgLines)
+        }
         
-        // globals.voronoiDbgLines = MeshBuilder.CreateLineSystem("voronoiDbgLines", {lines: dbglines, colors:linecolors}, globals.scene);
+        globals.voronoiDbgLines = MeshBuilder.CreateLineSystem("voronoiDbgLines", {lines: dbglines, colors:linecolors}, globals.scene);
         thetaValues.sort((a,b) => a - b);
         globals.renderData.layoutData.push({keyGroups:keyGroups,convexHull:convexHull,kgOutlines:kgOutlines,minOutline:realOutline,kPs:kPs,thetaValues:thetaValues});
     }
