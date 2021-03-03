@@ -1254,7 +1254,7 @@ function finalizeLayout() {
             let minEdges = [];
             // console.log(ooEdges);
             const edgeDiffMax = 2;  // 2 mm
-            const edgeMin = 19.05/4;
+            const edgeMin = 19.05;
 
             // find all of the edges that are within some epsilon (the edgeDiffMax) of the shortest edge
             for(const e of ooEdges) {
@@ -1351,13 +1351,16 @@ function finalizeLayout() {
                 break;
             }
             outlineIdx.push(thisP.pointIdx);
+            let foundLast = lastP.pointIdx === thisP.outlinePoints[0];
             let linked = false;
-            // once we change this to be a sorted array, pick the LAST one and nuke the rest (little unsure of this)
+            // since this is a sorted array, pick the LAST one and nuke the rest (little unsure of this)
             if(thisP.linkingEdges) {
                 console.log(`n linked edges: ${thisP.linkingEdges.length}`)
                 for(const edge of thisP.linkingEdges) {
-                    // should only need the includes
-                    if(edge.p.pointIdx != lastP.pointIdx && !outlineIdx.includes(edge.p.pointIdx)) {
+                    if(lastP.pointIdx === edge.p.pointIdx) {
+                        foundLast = true;
+                    }
+                    else if(foundLast && !outlineIdx.includes(edge.p.pointIdx)) {
                         lastP = thisP;
                         thisP = edge.p;
                         linked = true;
@@ -2051,8 +2054,7 @@ export function loadKeyboard(data) {
         bd.hasUSBPort = false;
         bd.usbPortPos = 1.85;
         bd.usbPortCentered = true;
-        bd.caseType = "convex";
-        bd.cases = data.cases?data.cases:[{}];
+        bd.cases = data.cases?data.cases:{};
         bd.hasFeet = true;
         bd.layout = {keys: {}};
         let kIdx = 0
@@ -2072,8 +2074,15 @@ export function loadKeyboard(data) {
                             type:k.type,
                             encoder_knob_size:k.encoder_knob_size
                             };
-            keyInfo.matName = k.color;
 
+
+            if(!bd.cases[keyInfo.caseIdx]) {
+                bd.cases[keyInfo.caseIdx]  = Object.assign({}, tuning.defaultCase);
+                // bd.cases[keyInfo.caseIdx] = {bezelThickness:tuning.bezelThickness,caseCornerFillet:tuning.caseCornerFillet};
+            }
+
+            keyInfo.matName = k.color;
+    
             if( k.width === 1 && k.height > 1) {
                 keyInfo.vertical = true;
             }
