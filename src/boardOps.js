@@ -802,11 +802,10 @@ function getScrewBoss() {
 export function addScrewHoles(cRD, cBD, outline, bezelWithPort) {
     const screwBoss = getScrewBoss();
     const screwRadius = getScrewRadius();
-    const bezelOffset = (cBD.bezelThickness - screwBoss * 2.0) * cBD.screwBezelBias + tuning.bezelGap + screwBoss;
+    const bezelOffset =  ((cBD.bezelThickness - screwBoss * 2.0) * cBD.screwBezelBias + screwBoss) - cBD.bezelThickness;
     let screwLocs = coremath.offsetOutlinePoints(outline,bezelOffset);
     cRD.screwData = [];
-    globals.boardData.screwLocations = [];
-    return;
+    cBD.screwLocations = [];
 
     let minDist =  screwRadius + screwBoss;
     if(minDist > Epsilon) {
@@ -852,7 +851,7 @@ export function addScrewHoles(cRD, cBD, outline, bezelWithPort) {
         }
     }
 
-    const maxSpan = bd.maxScrewSpan;
+    const maxSpan = cBD.maxScrewSpan;
     for(let i = screwLocs.length-1; i >= 0; i--) {
         let loc = screwLocs[i];
         let nexti = (i+screwLocs.length-1)%screwLocs.length;
@@ -882,7 +881,7 @@ export function addScrewHoles(cRD, cBD, outline, bezelWithPort) {
     }
     // screwLocs.length = 0;
 
-    globals.boardData.screwLocations = screwLocs;
+    cBD.screwLocations = screwLocs;
     for(const loc of screwLocs) {
         cRD.screwData.push(new coremath.Circle(loc,screwRadius));
     }
@@ -970,7 +969,7 @@ function addUSBPort(cRD, cBD) {
 }
 
 function getFeet(bd, cRD, cBD) {
-    let screwLocs = bd.screwLocations;
+    let screwLocs = cBD.screwLocations;
     let feet = [];
 
     if(!bd.hasFeet) {
@@ -1463,7 +1462,7 @@ export function refreshCase() {
             tesselatedGeo["bezel"].push(coremath.genPointsFromVectorPath(bezelOutlineVec));
         }
     
-        if(cBD.caseType === "convex_old") {
+        if(cBD.caseType === "convex") {
             let kPs = [];
             for( let [id,rd] of Object.entries(kRD) ) {
                 if(rd.caseIdx === caseIdx) {
@@ -1490,7 +1489,7 @@ export function refreshCase() {
         else if(cBD.caseType === "concave") {
             bd.outline = layoutData.minOutline;
         }
-        else if(cBD.caseType === "convex") {
+        else if(cBD.caseType === "concave_slider") {
             let kPs = layoutData.kPs;
 
             let lastP = null;
@@ -1648,7 +1647,7 @@ export function refreshCase() {
             let portCut = cRD.portCut;
             let portOutline = getCombinedOutlineFromPolyGroup(portCut);
             let portFillets = (new Array(portOutline.length)).fill(0);
-            let interiorShape = coremath.offsetOutlinePoints(bd.outline,tuning.bezelGap);
+            let interiorShape = coremath.offsetOutlinePoints(bd.outline,-cBD.bezelThickness);
             let interiorFillets = (new Array(interiorShape.length)).fill(tuning.bezelCornerFillet);
             let intersectionFillet = 1.0;
             let combined = coremath.combineOutlines(interiorShape,interiorFillets, portOutline, portFillets, intersectionFillet);
@@ -1657,7 +1656,7 @@ export function refreshCase() {
             combo.reverse();
             comboFillets.reverse();
             let outlineFillets = (new Array(bd.outline.length)).fill(cBD.caseCornerFillet);
-            let exteriorShape = coremath.offsetOutlinePoints(bd.outline,tuning.bezelGap+cBD.bezelThickness);
+            let exteriorShape = coremath.offsetOutlinePoints(bd.outline,0.0);
 
             combined = coremath.combineOutlines(exteriorShape,outlineFillets,combo,comboFillets, intersectionFillet, true);
             combo = combined.outline;
