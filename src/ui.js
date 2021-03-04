@@ -267,6 +267,23 @@ export const kbgbGUI = {
                         {txt:"ISO"},
                         {txt:"1.75U STEPPED"}], keySelectionAction));
 
+                let flipStabAction = (v) => kAction((k) => {
+                    k.flipStab = v;
+                });
+
+                var checkbox = new Checkbox();
+                checkbox.width = "10px";
+                checkbox.height = "10px";
+                checkbox.isChecked = false;
+                checkbox.color = "green";
+                checkbox.onIsCheckedChangedObservable.add(function(value) {
+                    flipStabAction(value);
+                    boardOps.refreshCase();
+                });
+
+                ctrlBar.addControl(kbgbGUI.addLabel("FLIPSTAB: "));
+                ctrlBar.addControl(checkbox);
+
                 // ctrlBar.addControl(kbgbGUI.addLabel("W: "));
                 // ctrlBar.addControl(kbgbGUI.addKeyActionButton(`⬌`, (k) => {
                 //     const currIdx = keyWidths.indexOf(k.width);
@@ -505,10 +522,10 @@ export const kbgbGUI = {
                             downloadGBRs();
                         }, {height:"60px",width:"120px"}));
                 ctrlBar.addControl(addButton("save layout", () => {
-                            download(boardOps.saveKeyboard(), `${globals.boardData.meta.name}.kbgb`, 'text/plain');
+                            download(boardOps.saveKeyboard(), `${globals.boardData.meta.name}.kbd`, 'text/plain');
                         }, {height:"60px",width:"120px"}));
                 ctrlBar.addControl(addButton("load layout", () => {
-                            alert("to be implemented soon");
+                            document.getElementById("loadKBD").click();
                         }, {height:"60px",width:"120px"}));
                 
                 ctrlBar.addControl(addButton("import kle", (e) => {

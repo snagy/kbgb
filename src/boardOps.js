@@ -75,22 +75,29 @@ export function togglePickedKey(id) {
     }
 }
 
-function getPlateCutsWithStabs(id,width,height,kXform,plateCuts,caseIdx) {
+function getPlateCutsWithStabs(id,width,height,kXform,flipStab,plateCuts,caseIdx) {
     let switchCutDims = [tuning.switchCutout[0]*0.5, tuning.switchCutout[1]*0.5];
     let sXform = kXform;
 
     // wack ass cherry 6u spacebar
     if(width === 6) {
-        getPlateCutsWithStabs(id,666,height,Matrix.Translation(9.525, 0, 0).multiply(sXform),plateCuts,caseIdx);
+        getPlateCutsWithStabs(id,666,height,Matrix.Translation(9.525, 0, 0).multiply(sXform),flipStab,plateCuts,caseIdx);
     }
-    plateCuts.push(coremath.createRectPoly(switchCutDims[0], switchCutDims[1], sXform));
+    
+    if(width !== 666) {
+        plateCuts.push(coremath.createRectPoly(switchCutDims[0], switchCutDims[1], sXform));
 
-    pcb.addDevice(id, "mx", sXform, caseIdx);
+        pcb.addDevice(id, "mx", sXform, caseIdx);
+    }
 
     let span = width;
     if(height >= 1.75) {
         span = height;
         sXform = Matrix.RotationY(Math.PI / 2.0).multiply(sXform);
+    }
+
+    if(flipStab) {
+        sXform = Matrix.RotationY(Math.PI).multiply(sXform);
     }
 
     let stabCutDims = [7*0.5,15*0.5];
@@ -312,7 +319,7 @@ export function refreshLayout() {
                 rd.bezelHoles.push(bezelHole2);
             }
             
-            getPlateCutsWithStabs(k.id,k.width,k.height,kXform,rd.switchCut,rd.caseIdx);
+            getPlateCutsWithStabs(k.id,k.width,k.height,kXform,k.flipStab,rd.switchCut,rd.caseIdx);
             
             if(!rd.switch) {
                 const switchGLTF = gfx.switchAsset.container;
@@ -804,7 +811,6 @@ export function addScrewHoles(cRD, cBD, outline, bezelWithPort) {
     const screwRadius = getScrewRadius();
     const bezelOffset =  ((cBD.bezelThickness - screwBoss * 2.0) * cBD.screwBezelBias + screwBoss) - cBD.bezelThickness;
     let screwLocs = coremath.offsetOutlinePoints(outline,bezelOffset);
-    cRD.screwData = [];
     cBD.screwLocations = [];
 
     let minDist =  screwRadius + screwBoss;
@@ -882,9 +888,6 @@ export function addScrewHoles(cRD, cBD, outline, bezelWithPort) {
     // screwLocs.length = 0;
 
     cBD.screwLocations = screwLocs;
-    for(const loc of screwLocs) {
-        cRD.screwData.push(new coremath.Circle(loc,screwRadius));
-    }
 }
 
 function getFootShape(layerName, layerDef, cRD, cBD, bd) {
@@ -1476,18 +1479,18 @@ export function refreshCase() {
             for(let p of globals.pcbData[caseIdx].outline) {
                 kPs.push(p);
             }
-            bd.outline = coremath.convexHull2d(kPs);
+            cRD.outline = coremath.convexHull2d(kPs);
     
             if(cBD.forceSymmetrical) {
                 let midPoint = (cRD.bounds.maxs[0] - cRD.bounds.mins[0]) * 0.5 + cRD.bounds.mins[0];
-                for(let oP of bd.outline) {
+                for(let oP of cRD.outline) {
                     kPs.push(new Vector3(midPoint - (oP.x - midPoint), oP.y, oP.z));
                 }
-                bd.outline = coremath.convexHull2d(kPs);
+                cRD.outline = coremath.convexHull2d(kPs);
             }
         }
         else if(cBD.caseType === "concave") {
-            bd.outline = layoutData.minOutline;
+            cRD.outline = layoutData.minOutline;
         }
         else if(cBD.caseType === "concave_slider") {
             let kPs = layoutData.kPs;
@@ -1503,7 +1506,7 @@ export function refreshCase() {
             const theta = Math.min(layoutData.thetaValues[Math.floor(cBD.bezelConcavity*(layoutData.thetaValues.length-1))] + Epsilon / 2,
                                    layoutData.thetaValues[layoutData.thetaValues.length-1] - Epsilon / 2);
             console.log(`bc ${cBD.bezelConcavity} theta idx ${Math.floor(cBD.bezelConcavity*layoutData.thetaValues.length)} of ${layoutData.thetaValues.length} = ${theta}`)
-            bd.outline = [];
+            cRD.outline = [];
 
             const getDPoints = function(p,prevIdx) {
                 let foundLast = prevIdx < 0;
@@ -1555,7 +1558,7 @@ export function refreshCase() {
                     thisP = b;
                 }
 
-                // bd.outline.push(lastP);
+                // cRD.outline.push(lastP);
             } else {
                 console.log(`failed to find start due to split/end`);
                 console.log(thisP);
@@ -1614,17 +1617,17 @@ export function refreshCase() {
             }
             globals.lineSystem = MeshBuilder.CreateLineSystem("lineSystem", {lines: dbglines, colors:linecolors}, globals.scene);
 
-            bd.outline = [];
+            cRD.outline = [];
             for(const idx of idxOutline) {
-                bd.outline.push(kPs[idx]);
+                cRD.outline.push(kPs[idx]);
             }
-            console.log(`outline has ${bd.outline.length} points`)
+            console.log(`outline has ${cRD.outline.length} points`)
         }
         else
         {
             let pcbBounds = globals.pcbData[caseIdx].outlineBounds;
             let bounds = cRD.bounds;
-            bd.outline = [
+            cRD.outline = [
                 new Vector3(Math.min(bounds.mins[0],pcbBounds.mins[0]), 0, Math.min(bounds.mins[1],pcbBounds.mins[1])),
                 new Vector3(Math.max(bounds.maxs[0],pcbBounds.maxs[0]), 0, Math.min(bounds.mins[1],pcbBounds.mins[1])),
                 new Vector3(Math.max(bounds.maxs[0],pcbBounds.maxs[0]), 0, Math.max(bounds.maxs[1],pcbBounds.maxs[1])),
@@ -1632,13 +1635,13 @@ export function refreshCase() {
             ];
         }
 
-        bd.outline = coremath.offsetAndFixOutlinePoints(bd.outline, tuning.bezelGap + cBD.bezelThickness,null).outline;
+        cRD.outline = coremath.offsetAndFixOutlinePoints(cRD.outline, tuning.bezelGap + cBD.bezelThickness,null).outline;
     
-        vectorGeo["cavityInnerEdge"] = [coremath.offsetAndFilletOutline(bd.outline, -cBD.bezelThickness, tuning.bezelCornerFillet, false)];
+        vectorGeo["cavityInnerEdge"] = [coremath.offsetAndFilletOutline(cRD.outline, -cBD.bezelThickness, tuning.bezelCornerFillet, false)];
         tesselatedGeo["cavityInnerEdge"] = vectorGeo["cavityInnerEdge"].map((a) => coremath.genPointsFromVectorPath(a,8));
-        vectorGeo["caseFrame"] = coremath.offsetAndFilletOutline(bd.outline, 0, cBD.caseCornerFillet, false);
+        vectorGeo["caseFrame"] = coremath.offsetAndFilletOutline(cRD.outline, 0, cBD.caseCornerFillet, false);
         tesselatedGeo["caseFrame"] = coremath.genPointsFromVectorPath(vectorGeo["caseFrame"],8);
-        vectorGeo["caseFrameTaper"] = coremath.offsetAndFilletOutline(bd.outline, -cBD.bezelThickness*.1, cBD.caseCornerFillet, false);
+        vectorGeo["caseFrameTaper"] = coremath.offsetAndFilletOutline(cRD.outline, -cBD.bezelThickness*.1, cBD.caseCornerFillet, false);
         tesselatedGeo["caseFrameTaper"] = coremath.genPointsFromVectorPath(vectorGeo["caseFrameTaper"],8);
     
     
@@ -1647,7 +1650,7 @@ export function refreshCase() {
             let portCut = cRD.portCut;
             let portOutline = getCombinedOutlineFromPolyGroup(portCut);
             let portFillets = (new Array(portOutline.length)).fill(0);
-            let interiorShape = coremath.offsetOutlinePoints(bd.outline,-cBD.bezelThickness);
+            let interiorShape = coremath.offsetOutlinePoints(cRD.outline,-cBD.bezelThickness);
             let interiorFillets = (new Array(interiorShape.length)).fill(tuning.bezelCornerFillet);
             let intersectionFillet = 1.0;
             let combined = coremath.combineOutlines(interiorShape,interiorFillets, portOutline, portFillets, intersectionFillet);
@@ -1655,8 +1658,8 @@ export function refreshCase() {
             let comboFillets = combined.fillets;
             combo.reverse();
             comboFillets.reverse();
-            let outlineFillets = (new Array(bd.outline.length)).fill(cBD.caseCornerFillet);
-            let exteriorShape = coremath.offsetOutlinePoints(bd.outline,0.0);
+            let outlineFillets = (new Array(cRD.outline.length)).fill(cBD.caseCornerFillet);
+            let exteriorShape = coremath.offsetOutlinePoints(cRD.outline,0.0);
 
             combined = coremath.combineOutlines(exteriorShape,outlineFillets,combo,comboFillets, intersectionFillet, true);
             combo = combined.outline;
@@ -1671,9 +1674,13 @@ export function refreshCase() {
             tesselatedGeo["caseFrameWithPortCut"] = tesselatedGeo["caseFrame"];
         }
     
-        addScrewHoles(cRD, cBD, bd.outline, tesselatedGeo["caseFrameWithPortCut"]);
+        addScrewHoles(cRD, cBD, cRD.outline, tesselatedGeo["caseFrameWithPortCut"]);
     
-        vectorGeo["screwHoles"] = cRD.screwData;
+        let screwData = [];
+        for(const loc of cBD.screwLocations) {
+            screwData.push(new coremath.Circle(loc,getScrewRadius()));
+        }
+        vectorGeo["screwHoles"] = screwData;
         tesselatedGeo["screwHoles"] = vectorGeo["screwHoles"].map((a) => coremath.genArrayForCircle(a,0,19));
         
         // let dbglines = [];
@@ -2009,7 +2016,6 @@ export function loadKeyboard(data) {
 
             if(!bd.cases[keyInfo.caseIdx]) {
                 bd.cases[keyInfo.caseIdx]  = Object.assign({}, tuning.defaultCase);
-                // bd.cases[keyInfo.caseIdx] = {bezelThickness:tuning.bezelThickness,caseCornerFillet:tuning.caseCornerFillet};
             }
 
             keyInfo.matName = k.color;
@@ -2046,73 +2052,8 @@ export function loadKeyboard(data) {
         globals.boardData = bd;
     }
     else if(data.kbdVersion) {
-        let bd = {};
-        bd.meta = data.meta;
-        bd.forceSymmetrical = true;
-        bd.forcePCBSymmetrical = true;
-        bd.hasUSBPort = false;
-        bd.usbPortPos = 1.85;
-        bd.usbPortCentered = true;
-        bd.cases = data.cases?data.cases:{};
-        bd.hasFeet = true;
-        bd.layout = {keys: {}};
-        let kIdx = 0
-        for (let k of data.keys) {
-            let keyInfo = {id: "key" + kIdx++,
-                            special: "standard",
-                            x: k.x,
-                            y: k.y,
-                            caseIdx: k.caseIdx||0,
-                            width: k.width,
-                            height: k.height,
-                            rotation_x: k.rotation_x,
-                            rotation_y: k.rotation_y,
-                            rotation_angle: k.rotation_angle,
-                            nub:k.nub,
-                            stepped:k.stepped,
-                            type:k.type,
-                            encoder_knob_size:k.encoder_knob_size
-                            };
-
-
-            if(!bd.cases[keyInfo.caseIdx]) {
-                bd.cases[keyInfo.caseIdx]  = Object.assign({}, tuning.defaultCase);
-                // bd.cases[keyInfo.caseIdx] = {bezelThickness:tuning.bezelThickness,caseCornerFillet:tuning.caseCornerFillet};
-            }
-
-            keyInfo.matName = k.color;
-    
-            if( k.width === 1 && k.height > 1) {
-                keyInfo.vertical = true;
-            }
-            
-            if(!(k.width2 === k.width && k.height2 === k.height && k.x2 === 0 && k.y2 === 0)) {
-                if(k.width2 === 1.5 && k.height2 === 1 && k.width === 1.25 && k.height === 2 && k.x2 === -0.25 ) {
-                    keyInfo.row = "special";
-                    keyInfo.special = "ISO";
-                }
-                else if(k.width2 === 1.75 && k.height2 === 1 && k.width === 1.25 && k.x2 === 0) {
-                    // stepped is..uhhh...weird.            
-                    // keyInfo.width = 1.75;
-                }
-                keyInfo.width2 = k.width2;
-                keyInfo.height2 = k.height2;
-                keyInfo.x2 = k.x2;
-                keyInfo.y2 = k.y2;
-            }
-            
-            if(!mats[keyInfo.matName]) {
-                gfx.createKeyMaterial(keyInfo.matName,Color3.FromHexString(keyInfo.matName));
-            }
-            
-            //todo: handle decals better
-            if(k.decal === false && k.ghost === false) {
-                bd.layout.keys[keyInfo.id] = keyInfo;
-            }
-        }
-        globals.boardData = bd;
+        globals.boardData = data;
     }
-
 
     globals.renderData.cases = {};
     for(const [k,c] of Object.entries(globals.boardData.cases)) {

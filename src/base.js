@@ -43,6 +43,11 @@ function loadKeyboardFromKLE1(txt) {
     boardOps.loadKeyboard(new_kle);
 }
 
+function loadKeyboardFromKBD(txt) {
+    Analytics.record({ name: 'KBD Load' });
+    boardOps.loadKeyboard(JSON.parse(txt));
+}
+
 function initKBGB() {
     Analytics.record({ name: 'initKBGB' });
     gfx.init(boardOps.refreshKeyboard);
@@ -136,9 +141,7 @@ function initKBGB() {
         globals.engine.resize();
     });
 
-    let input = document.getElementById("loadKLE");
-    input.onchange = e => { 
-
+    document.getElementById("loadKLE").onchange = e => { 
         // getting a hold of the file reference
         var file = e.target.files[0]; 
     
@@ -154,6 +157,21 @@ function initKBGB() {
         }
     }
     //input.click();
+    document.getElementById("loadKBD").onchange = e => { 
+        // getting a hold of the file reference
+        var file = e.target.files[0]; 
+    
+        // setting up the reader
+        var reader = new FileReader();
+        reader.readAsText(file,'UTF-8');
+    
+        // here we tell the reader what to do when it's done reading...
+        reader.onload = readerEvent => {
+            var content = readerEvent.target.result; // this is the content!
+            // console.log(content);
+            loadKeyboardFromKBD(content);
+        }
+    }
 
     window.addEventListener('keydown', event => {
         if( event.key == 'i' ) {

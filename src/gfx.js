@@ -163,14 +163,14 @@ export function setEnvironmentLight(path) {
     }
     globals.scene.environmentTexture = globals.hdrTextures[path];
 
-    if(globals.currentSkybox) {
-        globals.currentSkybox.material.reflectionTexture = globals.hdrTextures[path].clone();
-        if (globals.currentSkybox.material.reflectionTexture) {
-            globals.currentSkybox.material.reflectionTexture.coordinatesMode = Texture.SKYBOX_MODE;
-        }
-    } else {
-        globals.currentSkybox = globals.scene.createDefaultSkybox(globals.hdrTextures[path], true, (globals.scene.activeCamera.maxZ - globals.scene.activeCamera.minZ) / 2, 0.3);
-    }
+    // if(globals.currentSkybox) {
+    //     globals.currentSkybox.material.reflectionTexture = globals.hdrTextures[path].clone();
+    //     if (globals.currentSkybox.material.reflectionTexture) {
+    //         globals.currentSkybox.material.reflectionTexture.coordinatesMode = Texture.SKYBOX_MODE;
+    //     }
+    // } else {
+    //     globals.currentSkybox = globals.scene.createDefaultSkybox(globals.hdrTextures[path], true, (globals.scene.activeCamera.maxZ - globals.scene.activeCamera.minZ) / 2, 0.3);
+    // }
 }
 
 function createScene() {
@@ -202,14 +202,14 @@ function createScene() {
     // ssao.area = 0.003;
     // ssao.falloff = 0.00001;
 
-    scene.clearColor = new Color3(0.8, 0.8, 0.8).toLinearSpace();
+    scene.clearColor = new Color3(0.7, 0.8, 0.8).toLinearSpace();
 
-    var pipeline = new DefaultRenderingPipeline(
-        "defaultPipeline", // The name of the pipeline
-        true, // Do you want the pipeline to use HDR texture?
-        scene, // The scene instance
-        [camera] // The list of cameras to be attached to
-    );
+    // var pipeline = new DefaultRenderingPipeline(
+    //     "defaultPipeline", // The name of the pipeline
+    //     true, // Do you want the pipeline to use HDR texture?
+    //     scene, // The scene instance
+    //     [camera] // The list of cameras to be attached to
+    // );
 
     scene.getOutlineRenderer().zOffset = 10;
 
