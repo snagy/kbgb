@@ -1813,6 +1813,14 @@ export function refreshCase() {
     }
 }
 
+export function setPlateMat(iBD, matName) {
+    gfx.setMatFromTuning("plate",matName);
+}
+
+export function setCaseMat(iBD, matName) {
+    gfx.setMatFromTuning("case",matName);
+}
+
 export function refreshKeyboard() {
     refreshLayout();
 

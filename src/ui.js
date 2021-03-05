@@ -8,6 +8,7 @@ import {Button, Rectangle, Control, TextBlock, InputText, StackPanel, RadioButto
         Slider, ScrollViewer, AdvancedDynamicTexture} from '@babylonjs/gui'
 import JSZip from 'jszip/dist/jszip';
 import Analytics from '@aws-amplify/analytics';
+import { GLTFBinaryExtension } from '@babylonjs/loaders/glTF/1.0'
 
 function download(content, fileName, contentType) {
     var a = document.createElement("a");
@@ -206,6 +207,20 @@ export const kbgbGUI = {
             boardOps.refreshKeyboard();
         }); 
     },
+    addCaseSelection: function(holder) {
+        let caseOptions = []
+        for(const [k,cBD] of Object.entries(globals.boardData.cases)) {
+            if(!kbgbGUI.activeCase) {
+                kbgbGUI.activeCase = k;
+            }
+            caseOptions.push({txt:k, val:k});
+        }
+        let caseSelectionAction = (o,a,b) => {
+            kbgbGUI.activeCase = o.val;
+        }
+        holder.addControl(
+            createDropdown(globals.screengui,0, caseOptions, caseSelectionAction));
+    },
     modes:{
         "key":{
             cameraMode:"top",
@@ -326,19 +341,8 @@ export const kbgbGUI = {
                 ctrlBar.isPointerBlocker = true;
                 ctrlBar.isVertical = false;
                 ctrlBar.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
-            
-                let caseOptions = []
-                for(const [k,cBD] of Object.entries(globals.boardData.cases)) {
-                    if(!kbgbGUI.activeCase) {
-                        kbgbGUI.activeCase = k;
-                    }
-                    caseOptions.push({txt:k, val:k});
-                }
-                let caseSelectionAction = (o,a,b) => {
-                    kbgbGUI.activeCase = o.val;
-                }
-                ctrlBar.addControl(
-                    createDropdown(globals.screengui,0, caseOptions, caseSelectionAction));
+
+                kbgbGUI.addCaseSelection(ctrlBar);
 
                 ctrlBar.addControl(kbgbGUI.addLabel("Type: "));
 
@@ -514,6 +518,37 @@ export const kbgbGUI = {
                 ctrlBar.isVertical = false;
                 //ctrlBar.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
                 ctrlBar.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
+
+                kbgbGUI.addCaseSelection(ctrlBar);
+
+                let plateMatSelection = (o,a,b) => {
+                    boardOps.setPlateMat(kbgbGUI.activeCase, o.val);
+                }
+                ctrlBar.addControl(
+                    createDropdown(globals.screengui,0, [
+                        {txt:"alu",val:"aluminium"},
+                        {txt:"pom",val:"pom_white"},
+                        {txt:"pom(b)",val:"pom_black"},
+                        {txt:"steel",val:"steel"},
+                        {txt:"fr4",val:"fr4"},
+                        {txt:"pc",val:"pc_cl"}
+                    ], plateMatSelection));
+
+
+                let caseMatSelection = (o,a,b) => {
+                    boardOps.setCaseMat(kbgbGUI.activeCase, o.val);
+                }
+                ctrlBar.addControl(
+                    createDropdown(globals.screengui,0, [
+                        {txt:"smoke",val:"ac_smoke"},
+                        {txt:"blue",val:"ac_blue"},
+                        {txt:"purp",val:"ac_purple"},
+                        {txt:"yello",val:"ac_yellow"},
+                        {txt:"alu",val:"aluminium"},
+                        {txt:"pom",val:"pom_white"},
+                        {txt:"pom(b)",val:"pom_black"},
+                        {txt:"stl",val:"steel"}
+                    ], caseMatSelection));
 
                 ctrlBar.addControl(addButton("export SVGs", () => {
                             downloadSVGs();

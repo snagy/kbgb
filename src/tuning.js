@@ -26,5 +26,47 @@ export const tuning = {
         usbPortPos:1.85,
         usbPortCentered:true,
         caseType:"rectangle"
+    },
+    caseMats: {
+        "ac_blue": {
+            metallic:0,
+            roughness:0.2,
+            baseColor:[12/255, 237/255, 239/255],
+            albedoColor:[1.0,1.0,1.0],
+            alpha:0.75
+        },
+        "ac_smoke": {
+            metallic:0,
+            roughness:0.2,
+            baseColor:[12/255, 12/255, 12/255],
+            albedoColor:[0.5,0.5,0.5],
+            alpha:0.75
+        },
+        "ac_purple": {
+            metallic:0,
+            roughness:0.2,
+            baseColor:[98/255, 7/255, 147/255],
+            albedoColor:[1.0,1.0,1.0],
+            alpha:0.82
+        },
+        "ac_yellow": {
+            metallic:0,
+            roughness:0.2,
+            baseColor:[250/255, 237/255, 39/255],
+            albedoColor:[1.0,1.0,1.0],
+            alpha:0.84
+        },
+        "pc_cl": {
+            metallic:0,
+            roughness:0.8,
+            baseColor:[200/255, 200/255, 200/255],
+            albedoColor:[1.0,1.0,1.0],
+            alpha:0.85
+        },
+        "aluminium":{alpha:1, metallic:1, roughness:0.2, albedoColor:[0.5,0.5,0.5]},
+        "pom_white":{alpha:1, metallic:0, roughness:0.4, albedoColor:[0.9,0.9,0.9]},
+        "pom_black":{alpha:1, metallic:0, roughness:0.4, albedoColor:[0.02,0.02,0.02]},
+        "steel":{alpha:1, metallic:1, roughness:0.05, albedoColor:[0.3,0.3,0.3]},
+        "fr4":{alpha:1, metallic:0, roughness:0.15, albedoColor:[45/255, 90/255, 10/255]},
     }
 }

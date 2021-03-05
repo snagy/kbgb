@@ -16,6 +16,42 @@ export function createKeyMaterial(name,color) {
     }
 }
 
+export function setMatFromTuning(matType, pmName) {
+    let mats = globals.renderData.mats;
+    let pmData = tuning.caseMats[pmName];
+
+    if(!mats[matType])
+    {
+        mats[matType] = new PBRMaterial(matType, globals.scene);
+    }
+
+    let mat = mats[matType];
+    for(const [k,v] of Object.entries(pmData)) {
+        if(Array.isArray(v)) {
+            mat[k] = new Color3(v[0],v[1],v[2]);
+        } else {
+            mat[k] = v;
+        }
+    }
+
+    if(mat.alpha <= 0.99) {
+        // alpha mode combine
+        mat.subSurface.isRefractionEnabled = true;
+        mat.subSurface.refractionIntensity = 0.9;
+        mat.subSurface.indexOfRefraction = 1.13;
+        mat.subSurface.tintColor = mat.baseColor;
+        mat.subSurface.linkRefractionWithTransparency = false;
+        mat.subSurface.isTranslucencyEnabled = true;
+        mat.subSurface.useAlbedoToTintRefraction = true;
+        // link refraction with trans
+        // translucency enable
+    }
+    else {
+        mat.subSurface.isRefractionEnabled = false;
+        mat.subSurface.isTranslucencyEnabled = false;
+    }
+}
+
 export function createMaterials() {
     let mats = globals.renderData.mats;
     let name = "keySel";
@@ -27,39 +63,9 @@ export function createMaterials() {
         mats[name].specularColor = new Color3(0, 0, 0);
     }
 
-    let caseMatName = "case";
-    if(!mats[caseMatName])
-    {
-        const mat = new PBRMaterial(caseMatName, globals.scene);
-        mat.metallic = 0;
-        mat.roughness = 0.2;
-        mat.baseColor = new Color3(12/255, 237/255, 239/255);
-        // mat.subSurface.isTranslucencyEnabled = true;
-        // mat.subSurface.isScatteringEnabled = true;
-        // mat.subSurface.isRefractionEnabled = true;
-        mat.alpha = 0.75;
-        // alpha mode combine
-        mat.subSurface.isRefractionEnabled = true;
-        mat.subSurface.refractionIntensity = 0.9;
-        mat.subSurface.indexOfRefraction = 1.13;
-        mat.subSurface.tintColor = mat.baseColor;
-        mat.subSurface.linkRefractionWithTransparency = false;
-        mat.subSurface.isTranslucencyEnabled = true;
-        mat.subSurface.useAlbedoToTintRefraction = true;
-        // link refraction with trans
-        // translucency enable
-        mats[caseMatName] = mat;
-    }
+    setMatFromTuning("case", "ac_smoke");
 
-    let plateMatName = "plate";
-    if(!mats[plateMatName])
-    {
-        mats[plateMatName] = new PBRMaterial(plateMatName, globals.scene);
-        mats[plateMatName].metallic = 1;
-        mats[plateMatName].roughness = 0.2;
-        mats[plateMatName].baseColor = new Color3(0.5, 0.5, 0.5);
-    }
-
+    setMatFromTuning("plate", "aluminium");
 
     let switchMatName = "switch";
     if(!mats[switchMatName])
