@@ -785,11 +785,17 @@ function findOverlappingGroups(kRD, groupName, caseIdx) {
     return groups;
 }
 
-function getScrewRadius() {
+function getScrewRadius(screw,layerName) {
     const bd = globals.boardData;
-    const screwType = bd.screwType?bd.screwType:"m2_simple";
+    let screwTypeName = screw.screwType?screw.screwType:"m2_simple";
+    let screwType = tuning.screwTypes[screwTypeName];
+    let radius = screwType.screwHoleRadius;
+    
+    if(layerName !== screw.topLayer && layerName !== screw.bottomLayer && screwType.standoffRadius) {
+        radius = screwType.standoffRadius;
+    }
 
-    return tuning.screwTypes[screwType].screwHoleRadius;
+    return radius;
 }
 
 function getScrewStandoff() {
@@ -806,12 +812,22 @@ function getScrewBoss() {
     return tuning.screwTypes[screwType].minBoss;
 }
 
-export function addScrewHoles(cRD, cBD, outline, bezelWithPort) {
+function screwAddLayer(screw, layerName) {
+    if(!screw.topLayer || (layerDefs[layerName].stackOrder && layerDefs[layerName].stackOrder > layerDefs[screw.topLayer].stackOrder)) {
+        screw.topLayer = layerName;
+    }
+    if(!screw.bottomLayer || (layerDefs[layerName].stackOrder && layerDefs[layerName].stackOrder < layerDefs[screw.bottomLayer].stackOrder)) {
+        screw.bottomLayer = layerName;
+    }
+}
+
+export function addScrewHoles(cRD, cBD, outline, primaryLayerName, layerOutlines) {
+    const defaultScrew = {};
     const screwBoss = getScrewBoss();
-    const screwRadius = getScrewRadius();
+    const screwRadius = getScrewRadius(defaultScrew);
     const bezelOffset =  ((cBD.bezelThickness - screwBoss * 2.0) * cBD.screwBezelBias + screwBoss) - cBD.bezelThickness;
     let screwLocs = coremath.offsetOutlinePoints(outline,bezelOffset);
-    cBD.screwLocations = [];
+    cBD.screws = [];
 
     let minDist =  screwRadius + screwBoss;
     if(minDist > Epsilon) {
@@ -875,33 +891,67 @@ export function addScrewHoles(cRD, cBD, outline, bezelWithPort) {
             }
         }
     }
+
+    // find all the layers that are a 'shape'
+    let shapeLayers = {};
+    for(const [layerName, layerDef] of Object.entries(layerDefs)) {
+        if(layerDef.shape) {
+            if(!shapeLayers[layerDef.shape]) {
+                shapeLayers[layerDef.shape] = [];
+            }
+            shapeLayers[layerDef.shape].push(layerName);
+        }
+    }
     
     const externalPoint = new Vector3(20,0,-3500);
     const minEdgeDistSq = (screwRadius+screwBoss)*(screwRadius+screwBoss);
     for(let i = screwLocs.length-1; i >= 0; i--) {
         let loc = screwLocs[i];
-        const int = coremath.segmentToPoly(loc, externalPoint, bezelWithPort);
+        let layers = [];
+        let screw = {location:loc, shapes:[], topLayer:null, bottomLayer:null}
+        
+        const int = coremath.segmentToPoly(loc, externalPoint, layerOutlines[primaryLayerName]);
         if(int.numIntersections === 0 || int.numIntersections % 2 === 0 || int.nearestDistSq < minEdgeDistSq) {
+            // not in the primary layer
             screwLocs.splice(i,1);
+        } else {
+            for(const [lId,lList] of Object.entries(shapeLayers)) {
+                if(lId !== primaryLayerName) {
+                    const layerOutline = layerOutlines[lId];
+
+                    const int = coremath.segmentToPoly(loc, externalPoint, layerOutline);
+                    if(int.numIntersections === 0 || int.numIntersections % 2 === 0 || int.nearestDistSq < minEdgeDistSq) {
+                        continue;
+                    }
+                }
+                screw.shapes.push(lId);
+
+                for(const l of lList) {
+                    screwAddLayer(screw,l);
+                }
+            }
+
+            cBD.screws.push(screw);
         }
     }
     // screwLocs.length = 0;
-
-    cBD.screwLocations = screwLocs;
 }
 
 function getFootShape(layerName, layerDef, cRD, cBD, bd) {
     const scene = globals.scene;
     const root = cRD.rootXform;
     const mats = globals.renderData.mats;
-    let feet = getFeet(bd, cRD, cBD);
+    let feet = cRD.feet;
     cRD.layers[layerName] = {name:layerName,outlines:[],meshes:[],outlineBounds:{mins:(new Vector3(10000000.0,1000000.0,1000000.0)), maxs:(new Vector3(-10000000,-1000000,-1000000))}};
     for(const foot of feet) {
-        const p0 = foot.screws[0];
-        const p1 = foot.screws[1];
+        const s0 = foot.screws[0];
+        const s1 = foot.screws[1];
+        const p0 = (s0.location.x>=s1.location.x)?s0.location:s1.location;
+        const p1 = (s0.location.x>=s1.location.x)?s1.location:s0.location;
+
         const offset = cBD.bezelThickness/2;
-        const z_line = Math.min(p0.z, p1.z)-offset*layerDef.chin; // double offset for aesthetics
-        const points = coremath.offsetAndFilletOutline([  new Vector3(p0.x+offset,0,z_line-offset),
+        const z_line = Math.min(p0.z, p1.z)-offset*layerDef.chin;
+        const points = coremath.offsetAndFilletOutline([new Vector3(p0.x+offset,0,z_line-offset),
                                                         new Vector3(p0.x+offset,0,p0.z+offset),
                                                         new Vector3(p1.x-offset,0,p1.z+offset),
                                                         new Vector3(p1.x-offset,0,z_line-offset)],
@@ -909,7 +959,7 @@ function getFootShape(layerName, layerDef, cRD, cBD, bd) {
         cRD.layers[layerName].outlines.push(points)
         let polyHoles = [];
         for(const screw of foot.screws) {
-            let screwVec = new coremath.Circle(screw,getScrewRadius());
+            let screwVec = new coremath.Circle(screw.location,getScrewRadius(screw, layerName));
             cRD.layers[layerName].outlines.push(screwVec);
             polyHoles.push(coremath.genArrayForCircle(screwVec,0,19));
         }
@@ -972,7 +1022,7 @@ function addUSBPort(cRD, cBD) {
 }
 
 function getFeet(bd, cRD, cBD) {
-    let screwLocs = cBD.screwLocations;
+    let screwLocs = cBD.screws;
     let feet = [];
 
     if(!bd.hasFeet) {
@@ -983,14 +1033,12 @@ function getFeet(bd, cRD, cBD) {
     let midZ = bounds.mins[1] + (bounds.maxs[1]-bounds.mins[1])/2;
     let maxLoc = -10000.0;
     for(const l of screwLocs) {
-        if(l.z > maxLoc) {
-            maxLoc = l.z;
-        }
+        maxLoc = Math.max(maxLoc, l.location.z);
     }
 
     let candidates = [];
     for(const l of screwLocs) {
-        if(maxLoc - l.z < 20) {
+        if(maxLoc - l.location.z < 20) {
             candidates.push(l);
         }
     }
@@ -1002,12 +1050,19 @@ function getFeet(bd, cRD, cBD) {
     for(let i = 0; i < candidates.length; i+=2) {
         const p0 = candidates[i];
         const p1 = candidates[i+1];
-        const offset = cBD.bezelThickness/2;
-        const z_line = Math.min(p0.z, p1.z); // double offset for aesthetics
+
         const foot = { screws:[p0, p1]};
         feet.push(foot);
+
+
+        for(const [layerName, layerDef] of Object.entries(layerDefs)) {
+            if(layerDef.customShape === getFootShape) {
+                screwAddLayer(p0,layerName);
+                screwAddLayer(p1,layerName);
+            }
+        }
     }
-    return feet;
+    cRD.feet = feet;
 }
 
 function finalizeLayout() {
@@ -1674,28 +1729,12 @@ export function refreshCase() {
             tesselatedGeo["caseFrameWithPortCut"] = tesselatedGeo["caseFrame"];
         }
     
-        addScrewHoles(cRD, cBD, cRD.outline, tesselatedGeo["caseFrameWithPortCut"]);
-    
-        let screwData = [];
-        for(const loc of cBD.screwLocations) {
-            screwData.push(new coremath.Circle(loc,getScrewRadius()));
-        }
-        vectorGeo["screwHoles"] = screwData;
-        tesselatedGeo["screwHoles"] = vectorGeo["screwHoles"].map((a) => coremath.genArrayForCircle(a,0,19));
-        
-        // let dbglines = [];
-        // let color1 = new Color4(1,0,0,1);
-        // let color2 = new Color4(0,1,0,1);
-        // let linecolors = [];
-        // for(let i = 0; i < tesselatedGeo["caseFrameWithPortCut"].length; i++) {
-        //     dbglines.push([tesselatedGeo["caseFrameWithPortCut"][i], tesselatedGeo["caseFrameWithPortCut"][(i+1)%tesselatedGeo["caseFrameWithPortCut"].length]]);
-        //     linecolors.push([color1,color2])
-        // }
-        // if( globals.lineSystem ) {
-        //     globals.scene.removeMesh(globals.lineSystem)
-        // }
-        // globals.lineSystem = MeshBuilder.CreateLineSystem("lineSystem", {lines: dbglines, colors:linecolors}, globals.scene);
-    
+        vectorGeo["pcbOutline"] = coremath.offsetAndFilletOutline(globals.pcbData[caseIdx].outline, 0.0, 2.0, false);
+        tesselatedGeo["pcbOutline"] = coremath.genPointsFromVectorPath(vectorGeo["pcbOutline"]);
+
+        addScrewHoles(cRD, cBD, cRD.outline, "caseFrameWithPortCut", tesselatedGeo);
+        getFeet(bd, cRD, cBD);
+
         let plateGroups = findOverlappingGroups(kRD, "switchCut", caseIdx);
         vectorGeo["switchCuts"] = [];
         tesselatedGeo["switchCuts"] = [];
@@ -1705,34 +1744,26 @@ export function refreshCase() {
             vectorGeo["switchCuts"].push(switchOutlineVec);
             const genPoints = coremath.genPointsFromVectorPath(switchOutlineVec);
             tesselatedGeo["switchCuts"].push(genPoints);
-    
-            // for(let i = 0; i < genPoints.length; i++) {
-            //     dbglines.push([genPoints[i], genPoints[(i+1)%genPoints.length]]);
-            // }
-    
-    
-            // for( const poly of KG ) {
-            //     for(let iL = 0; iL < poly.outlineLines.length; iL++) {
-            //         dbglines.push(poly.outlineLines[iL])
-            //     }
-            // } 
         }
-    
-        // if( globals.lineSystem ) {
-        //     globals.scene.removeMesh(globals.lineSystem)
-        // }
-        // globals.lineSystem = MeshBuilder.CreateLineSystem("lineSystem", {lines: dbglines}, globals.scene);
-    
-        vectorGeo["pcbOutline"] = coremath.offsetAndFilletOutline(globals.pcbData[caseIdx].outline, 0.0, 2.0, false);
-        tesselatedGeo["pcbOutline"] = coremath.genPointsFromVectorPath(vectorGeo["pcbOutline"]);
     
         for(const [layerName, layerDef] of Object.entries(layerDefs)) {
             // console.log(`generating layer ${layerName}`);
+
             if( tuning[layerDef.visFilter] ) {
                 if(layerDef.customShape) {
                     layerDef.customShape(layerName, layerDef, cRD, cBD, bd);
                 }
                 else {
+                    if(layerDef.holes.includes("screwHoles")) {
+                        let screwData = [];
+                        for(const screw of cBD.screws) {
+                            screwData.push(new coremath.Circle(screw.location,getScrewRadius(screw, layerName)));
+                        }
+            
+                        vectorGeo["screwHoles"] = screwData;
+                        tesselatedGeo["screwHoles"] = vectorGeo["screwHoles"].map((a) => coremath.genArrayForCircle(a,0,19));
+                    }
+
                     cRD.layers[layerName] = {name:layerName,outlines:[vectorGeo[layerDef.shape]],meshes:[]};
                     const polyShape = tesselatedGeo[layerDef.shape];
                     let polyHoles = [];
