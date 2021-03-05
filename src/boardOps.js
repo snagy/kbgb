@@ -1025,8 +1025,9 @@ function getFeet(bd, cRD, cBD) {
     let screwLocs = cBD.screws;
     let feet = [];
 
-    if(!bd.hasFeet) {
-        return feet;
+    if(!cBD.hasFeet) {
+        cRD.feet = feet;
+        return;
     }
 
     let bounds = cRD.bounds;
@@ -1786,7 +1787,7 @@ export function refreshCase() {
             }
         }
         
-        if(bd.hasFeet) {
+        if(cBD.hasFeet) {
             let footMinY = 1000000.0;
             let footMinZ = 1000000.0;
             let footDepth = 15;
@@ -1802,13 +1803,13 @@ export function refreshCase() {
     
             // could use (footMinY - baseMinY) but the bounds aren't transformed. :/
             console.log(`foot: ${footMinZ} base: ${baseMinZ}`)
-            bd.typingAngle = Math.atan2(-footDepth,(footMinZ - baseMinZ));
+            cBD.typingAngle = Math.atan2(-footDepth,(footMinZ - baseMinZ));
         }
         else {
-            bd.typingAngle = 0;
+            cBD.typingAngle = 0;
         }
-        updateRotation(cRD);
-        console.log(`typing angle: ${bd.typingAngle * 180 / Math.PI}`)
+        updateRotation(cRD, cBD);
+        console.log(`typing angle: ${cBD.typingAngle * 180 / Math.PI}`)
     }
 }
 
@@ -1818,9 +1819,9 @@ export function refreshKeyboard() {
     refreshCase();
 }
 
-export function updateRotation(cRD) {
+export function updateRotation(cRD, cBD) {
     let root = cRD.rootXform;
-    let targetRot = globals.boardData.typingAngle || 0;
+    let targetRot = cBD.typingAngle || 0;
     if(globals.renderData.viewRotation === "flat") {
         targetRot = 0;
     }
@@ -1833,25 +1834,25 @@ export function updateRotation(cRD) {
                         Animation.ANIMATIONLOOPMODE_CONSTANT, easingFunction); 
 }
 
-export function setFlatRotation(cRD) {
+export function setFlatRotation(cRD, cBD) {
     cRD.viewRotation = "flat";
-    updateRotation(cRD);
+    updateRotation(cRD, cBD);
 }
 
 export function setFlatRotations(cRD) {
     for(const [k,cRD] of Object.entries(globals.renderData.cases)) {
-        setFlatRotation(cRD);
+        setFlatRotation(cRD, globals.boardData.cases[k]);
     }
 }
 
-export function setNaturalRotation(cRD) {
+export function setNaturalRotation(cRD, cBD) {
     cRD.viewRotation = "natural";
-    updateRotation(cRD);
+    updateRotation(cRD, cBD);
 }
 
 export function setNaturalRotations() {
     for(const [k,cRD] of Object.entries(globals.renderData.cases)) {
-        setNaturalRotation(cRD);
+        setNaturalRotation(cRD, globals.boardData.cases[k]);
     }
 }
 
@@ -1871,7 +1872,7 @@ export function expandLayers() {
                 }
             }
         }
-        setFlatRotation(cRD);
+        setFlatRotation(cRD, globals.boardData.cases[k]);
     }
     let kRD = globals.renderData.keys;
     for(const [id, rd] of Object.entries(kRD)) {
@@ -2090,7 +2091,7 @@ export function loadKeyboard(data) {
     for(const [k,c] of Object.entries(globals.boardData.cases)) {
         const cRD = {layers:{}, rootXform: new TransformNode(`case${k}Root`)};
         globals.renderData.cases[k] = cRD;
-        setNaturalRotation(cRD);
+        setNaturalRotation(cRD, c);
     }
     
     gfx.createMaterials();
