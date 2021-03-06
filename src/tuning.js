@@ -52,7 +52,7 @@ export const tuning = {
         "ac_yellow": {
             metallic:0,
             roughness:0.2,
-            baseColor:[250/255, 237/255, 39/255],
+            baseColor:[255/255, 247/255, 71/255],
             albedoColor:[1.0,1.0,1.0],
             alpha:0.84
         },

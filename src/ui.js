@@ -29,14 +29,15 @@ function downloadSVGs() {
     Analytics.record({ name: 'SVG export' });
     var zip = new JSZip();
     const bd = globals.boardData;
-    const cRD = globals.renderData.case;
     let layerInfoCSV = `Layer Name,Material,Thickness(mm),Part Width(mm),PartHeight(mm)\n`
-    for(const [layerName, layerDef] of Object.entries(boardOps.layerDefs)) {
-        let layerData = cRD.layers[layerName];
-        zip.file(`${layerName}.svg`, svg.exportLayerString(layerData, bd.meta.name));
-        layerInfoCSV += `${layerName},${layerDef.physicalMat},${layerDef.height},`;
-        layerInfoCSV += `${format_float(layerData.outlineBounds.maxs.x-layerData.outlineBounds.mins.x)},`
-        layerInfoCSV += `${format_float(layerData.outlineBounds.maxs.z-layerData.outlineBounds.mins.z)}\n`;
+    for(const [cID,cRD] of Object.entries(globals.renderData.cases)) {
+        for(const [layerName, layerDef] of Object.entries(boardOps.layerDefs)) {
+            let layerData = cRD.layers[layerName];
+            zip.file(`${layerName}_${cID}.svg`, svg.exportLayerString(layerData, bd.meta.name, cID));
+            layerInfoCSV += `${layerName}_${cID},${layerDef.physicalMat},${layerDef.height},`;
+            layerInfoCSV += `${format_float(layerData.outlineBounds.maxs.x-layerData.outlineBounds.mins.x)},`
+            layerInfoCSV += `${format_float(layerData.outlineBounds.maxs.z-layerData.outlineBounds.mins.z)}\n`;
+        }
     }
     zip.file(`caseBOM.csv`, layerInfoCSV);
     zip.generateAsync({type:"blob"})
