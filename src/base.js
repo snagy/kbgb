@@ -6,6 +6,7 @@ import * as gfx from './gfx.js'
 import * as dxf from './dxf_export.js'
 import * as kle from '@ijprest/kle-serial';
 import * as inspectorStub from './inspectorstub.js'
+import * as interactions from './interactions.js'
 import Amplify from '@aws-amplify/core';
 import Auth from '@aws-amplify/auth';
 import Analytics from '@aws-amplify/analytics';
@@ -173,39 +174,36 @@ function initKBGB() {
         }
     }
 
-    window.addEventListener('keydown', event => {
-        if( event.key == 'i' ) {
-            inspectorStub.showInspector();
-        }
-        if( event.key == 'k' ) {
-            tuning.keyShape = tuning.keyShape?null:"square";
-            boardOps.refreshKeyboard();
-        }
-        if( event.key == 'c' ) {
-            tuning.drawCase = tuning.drawCase?false:true;
-            boardOps.refreshKeyboard();
-        }
-        if( event.key == 'p' ) {
-            tuning.drawPlate = tuning.drawPlate?false:true;
-            boardOps.refreshKeyboard();
-        }
-        if( event.key == 'e' ) {
-            tuning.drawPCB = tuning.drawPCB?false:true;
-            boardOps.refreshKeyboard();
-        }
-        if( event.key == 'b' ) {
-            tuning.drawBezel = tuning.drawBezel?false:true;
-            boardOps.refreshKeyboard();
-        }
-        if( event.key == 'r' ) {
-            kbdidx = (kbdidx+1)%keyboards.length;
-            loadKeyboardFromPath(keyboards[kbdidx]);
-        }
-        if( event.key == 'l' ) {
-            hdriIdx = (hdriIdx+1)%hdris.length;
-            gfx.setEnvironmentLight(hdris[hdriIdx]);
-        }
-    })
+    interactions.init();
+    interactions.addBinding('keydown', 'i', e => inspectorStub.showInspector());
+    interactions.addBinding('keydown', 'k', e => {
+        tuning.keyShape = tuning.keyShape?null:"square";
+        boardOps.refreshKeyboard();
+    });
+    interactions.addBinding('keydown', 'c', e => {
+        tuning.drawCase = tuning.drawCase?false:true;
+        boardOps.refreshKeyboard();
+    });
+    interactions.addBinding('keydown', 'p', e => {
+        tuning.drawPlate = tuning.drawPlate?false:true;
+        boardOps.refreshKeyboard();
+    });
+    interactions.addBinding('keydown', 'o', e => {
+        tuning.drawPCB = tuning.drawPCB?false:true;
+        boardOps.refreshKeyboard();
+    });
+    interactions.addBinding('keydown', 'b', e => {
+        tuning.drawBezel = tuning.drawBezel?false:true;
+        boardOps.refreshKeyboard();
+    });
+    interactions.addBinding('keydown', 'r', e => {
+        kbdidx = (kbdidx+1)%keyboards.length;
+        loadKeyboardFromPath(keyboards[kbdidx]);
+    });
+    interactions.addBinding('keydown', 'l', e => {
+        hdriIdx = (hdriIdx+1)%hdris.length;
+        gfx.setEnvironmentLight(hdris[hdriIdx]);
+    });
 }
 
 window.addEventListener('DOMContentLoaded', function () {

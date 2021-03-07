@@ -186,16 +186,10 @@ export function refreshLayout() {
         if(k.type === "oled") {
             //oled sizing: greater than 38 x 12    20.1*2 x 14.1 ?
             let oledDim = [(38.1+tuning.bezelGap) / 2, (14.1+tuning.bezelGap) / 2];
-    
-            let kPos = [k.x * tuning.base1U[0] + oledDim[0],
-                      -(k.y * tuning.base1U[1] + oledDim[1])]
                       
-            let kXform = Matrix.Identity();
-            kXform = kXform.multiply(Matrix.Translation(kPos[0], 0, kPos[1]));
+            let kXform = Matrix.Translation(k.x, 0, -k.y);
             if (k.rotation_angle != 0) {
-                kXform = kXform.multiply(Matrix.Translation(-k.rotation_x * tuning.base1U[0], 0, k.rotation_y * tuning.base1U[1]));
                 kXform = kXform.multiply(Matrix.RotationY(k.rotation_angle * Math.PI / 180.0))
-                kXform = kXform.multiply(Matrix.Translation(k.rotation_x * tuning.base1U[0], 0, -k.rotation_y * tuning.base1U[1]));
             }
             let keyOutlines = [coremath.createRectPoly(oledDim[0], oledDim[1], kXform)];
     
@@ -233,18 +227,12 @@ export function refreshLayout() {
         }
         else if(k.type === "ec11") {
             let rad = k.encoder_knob_size / 2;
-            console.log(`enc size ${rad}`)
-    
-            let kPos = [(k.x+0.5) * tuning.base1U[0],
-                      -((k.y+0.5) * tuning.base1U[1])]
-                      
-            let kXform = Matrix.Identity();
-            kXform = kXform.multiply(Matrix.Translation(kPos[0], 0, kPos[1]));
+
+            let kXform = Matrix.Translation(k.x, 0, -k.y);
             if (k.rotation_angle != 0) {
-                kXform = kXform.multiply(Matrix.Translation(-k.rotation_x * tuning.base1U[0], 0, k.rotation_y * tuning.base1U[1]));
                 kXform = kXform.multiply(Matrix.RotationY(k.rotation_angle * Math.PI / 180.0))
-                kXform = kXform.multiply(Matrix.Translation(k.rotation_x * tuning.base1U[0], 0, -k.rotation_y * tuning.base1U[1]));
             }
+
             let circCenter = Vector3.TransformCoordinates(new Vector3(0, 0, 0), kXform)
             let keyOutlines = [new coremath.Poly(coremath.genArrayForCircle(new coremath.Circle(circCenter, rad), 0, 19))];
     
@@ -284,20 +272,12 @@ export function refreshLayout() {
             }
         }
         else { //normal keycap
-            let kCenter = [(tuning.base1U[0] + tuning.base1U[0] * (k.width - 1)) / 2,
-                            (tuning.base1U[1] + tuning.base1U[1] * (k.height - 1)) / 2];
             let keycapDim = [(tuning.keyDims[0] + tuning.base1U[0] * (k.width - 1)) / 2,
                             (tuning.keyDims[1] + tuning.base1U[1] * (k.height - 1)) / 2];
-    
-            let kPos = [k.x * tuning.base1U[0] + kCenter[0],
-                      -(k.y * tuning.base1U[1] + kCenter[1])]
-            let kPosition = new Vector3(kPos[0], 0, kPos[1]);
-            let kXform = Matrix.Identity();
-            kXform = kXform.multiply(Matrix.Translation(kPos[0], 0, kPos[1]));
+
+            let kXform = Matrix.Translation(k.x, 0, -k.y);
             if (k.rotation_angle != 0) {
-                kXform = kXform.multiply(Matrix.Translation(-k.rotation_x * tuning.base1U[0], 0, k.rotation_y * tuning.base1U[1]));
-                kXform = kXform.multiply(Matrix.RotationY(k.rotation_angle * Math.PI / 180.0))
-                kXform = kXform.multiply(Matrix.Translation(k.rotation_x * tuning.base1U[0], 0, -k.rotation_y * tuning.base1U[1]));
+                kXform = Matrix.RotationY(k.rotation_angle * Math.PI / 180.0).multiply(kXform)
             }
 
             let keyOutlines = [coremath.createRectPoly(keycapDim[0], keycapDim[1], kXform)];
@@ -998,10 +978,10 @@ function addUSBPort(cRD, cBD) {
     let portDim = [15 / 2,
                    cBD.bezelThickness*2];
 
-    let portPos = globals.boardData.usbPortPos * tuning.base1U[0];
+    let portPos = cBD.usbPortPos * tuning.base1U[0];
 
     
-    if(globals.boardData.usbPortCentered) {
+    if(cBD.usbPortCentered) {
         portPos = boardBounds.mins[0] + (boardBounds.maxs[0] - boardBounds.mins[0])/2;
     }
     
@@ -1701,7 +1681,7 @@ export function refreshCase() {
         tesselatedGeo["caseFrameTaper"] = coremath.genPointsFromVectorPath(vectorGeo["caseFrameTaper"],8);
     
     
-        if(bd.hasUSBPort) {
+        if(cBD.hasUSBPort) {
             addUSBPort(cRD, cBD);
             let portCut = cRD.portCut;
             let portOutline = getCombinedOutlineFromPolyGroup(portCut);
@@ -2027,11 +2007,6 @@ export function loadKeyboard(data) {
     if(!data.kbdVersion) {
         let bd = {};
         bd.meta = data.meta;
-        bd.forceSymmetrical = true;
-        bd.forcePCBSymmetrical = true;
-        bd.hasUSBPort = false;
-        bd.usbPortPos = 1.85;
-        bd.usbPortCentered = true;
         bd.cases = data.cases?data.cases:{};
         bd.hasFeet = true;
         bd.layout = {keys: {}};
@@ -2044,8 +2019,6 @@ export function loadKeyboard(data) {
                             caseIdx: k.caseIdx||0,
                             width: k.width,
                             height: k.height,
-                            rotation_x: k.rotation_x,
-                            rotation_y: k.rotation_y,
                             rotation_angle: k.rotation_angle,
                             nub:k.nub,
                             stepped:k.stepped,
@@ -2053,6 +2026,39 @@ export function loadKeyboard(data) {
                             encoder_knob_size:k.encoder_knob_size
                             };
 
+            const getCenterOffset = (t) => {
+                switch(t) {
+                    case "oled": {
+                        // hacky dims
+                        let oledDim = [(38.1+tuning.bezelGap) / 2, (14.1+tuning.bezelGap) / 2];
+                        return( [k.x * tuning.base1U[0] + oledDim[0],
+                                  -(k.y * tuning.base1U[1] + oledDim[1])] );
+                    }
+                    case "ec11": {
+                        return ([(k.x+0.5) * tuning.base1U[0],
+                                  -((k.y+0.5) * tuning.base1U[1])]);
+                    }
+                    default: {
+                        const center = [(tuning.base1U[0] + tuning.base1U[0] * (k.width - 1)) / 2,
+                                (tuning.base1U[1] + tuning.base1U[1] * (k.height - 1)) / 2];
+                        return ([k.x * tuning.base1U[0] + center[0],
+                                  -(k.y * tuning.base1U[1] + center[1])]);
+                    }
+                }
+            }
+                            
+            let centerOffset = getCenterOffset(k.type);
+            let kXform = Matrix.Translation(centerOffset[0], 0, centerOffset[1]);
+            if (k.rotation_angle != 0) {
+                kXform = kXform.multiply(Matrix.Translation(-k.rotation_x * tuning.base1U[0], 0, k.rotation_y * tuning.base1U[1]));
+                kXform = kXform.multiply(Matrix.RotationY(k.rotation_angle * Math.PI / 180.0))
+                kXform = kXform.multiply(Matrix.Translation(k.rotation_x * tuning.base1U[0], 0, -k.rotation_y * tuning.base1U[1]));
+            }
+
+            let newPos = Vector3.TransformCoordinates(new Vector3(0,0,0), kXform);
+
+            keyInfo.x = newPos.x;
+            keyInfo.y = -newPos.z;
 
             if(!bd.cases[keyInfo.caseIdx]) {
                 bd.cases[keyInfo.caseIdx]  = Object.assign({}, tuning.defaultCase);
@@ -2088,7 +2094,7 @@ export function loadKeyboard(data) {
                 bd.layout.keys[keyInfo.id] = keyInfo;
             }
         }
-        bd.kbdVersion = "0.0.1";
+        bd.kbdVersion = "0.0.2";
         globals.boardData = bd;
     }
     else if(data.kbdVersion) {

@@ -3,6 +3,7 @@ import {tuning} from './tuning.js'
 import * as boardOps from './boardOps.js'
 import * as svg from './svg_export.js'
 import * as gbr from './gbr_export.js'
+import * as interactions from './interactions.js'
 import {snapCamera} from './gfx.js'
 import {Button, Rectangle, Control, TextBlock, InputText, StackPanel, RadioButton, Checkbox, 
         Slider, ScrollViewer, AdvancedDynamicTexture} from '@babylonjs/gui'
@@ -198,15 +199,22 @@ export const kbgbGUI = {
         t.fontSize = 24;
         return t;
     },
-    addKeyActionButton: function(txt, keyAction) {
-        return addButton(txt, function () {
+    getKeyAction: function(keyAction) {
+        return function () {
             for (let kId of globals.pickedKeys) {
                 let bd = globals.boardData;
                 let k = bd.layout.keys[kId];
                 keyAction(k);
             }
             boardOps.refreshKeyboard();
-        }); 
+        }
+    },
+    addKeyActionButton: function(txt, keyAction, keyCode) {
+        const appliedKeyAction = kbgbGUI.getKeyAction(keyAction);
+        if(keyCode) {
+            interactions.addBinding("keydown", keyCode, appliedKeyAction)
+        }
+        return addButton(txt, appliedKeyAction); 
     },
     addCaseSelection: function(holder) {
         let caseOptions = []
@@ -240,15 +248,15 @@ export const kbgbGUI = {
                 }, {height:"60px", width:"120px"}));
 
                 ctrlBar.addControl(kbgbGUI.addLabel("Pos: "));
-                ctrlBar.addControl(kbgbGUI.addKeyActionButton(`◄`, (k) => k.x -= 0.25 ));
-                ctrlBar.addControl(kbgbGUI.addKeyActionButton(`▲`, (k) => k.y -= 0.25 ));
-                ctrlBar.addControl(kbgbGUI.addKeyActionButton(`▼`, (k) => k.y += 0.25 ));
-                ctrlBar.addControl(kbgbGUI.addKeyActionButton(`►`, (k) => k.x += 0.25 ));
+                ctrlBar.addControl(kbgbGUI.addKeyActionButton(`◄`, (k) => k.x -= 0.25*tuning.base1U[0], "ArrowLeft"));
+                ctrlBar.addControl(kbgbGUI.addKeyActionButton(`▲`, (k) => k.y -= 0.25*tuning.base1U[1], "ArrowUp"));
+                ctrlBar.addControl(kbgbGUI.addKeyActionButton(`▼`, (k) => k.y += 0.25*tuning.base1U[1], "ArrowDown"));
+                ctrlBar.addControl(kbgbGUI.addKeyActionButton(`►`, (k) => k.x += 0.25*tuning.base1U[0], "ArrowRight"));
             
             
                 ctrlBar.addControl(kbgbGUI.addLabel("Rot: "));
-                ctrlBar.addControl(kbgbGUI.addKeyActionButton(`⤹`, (k) => k.rotation_angle -= 2 ));
-                ctrlBar.addControl(kbgbGUI.addKeyActionButton(`⤸`, (k) => k.rotation_angle += 2 ));
+                ctrlBar.addControl(kbgbGUI.addKeyActionButton(`⤹`, (k) => k.rotation_angle -= 2, "q" ));
+                ctrlBar.addControl(kbgbGUI.addKeyActionButton(`⤸`, (k) => k.rotation_angle += 2, "e" ));
             
                 ctrlBar.addControl(kbgbGUI.addLabel("  "));
                 let kAction = (keyAction) => {
@@ -457,15 +465,17 @@ export const kbgbGUI = {
                 ctrlBar.isPointerBlocker = true;
                 ctrlBar.isVertical = false;
                 ctrlBar.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
+
+                kbgbGUI.addCaseSelection(ctrlBar);
             
                 let createCheckbox = (prop) => {
                     var checkbox = new Checkbox()
                     checkbox.width = "20px";
                     checkbox.height = "20px";
-                    checkbox.isChecked = globals.boardData[prop];
+                    checkbox.isChecked = globals.boardData.cases[kbgbGUI.activeCase][prop];
                     checkbox.color = "orange";
                     checkbox.onIsCheckedChangedObservable.add(function(value) {
-                        globals.boardData[prop] = value;
+                        globals.boardData.cases[kbgbGUI.activeCase][prop] = value;
                         boardOps.refreshCase();
                     });
                     return checkbox;
@@ -476,16 +486,16 @@ export const kbgbGUI = {
                     input.width = "80px";
                     input.maxWidth = "80px";
                     input.height = "40px";
-                    input.text = ""+globals.boardData[prop];
+                    input.text = ""+globals.boardData.cases[kbgbGUI.activeCase][prop];
                     input.color = "white";
                     input.background = "green";
                     input.onBlurObservable.add((v) => {
                         console.log(`usb port moving to ${v.text}`);
                         let f = parseFloat(v.text);
                         if(f) {
-                            globals.boardData[prop] = f;
+                            globals.boardData.cases[kbgbGUI.activeCase][prop] = f;
                         }
-                        input.text = ""+globals.boardData[prop];
+                        input.text = ""+globals.boardData.cases[kbgbGUI.activeCase][prop];
                         boardOps.refreshCase();
                     });
                     return input;
