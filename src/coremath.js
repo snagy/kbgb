@@ -424,63 +424,63 @@ export function fixupOutline(outline, originalOutline, fillets, intersectionFill
     let outputFillets = fillets?[]:null;
     // console.log(`outline.len = ${outline.length} oOutline.len = ${originalOutline.length}`)
 
-    for(let i = 0; i < originalOutline.length; i++) {
-        const o = originalOutline[i];
-        const oPrev = originalOutline[(i-1+originalOutline.length)%originalOutline.length];
-        const oNext = originalOutline[(i+1)%originalOutline.length];
-        let oToPrev = oPrev.subtract(o);
-        let oToNext = oNext.subtract(o);
-        let xO = Vector3.Cross(oToPrev,oToNext);
-        outline[i].crossProdY = xO.y;
-        outline[i].opID = i;
-    }
+    // for(let i = 0; i < originalOutline.length; i++) {
+    //     const o = originalOutline[i];
+    //     const oPrev = originalOutline[(i-1+originalOutline.length)%originalOutline.length];
+    //     const oNext = originalOutline[(i+1)%originalOutline.length];
+    //     let oToPrev = oPrev.subtract(o);
+    //     let oToNext = oNext.subtract(o);
+    //     let xO = Vector3.Cross(oToPrev,oToNext);
+    //     outline[i].crossProdY = xO.y;
+    //     outline[i].opID = i;
+    // }
     
     
-    let outlineLen = outline.length;
-    do{
-        let parseList = [];
-        outlineLen = outline.length
-        for(let i = 0; i < outline.length; i++) {
-            const p = outline[i];
-            const prev = outline[(i-1+outline.length)%outline.length];
-            const next = outline[(i+1)%outline.length];
-            let pToPrev = prev.subtract(p);
-            let pToNext = next.subtract(p);
+    // let outlineLen = outline.length;
+    // do{
+    //     let parseList = [];
+    //     outlineLen = outline.length
+    //     for(let i = 0; i < outline.length; i++) {
+    //         const p = outline[i];
+    //         const prev = outline[(i-1+outline.length)%outline.length];
+    //         const next = outline[(i+1)%outline.length];
+    //         let pToPrev = prev.subtract(p);
+    //         let pToNext = next.subtract(p);
 
 
-            // don't think xp is what i want here
-            let xP = Vector3.Cross(pToPrev,pToNext);
-            if(xP.y > -Epsilon && xP.y < Epsilon) {
-                // console.log(`not a corner`);
-                parseList.push(i);
-            }
-            else if(xP.y < Epsilon ^ p.crossProdY < Epsilon) {
-                // console.log(`FLIP`);
-                // console.log(p);
-                // console.log(prev);
-                // console.log(next);
-                // console.log(xP);
-                // console.log(o);
-                parseList.push(i);
-            }
-            p.crossProdY = xP.y;
-        }
+    //         // don't think xp is what i want here
+    //         let xP = Vector3.Cross(pToPrev,pToNext);
+    //         if(xP.y > -Epsilon && xP.y < Epsilon) {
+    //             // console.log(`not a corner`);
+    //             parseList.push(i);
+    //         }
+    //         else if(xP.y < Epsilon ^ p.crossProdY < Epsilon) {
+    //             // console.log(`FLIP`);
+    //             // console.log(p);
+    //             // console.log(prev);
+    //             // console.log(next);
+    //             // console.log(xP);
+    //             // console.log(o);
+    //             parseList.push(i);
+    //         }
+    //         p.crossProdY = xP.y;
+    //     }
 
-        if(parseList.length > 0) {
-            let red = new Color4(1,0,0,1);
-            let blue = new Color4(0,0,1,1);
-            let green = new Color4(0,1,0,1);
-            let yellow = new Color4(1,1,0,1);
-            // gfx.drawDbgOutline("outline_prev",outline,green,yellow,false);
-            // console.log(`parselist`);
-            // console.log(parseList)
-            for(let i = parseList.length-1; i >= 0; i--) {
-                outline.splice(parseList[i],1);
-            }
-            outline = copyWithoutColinear(outline);
-            // gfx.drawDbgOutline("outline",outline,red,blue,false);
-        }
-    } while(outlineLen != outline.length);
+    //     if(parseList.length > 0) {
+    //         let red = new Color4(1,0,0,1);
+    //         let blue = new Color4(0,0,1,1);
+    //         let green = new Color4(0,1,0,1);
+    //         let yellow = new Color4(1,1,0,1);
+    //         // gfx.drawDbgOutline("outline_prev",outline,green,yellow,false);
+    //         // console.log(`parselist`);
+    //         // console.log(parseList)
+    //         for(let i = parseList.length-1; i >= 0; i--) {
+    //             outline.splice(parseList[i],1);
+    //         }
+    //         outline = copyWithoutColinear(outline);
+    //         // gfx.drawDbgOutline("outline",outline,red,blue,false);
+    //     }
+    // } while(outlineLen != outline.length);
 
 
     let curr = null;
@@ -625,7 +625,7 @@ export function fixupOutline(outline, originalOutline, fillets, intersectionFill
 }
 
 
-export function copyWithoutColinear(outline) {
+export function copyWithoutColinear(outline,offset,fillets) {
     // let outline = [...oldOutline];
     //todo turn fillets into array if it's just a value
     for (let i = outline.length-1; i >= 0; i--) {
@@ -640,20 +640,46 @@ export function copyWithoutColinear(outline) {
         let det = prevDir.z * nextDir.x - nextDir.z * prevDir.x;
         if (Math.abs(det) < Epsilon) // no collision
         {
-            // console.log("Skipping colinear point");
+            console.log("Skipping colinear point");
             outline.splice(i,1);
+            if(fillets) {
+                fillets.splice(i,1);
+            }
         } else if(nextLen < Epsilon || prevLen < Epsilon ) {
-            // console.log("Skipping colocated points");
+            console.log("Skipping colocated points");
             outline.splice(i,1);
+            if(fillets) {
+                fillets.splice(i,1);
+            }
+        }
+        else if(offset) {
+            let nextNorm = new Vector3(nextDir.z, 0, -nextDir.x);
+            let prevNorm = new Vector3(prevDir.z, 0, -prevDir.x);
+            let inPoint = prev.add(prevNorm.scale(offset));
+            let outPoint = next.add(nextNorm.scale(offset));
+            let intersection = lineLineIntersection(inPoint, prevNorm,
+                outPoint, nextNorm);
+            if (intersection !== null) {
+                let pointToInt = intersection.subtract(point);
+                let adjNextDir = next.add(nextNorm.scale(offset)).subtract(point).normalize();
+        
+                if(Math.sign(Vector3.Cross(pointToInt,nextDir).y) != Math.sign(Vector3.Cross(pointToInt,adjNextDir).y)) {
+                    console.log("skipping offset xover");
+                    outline.splice(i,1);
+                    if(fillets) {
+                        fillets.splice(i,1);
+                    }
+                }
+            }
         }
     }
     return outline;
 }
 
 // offset is + to the left, - to right
-export function offsetOutlinePoints(outline, offset) {
+export function offsetOutlinePoints(outline, offset, skippedPoints) {
     let newOutline = [];
-    //todo turn fillets into array if it's just a value
+    skippedPoints = skippedPoints || [];
     for (let i = 0; i < outline.length; i++) {
         let point = outline[i];
         let next = outline[(i + 1) % outline.length];
@@ -669,6 +695,15 @@ export function offsetOutlinePoints(outline, offset) {
             outPoint, nextNorm);
         if (intersection === null) {
             console.log("Backup skipping colinear point");
+            skippedPoints.push(i);
+            continue;
+        }
+        let pointToInt = intersection.subtract(point);
+        let adjNextDir = next.add(nextNorm.scale(offset)).subtract(point).normalize();
+
+        if(Math.sign(Vector3.Cross(pointToInt,nextDir).y) != Math.sign(Vector3.Cross(pointToInt,adjNextDir).y)) {
+            console.log("skipping offset xover");
+            skippedPoints.push(i);
             continue;
         }
 
@@ -679,7 +714,7 @@ export function offsetOutlinePoints(outline, offset) {
 
 export function filletOutline(outline, fillets, close) {
     let vectorOutline = [];
-    //todo turn fillets into array if it's just a value
+    // turn fillets into array if it's just a value
     if(fillets && !Array.isArray(fillets)) {
         fillets = (new Array(outline.length)).fill(fillets)
     }
@@ -744,11 +779,18 @@ export function filletOutline(outline, fillets, close) {
 }
 
 export function offsetAndFixOutlinePoints(outline, offset, fillets, close) {
-    const fixedOutline = copyWithoutColinear(outline);
-    const offsetPoints = offsetOutlinePoints(fixedOutline,offset)
+    const isFilletArray = fillets && Array.isArray(fillets);
 
-    // gotta fix this for defined fillets
-    if(fillets && !Array.isArray(fillets)) {
+    let fixedOutline = [...outline];
+    let outlineLen = fixedOutline.length;
+    do{
+        outlineLen = fixedOutline.length
+        fixedOutline = copyWithoutColinear(fixedOutline,offset,isFilletArray?fillets:null);
+        console.log(`went from ${outlineLen} to ${fixedOutline.length}`)
+    } while(outlineLen != fixedOutline.length)
+
+    const offsetPoints = offsetOutlinePoints(fixedOutline,offset)
+    if(!isFilletArray) {
         fillets = (new Array(fixedOutline.length)).fill(fillets)
     }
 
