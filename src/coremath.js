@@ -105,13 +105,13 @@ export function segmentToSegment(x0, x1, xL, xNorm, y0, y1) {
         if(pointToLineDistSq(x0,xL,y0) < Epsilon) {
             result.type = "colinear"
             // check overlap?
-            // let y0In = (Vector3.Dot(y0.subtract(x0),xL) > -Epsilon && Vector3.Dot(y0.subtract(x1),xL) < Epsilon);
-            // let y1In = (Vector3.Dot(y1.subtract(x0),xL) > -Epsilon && Vector3.Dot(y1.subtract(x1),xL) < Epsilon);
-            // let x0In = (Vector3.Dot(x0.subtract(y0),yL) > -Epsilon && Vector3.Dot(x0.subtract(y1),yL) < Epsilon);
-            // let x1In = (Vector3.Dot(x1.subtract(y0),yL) > -Epsilon && Vector3.Dot(x1.subtract(y1),yL) < Epsilon);
-            // if(y0In || x0In || y1In || x1In) {
-            //     result.type = "colinear_OVERLAPPING"
-            // }
+            let y0In = (Vector3.Dot(y0.subtract(x0),xL) > -Epsilon && Vector3.Dot(y0.subtract(x1),xL) < Epsilon);
+            let y1In = (Vector3.Dot(y1.subtract(x0),xL) > -Epsilon && Vector3.Dot(y1.subtract(x1),xL) < Epsilon);
+            let x0In = (Vector3.Dot(x0.subtract(y0),yL) > -Epsilon && Vector3.Dot(x0.subtract(y1),yL) < Epsilon);
+            let x1In = (Vector3.Dot(x1.subtract(y0),yL) > -Epsilon && Vector3.Dot(x1.subtract(y1),yL) < Epsilon);
+            if(y0In || x0In || y1In || x1In) {
+                result.isOverlapping = true;
+            }
         } else {
             result.type = "parallel"
         }
@@ -488,12 +488,12 @@ export function fixupOutline(outline, originalOutline, fillets, intersectionFill
     for(let i = 0; i < outline.length; i++) {
         const p = outline[i];
         // find a point guaranteed to be on the convex hull (so we can guess winding order below)
-        if(!curr || p.z < curr.z || (Math.abs(p.z-curr.z) < Epsilon && p.x <= curr.x)) {
+        if(!curr || p.x < curr.x || (Math.abs(p.x-curr.x) < Epsilon && p.z <= curr.z)) {
             curr = p;
             currIdx = i;
         }
     }
-    
+    console.log(`starting at ${currIdx}`)
     let targIdx = (currIdx+1)%outline.length;
     let targ = outline[targIdx];
     
@@ -508,30 +508,15 @@ export function fixupOutline(outline, originalOutline, fillets, intersectionFill
         currFillet = fillets[currIdx];
         outputFillets.push(currFillet)
     }
+    let red = new Color4(1,0,0,1);
+    let blue = new Color4(0,0,1,1);
+    let green = new Color4(0,1,0,1);
+    let yellow = new Color4(1,1,0,1);
+    if(outline.length > 0 && false) {
+        gfx.drawDbgOutline("outline_prev",outline,green,yellow,false);
+    }
 
     do {
-        let loopIdx = targs.indexOf(targIdx);
-        if(loopIdx !== -1) {
-            console.log(`LOOP DETECTED at ${targIdx}`);
-            console.log(targs);
-
-            targs.length = loopIdx;
-            output.length = loopIdx;
-            if(fillets) {
-                outputFillets.length = loopIdx;
-            }
-            
-            curr = targ;
-            currFillet = targFillet;
-            currIdx = targIdx;
-            targIdx = (targIdx+1)%outline.length;
-            output.push(curr);
-            if(fillets) {
-                outputFillets.push(currFillet);
-            }
-        }
-        targs.push(targIdx);
-
         let tL = targ.subtract(curr);
         const tNorm = new Vector3(tL.z,0,-tL.x).normalize();
         let closestEntry = 1000000000.0;
@@ -562,31 +547,54 @@ export function fixupOutline(outline, originalOutline, fillets, intersectionFill
                     }
                 }
             }
-            else if(segRes.type === "colinear") {
+            else if(segRes.type === "colinear" && segRes.isOverlapping) {
                 // console.log(`hitting the colinear`)
-                // check overlap
-                let y0In = (Vector3.Dot(s0.subtract(curr),tL) > -Epsilon && Vector3.Dot(s0.subtract(targ),tL) < Epsilon);
-                let y1In = (Vector3.Dot(s1.subtract(curr),tL) > -Epsilon && Vector3.Dot(s1.subtract(targ),tL) < Epsilon);
-                let x0In = (Vector3.Dot(curr.subtract(s0),sL) > -Epsilon && Vector3.Dot(curr.subtract(s1),sL) < Epsilon);
-                let x1In = (Vector3.Dot(targ.subtract(s0),sL) > -Epsilon && Vector3.Dot(targ.subtract(s1),sL) < Epsilon);
-                if(y0In || x0In || y1In || x1In) {
-                    let dist = s0.subtract(curr).lengthSquared();
-                    if( dist < closestEntry ) {
-                        closestEntry = dist;
-                        entry = s0;
-                        entryNextIdx = jNext;
-                    }
+                let dist = s0.subtract(curr).lengthSquared();
+                if( dist < closestEntry ) {
+                    closestEntry = dist;
+                    entry = s0;
+                    entryNextIdx = jNext;
                 }
             }
         }
         if( entry ) {
             console.log(`trimming at ${curr} (${currIdx}) to ${targ} (${targIdx}) at ${entry} ${entryNextIdx}`);
             curr = entry;
-            if(fillets) {
-                currFillet = intersectionFillet;
+            if(entryNextIdx >= targIdx) {
+                let doSplice = (a,e) => {    
+                    a.splice(targIdx,entryNextIdx-targIdx);
+                    a.splice(targIdx,0,e);
+                }
+                doSplice(outline,entry);
+                // outline.splice(targIdx,entryNextIdx-targIdx);
+                // outline.splice(targIdx,0,entry);
+                // this broke
+                // doSplice(originalOutline,entry);
+                if(fillets) {
+                    doSplice(fillets,intersectionFillet);
+                    // fillets.splice(targIdx,entryNextIdx-targIdx);
+                    // fillets.splice(targIdx,0,intersectionFillet);
+                }
             }
-            currIdx = -1;
-            targIdx = entryNextIdx;
+            else {
+                let doSplice = (a,e) => {
+                    a.splice(targIdx,a.length);
+                    a.push(e);
+                    a.splice(0,entryNextIdx);
+                }
+                doSplice(outline,entry);
+                // outline.splice(targIdx,outline.length);
+                // outline.push(entry);
+                // outline.splice(0,entryNextIdx);
+                // doSplice(originalOutline,entry);
+                if(fillets) {
+                    doSplice(fillets,intersectionFillet);
+                    // fillets.splice(targIdx,fillets.length);
+                    // fillets.push(intersectionFillet);
+                    // fillets.splice(0,entryNextIdx);
+                }
+            }
+            currFillet = intersectionFillet;
         }
         else {
             // console.log(`walking to ${targ}`);
@@ -594,9 +602,9 @@ export function fixupOutline(outline, originalOutline, fillets, intersectionFill
             if(fillets) {
                 currFillet = targFillet;
             }
-            currIdx = targIdx;
-            targIdx = (targIdx+1)%outline.length;
         }
+        currIdx = targIdx;
+        targIdx = (targIdx+1)%outline.length;
 
         targ = outline[targIdx];
         if(!targ) {
@@ -618,62 +626,180 @@ export function fixupOutline(outline, originalOutline, fillets, intersectionFill
         }
     }  while(curr.subtract(output[0]).lengthSquared() > Epsilon*Epsilon);
     output.pop();
+
+    console.log(`output length: ${output.length}`)
+    if(output.length) {
+        gfx.drawDbgOutline("outline_output",output,red,blue,false);
+    }
     if(fillets) {
         outputFillets.pop();
     }
     return {outline:output, fillets:outputFillets};
+    // return {outline:outline, originalOutline:originalOutline, fillets:fillets};
 }
 
 
-export function copyWithoutColinear(outline,offset,fillets) {
+export function copyWithoutColinear(outline,offset,fillets,iteration) {
     // let outline = [...oldOutline];
+    let offsetPoints = {};
+    let ogLength = outline.length;
+    const minLineLength = 0.25;
+    console.log(`start with ${outline.length} points`)
+    let red = new Color4(1,0,0,1);
+    let blue = new Color4(0,0,1,1);
+    let green = new Color4(0,1,0,1);
+    let yellow = new Color4(1,1,0,1);
     //todo turn fillets into array if it's just a value
     for (let i = outline.length-1; i >= 0; i--) {
         let point = outline[i];
-        let next = outline[(i + 1) % outline.length].subtract(point);
-        let prev = point.subtract(outline[(i - 1 + outline.length) % outline.length]);
+        const nextPoint = outline[(i + 1) % outline.length];
+        let next = nextPoint.subtract(point);
+        const prevPoint = outline[(i - 1 + outline.length) % outline.length];
+        let prev = point.subtract(prevPoint);
         let nextLen = next.length();
         let prevLen = prev.length();
         let nextDir = next.normalizeFromLength(nextLen);
         let prevDir = prev.normalizeFromLength(prevLen);
 
-        let det = prevDir.z * nextDir.x - nextDir.z * prevDir.x;
-        if (Math.abs(det) < Epsilon) // no collision
+        let dot = Vector3.Dot(prevDir,nextDir);
+        if (dot > 0.997 || dot < -0.9)
         {
-            console.log("Skipping colinear point");
+            console.log(`Skipping colinearish point ${dot}`);
             outline.splice(i,1);
             if(fillets) {
                 fillets.splice(i,1);
             }
-        } else if(nextLen < Epsilon || prevLen < Epsilon ) {
-            console.log("Skipping colocated points");
+            i += 1;
+        } else if(nextLen < minLineLength || prevLen < minLineLength ) {
+            console.log("Skipping colocatedish points");
             outline.splice(i,1);
             if(fillets) {
                 fillets.splice(i,1);
             }
+            i += 1;
         }
         else if(offset) {
             let nextNorm = new Vector3(nextDir.z, 0, -nextDir.x);
             let prevNorm = new Vector3(prevDir.z, 0, -prevDir.x);
-            let inPoint = prev.add(prevNorm.scale(offset));
-            let outPoint = next.add(nextNorm.scale(offset));
+            let inPoint = prevPoint.add(prevNorm.scale(offset));
+            let outPoint = nextPoint.add(nextNorm.scale(offset));
             let intersection = lineLineIntersection(inPoint, prevNorm,
                 outPoint, nextNorm);
             if (intersection !== null) {
-                let pointToInt = intersection.subtract(point);
-                let adjNextDir = next.add(nextNorm.scale(offset)).subtract(point).normalize();
-        
-                if(Math.sign(Vector3.Cross(pointToInt,nextDir).y) != Math.sign(Vector3.Cross(pointToInt,adjNextDir).y)) {
-                    console.log("skipping offset xover");
-                    outline.splice(i,1);
-                    if(fillets) {
-                        fillets.splice(i,1);
-                    }
+                offsetPoints[i] = intersection;
+            }
+            else {
+                console.log(`no intersection (why?)`);
+                outline.splice(i,1);
+                if(fillets) {
+                    fillets.splice(i,1);
                 }
+                i += 1;
             }
         }
     }
-    return outline;
+    console.log(`finish with ${outline.length} points`)
+    // if(offset && outline.length > 4) {
+    //     console.log(`offsetPoints len: ${offsetPoints.length} outline: ${outline.length}`)
+    //     for (let i = outline.length-1; i >= 0; i--) {
+    //         let point = outline[i];
+    //         let iNext = (i + 1) % offsetPoints.length
+    //         let iNextNext = (i + 2) % offsetPoints.length
+    //         let nextDir = offsetPoints[iNext].subtract(offsetPoints[iNextNext]);
+    //         let nextNorm = new Vector3(nextDir.z, 0, -nextDir.x);
+    //         let iPrev = (i - 1 + offsetPoints.length) % offsetPoints.length
+    //         let iPrevPrev = (i - 2 + offsetPoints.length) % offsetPoints.length
+    //         // let prevDir = offsetPoints[iPrevPrev].subtract(offsetPoints[iPrev]);
+
+    //         let segseg = segmentToSegment(offsetPoints[iNextNext],offsetPoints[iNext],nextDir,nextNorm,
+    //                                       offsetPoints[iPrevPrev],offsetPoints[iPrev])
+    //         if(segseg.type === "in_segment" || (segseg.type === "colinear" && segseg.isOverlapping)) {
+    //             console.log("skipping offset xover");
+    //             outline.splice(i,1);
+    //             if(fillets) {
+    //                 fillets.splice(i,1);
+    //             }
+    //             // skip out of the affected zone and come back later
+    //             break;
+    //             i -= 3;
+    //         }
+    //     }
+    // }
+
+    // if(offset) {
+    //     console.log(`offsetPoints len: ${offsetPoints.length} outline: ${outline.length}`)
+    //     for (let i = outline.length-1; i >= 0; i--) {
+    //         let point = outline[i];
+    //         let iNext = (i + 1) % outline.length
+    //         let nextDir = outline[iNext].subtract(point);
+    //         let iPrev = (i - 1 + outline.length) % outline.length
+    //         let prevDir = point.subtract(outline[iPrev]);
+
+    //         let offsetPoint = offsetPoints[i];
+    //         let pointToInt = offsetPoint.subtract(point);
+    //         let adjNextDir = offsetPoints[iNext].subtract(point);
+    //         let adjPrevDir = point.subtract(offsetPoints[iPrev]);
+            
+    //         // if(Math.sign(Vector3.Cross(pointToInt,nextDir).y) != Math.sign(Vector3.Cross(pointToInt,adjNextDir).y) ||
+    //         //     Math.sign(Vector3.Cross(pointToInt,prevDir).y) != Math.sign(Vector3.Cross(pointToInt,adjPrevDir).y)) {
+    //         if(Math.sign(Vector3.Dot(pointToInt,nextDir)) != Math.sign(Vector3.Dot(pointToInt,adjNextDir)) ||
+    //            Math.sign(Vector3.Dot(pointToInt,prevDir)) != Math.sign(Vector3.Dot(pointToInt,adjPrevDir))) {
+    //             console.log("skipping offset xover");
+    //             outline.splice(i,1);
+    //             if(fillets) {
+    //                 fillets.splice(i,1);
+    //             }
+    //             break;
+    //         }
+    //     }
+    // }
+
+    let outputOffset = [];
+    for(let i = 0; i < ogLength; i++) {
+        if(offsetPoints[i]) {
+            outputOffset.push(offsetPoints[i]);
+        }
+    }
+
+    // if(outputOffset.length > 0) {
+    //     gfx.drawDbgOutline("wtfff",outputOffset,red,red,true);
+    // }
+
+    if(offset && outline.length > 4) {
+        for (let i = outline.length-1; i >= 0; i--) {
+            let point = outline[i];
+            let iNext = (i + 1) % outline.length
+            let nextDir = outline[iNext].subtract(point).normalize();
+            let iPrev = (i - 1 + outline.length) % outline.length
+            let prevDir = point.subtract(outline[iPrev]).normalize();
+
+            let offsetPoint = outputOffset[i];
+            let pointToInt = offsetPoint.subtract(point);
+            let adjNextDir = outputOffset[iNext].subtract(offsetPoint).normalize();
+            let adjPrevDir = offsetPoint.subtract(outputOffset[iPrev]).normalize();
+            
+            // if(Math.sign(Vector3.Cross(pointToInt,nextDir).y) != Math.sign(Vector3.Cross(pointToInt,adjNextDir).y) ||
+            //     Math.sign(Vector3.Cross(pointToInt,prevDir).y) != Math.sign(Vector3.Cross(pointToInt,adjPrevDir).y)) {
+            if(Math.abs(Vector3.Dot(prevDir,nextDir) - Vector3.Dot(adjPrevDir,adjNextDir)) > 1.1) {
+                console.log(`skipping offset xover ${i} ${Vector3.Dot(prevDir,nextDir)} ${Vector3.Dot(adjPrevDir,adjNextDir)}`);
+                outline.splice(i,1);
+                outputOffset.splice(i,1);
+                if(fillets) {
+                    fillets.splice(i,1);
+                }
+                break;
+            }
+        }
+    }
+    // if(outputOffset.length > 0) {
+    //     gfx.drawDbgOutline("outputOffset2",outputOffset,yellow,yellow,true);
+    // }
+    // if(outline.length > 0) {
+    //     gfx.drawDbgOutline(`outline${iteration}`,outline,blue,blue,true);
+    // }
+
+
+    return {fixedOutline:outline,offsetOutline:outputOffset};
 }
 
 // offset is + to the left, - to right
@@ -698,14 +824,14 @@ export function offsetOutlinePoints(outline, offset, skippedPoints) {
             skippedPoints.push(i);
             continue;
         }
-        let pointToInt = intersection.subtract(point);
-        let adjNextDir = next.add(nextNorm.scale(offset)).subtract(point).normalize();
+        // let pointToInt = intersection.subtract(point);
+        // let adjNextDir = next.add(nextNorm.scale(offset)).subtract(point).normalize();
 
-        if(Math.sign(Vector3.Cross(pointToInt,nextDir).y) != Math.sign(Vector3.Cross(pointToInt,adjNextDir).y)) {
-            console.log("skipping offset xover");
-            skippedPoints.push(i);
-            continue;
-        }
+        // if(Math.sign(Vector3.Cross(pointToInt,nextDir).y) != Math.sign(Vector3.Cross(pointToInt,adjNextDir).y)) {
+        //     console.log("skipping offset xover");
+        //     skippedPoints.push(i);
+        //     continue;
+        // }
 
         newOutline.push(intersection);
     }
@@ -781,20 +907,41 @@ export function filletOutline(outline, fillets, close) {
 export function offsetAndFixOutlinePoints(outline, offset, fillets, close) {
     const isFilletArray = fillets && Array.isArray(fillets);
 
-    let fixedOutline = [...outline];
-    let outlineLen = fixedOutline.length;
-    do{
-        outlineLen = fixedOutline.length
-        fixedOutline = copyWithoutColinear(fixedOutline,offset,isFilletArray?fillets:null);
-        console.log(`went from ${outlineLen} to ${fixedOutline.length}`)
-    } while(outlineLen != fixedOutline.length)
-
-    const offsetPoints = offsetOutlinePoints(fixedOutline,offset)
-    if(!isFilletArray) {
-        fillets = (new Array(fixedOutline.length)).fill(fillets)
+    let red = new Color4(1,0,0,1);
+    let blue = new Color4(0,0,1,1);
+    let green = new Color4(0,1,0,1);
+    let yellow = new Color4(1,1,0,1);
+    if(false && outline.length > 0) {
+        gfx.drawDbgOutline("outline_orig",outline,red,green,true);
     }
 
-    return fixupOutline(offsetPoints,fixedOutline,fillets,fillets?fillets[0]:0.5);
+    // let fixup = {fixedOutline:[...outline],offsetPoints:[]};
+    let fixup = {fixedOutline:[...outline],fillets:fillets};
+    let outlineLen;
+    let blah = 0;
+    while(outlineLen != fixup.fixedOutline.length) {
+        outlineLen = fixup.fixedOutline.length;
+        fixup = copyWithoutColinear(fixup.fixedOutline,offset,isFilletArray?fixup.fillets:null, blah);
+        console.log(`iteration ${blah} went from ${outlineLen} to ${fixup.fixedOutline.length}`);
+        if(blah >= 1)
+        {
+            break;
+        }
+        blah += 1;
+    } 
+    if(false && fixup.offsetOutline.length > 0) {
+        gfx.drawDbgOutline("outline_fixed_1",fixup.offsetOutline,blue,yellow,true);
+    }
+
+    // let fixed = fixupOutline(fixup.offsetOutline,fixup.fixedOutline,fillets,fillets?fillets[0]:0.5)
+    const offsetPoints = fixup.offsetOutline;
+    // const offsetPoints = fixed.outline;//offsetOutlinePoints(fixedOutline,offset)
+    if(!isFilletArray) {
+        fillets = (new Array(offsetPoints.length)).fill(fillets)
+    }
+
+    // return fixupOutline(offsetPoints,fixup.fixedOutline,fillets,fillets?fillets[0]:0.5);
+    return {outline:offsetPoints,fillets:fillets};
 }
 
 // offset is + to the left, - to right
