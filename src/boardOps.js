@@ -4,7 +4,7 @@ import * as coremath from './coremath.js';
 import * as gfx from './gfx.js';
 import * as pcb from './pcbOps.js';
 import {Vector3, Space, MeshBuilder, Matrix, Epsilon, Color3, Color4, Mesh,
-        Animation, EasingFunction, QuinticEase, TransformNode} from '@babylonjs/core'
+        Animation, EasingFunction, QuinticEase, TransformNode, TmpVectors} from '@babylonjs/core'
 
 export function refreshOutlines() {
     let kRD = globals.renderData.keys;
@@ -674,15 +674,19 @@ function findOverlappingGroups(kRD, groupName, caseIdx) {
         // see if any of the lines bisect the other poly
         let checkIntersection = (polyA, polyB) => {
             const hole = polyA.points;
+            const norm = TmpVectors.Vector3[0];
             for(let iP = 0; iP < hole.length; iP++) {
-                const line = hole[(iP+1)%hole.length].subtract(hole[iP]);
-                const norm = new Vector3(line.z, 0, -line.x);
+                const h0 = hole[iP];
+                const h1 = hole[(iP+1)%hole.length];
+                norm.x = h1.z-h0.z;
+                norm.z = h0.x-h1.x;
                 let allLess = true;
                 let allMore = true;
                 const holeO = polyB.points;
+                const oL = TmpVectors.Vector3[1];
 
                 for(let oP = 0; oP < holeO.length; oP++) {
-                    const oL = holeO[oP].subtract(hole[iP]);
+                    holeO[oP].subtractToRef(hole[iP], oL);
                     let dot = Vector3.Dot(norm,oL);
                     allMore &= dot > Epsilon;
                     allLess &= dot < -Epsilon;
@@ -732,10 +736,10 @@ function findOverlappingGroups(kRD, groupName, caseIdx) {
         if(rd.caseIdx != caseIdx)  {
             continue;
         }
-        for(const [ip, poly] of rd[groupName].entries()) {
+        for(const [ip, poly] of Object.entries(rd[groupName])) {
             for (const [otherId, otherRD] of Object.entries(kRD)) {
                 if(otherRD.caseIdx == rd.caseIdx) {
-                    for(const [op, otherPoly] of otherRD[groupName].entries()) {
+                    for(const [op, otherPoly] of Object.entries(otherRD[groupName])) {
                         if(otherId === id && ip === op) {
                             continue;
                         }
