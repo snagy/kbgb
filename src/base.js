@@ -133,7 +133,7 @@ function initKBGB() {
         'testkbs/atreus_row.kle',
         'testkbs/keysize_test.kle' 
     ]
-    let kbdidx = 3;
+    let kbdidx = 0;
     // load a keyboard
     loadKeyboardFromPath(keyboards[kbdidx]);
 

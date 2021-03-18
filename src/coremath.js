@@ -135,25 +135,27 @@ export function segmentToSegment(x0, x1, xL, xNorm, y0, y1) {
     return result;
 }
 
-export function segmentToPoly(s0, s1, poly) {
 
-    s1.subtractToRef(s0,TmpVectors.Vector3[0]);
-    const tNorm = new Vector3(TmpVectors.Vector3[0].z,0,-TmpVectors.Vector3[0].x).normalize();
+export function segmentToPoly(s0, s1, poly) {
     let closest = 1000000000.0;
     let closestIntersection = null;
     let numIntersections = 0;
 
+    const tL = TmpVectors.Vector3[7];
+    s1.subtractToRef(s0, tL);
+    const tNorm = TmpVectors.Vector3[2];
+    tNorm.x = tL.z;
+    tNorm.y = 0;
+    tNorm.z = -tL.x;
+    tNorm.normalize();
+
+    const intL = TmpVectors.Vector3[3];
+
     for(let j = 0; j < poly.length; j++) {
-        const sLine = [poly[j], poly[(j+1)%poly.length]];
-        const sL = TmpVectors.Vector3[1];
-        sLine[1].subtractToRef(sLine[0],sL);
-        const sNorm = new Vector3(sL.z,0,-sL.x).normalize();
-        
-        let segRes = segmentToSegment(s0, s1, TmpVectors.Vector3[0], tNorm, sLine[0], sLine[1]);
+        let segRes = segmentToSegment(s0, s1, tL, tNorm, poly[j], poly[(j+1)%poly.length]);
         if(segRes.type == "in_segment" && segRes.intersection) {
-            const intL = TmpVectors.Vector3[2];
             segRes.intersection.subtractToRef(s0,intL);
-            let dist = intL.lengthSquared();
+            const dist = intL.lengthSquared();
             if( dist > Epsilon*Epsilon) {
                 numIntersections += 1;
                 if( dist < closest ) {

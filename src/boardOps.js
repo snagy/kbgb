@@ -674,7 +674,7 @@ function findOverlappingGroups(kRD, groupName, caseIdx) {
         // see if any of the lines bisect the other poly
         let checkIntersection = (polyA, polyB) => {
             const hole = polyA.points;
-            const norm = TmpVectors.Vector3[0];
+            const norm = TmpVectors.Vector3[8];
             for(let iP = 0; iP < hole.length; iP++) {
                 const h0 = hole[iP];
                 const h1 = hole[(iP+1)%hole.length];
