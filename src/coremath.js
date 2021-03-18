@@ -646,7 +646,7 @@ export function fixupOutline(outline, originalOutline, fillets, intersectionFill
     output.pop();
 
     console.log(`output length: ${output.length}`)
-    if(output.length) {
+    if(false && output.length) {
         gfx.drawDbgOutline("outline_output",output,red,blue,false);
     }
     if(fillets) {
