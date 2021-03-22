@@ -76,13 +76,17 @@ function initKBGB() {
                 if (pickResult && pickResult.pickedMesh) {
                     if(kbgbGUI.activeMode == "key") {
                         const parent = pickResult.pickedMesh.parent;
+                        let name = pickResult.pickedMesh.name;
                         if (parent && globals.boardData.layout.keys[parent.name]) {
+                            name = parent.name;
+                        }
+                        if (globals.boardData.layout.keys[name]) {
                             if (!(e.metaKey || e.ctrlKey)) {
                                 boardOps.clearPickedKeys();
                             }
-                            boardOps.togglePickedKey(parent.name);
+                            boardOps.togglePickedKey(name);
             
-                            console.log("picked key " + parent.name)
+                            console.log("picked key " + name)
                             // boardOps.refreshOutlines();
                         }
                     }

@@ -267,27 +267,40 @@ export const kbgbGUI = {
                         }
                         boardOps.refreshKeyboard();
                 };
-                let setWidthAction = (v) => kAction((k) => {
-                    k.width = v;
+                let setKeyAction = (key,v) => kAction((k) => {
+                    k[key] = v;
                 });
                 let keyWidths = [1,1.25,1.5,1.75,2,2.25,2.5,2.75,3,4,4.5,5.5,6,6.25,6.5,7,8,9,10];
                 // modalPop(globals.screengui,"YOOO", () => {console.log("ACK");});
                 let keySelectionAction = (o,a,b) => {
-                    setWidthAction(o.val);
+                    if(o.width) {
+                        setKeyAction("width", o.width);
+                    }
+                    else if(o.special) {
+                        setKeyAction("type", o.special);
+
+                        if(o.special === "ec11") {
+                            setKeyAction("encoder_knob_size", o.rad);
+                        }
+                    }
                 }
                 ctrlBar.addControl(
                     createDropdown(globals.screengui,0, [
-                        {txt:"1U", val:1 },
-                        {txt:"1.25U", val:1.25 },
-                        {txt:"1.5U", val:1.5 },
-                        {txt:"1.75U", val:1.75 },
-                        {txt:"2U", val:2 },
-                        {txt:"2.25U", val:2.25 },
-                        {txt:"2.75U", val:2.75 },
-                        {txt:"3U", val:3 },
-                        {txt:"6U", val:6 },
-                        {txt:"6.25U", val:6.25 },
-                        {txt:"7U", val:7 },
+                        {txt:"1U", width:1 },
+                        {txt:"1.25U", width:1.25 },
+                        {txt:"1.5U", width:1.5 },
+                        {txt:"1.75U", width:1.75 },
+                        {txt:"2U", width:2 },
+                        {txt:"2.25U", width:2.25 },
+                        {txt:"2.75U", width:2.75 },
+                        {txt:"3U", width:3 },
+                        {txt:"6U", width:6 },
+                        {txt:"6.25U", width:6.25 },
+                        {txt:"7U", width:7 },
+                        {txt:"OLED", special:"oled"},
+                        {txt:"EC11-18", special:"ec11", rad:18},
+                        {txt:"EC11-19", special:"ec11", rad:19.05},
+                        {txt:"EC11-30", special:"ec11", rad:30},
                         {txt:"ISO"},
                         {txt:"1.75U STEPPED"}], keySelectionAction));
 
