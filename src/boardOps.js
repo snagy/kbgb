@@ -813,6 +813,10 @@ export function addScrewHoles(cRD, cBD, outline, primaryLayerName, layerOutlines
     let screwLocs = coremath.offsetOutlinePoints(outline,bezelOffset);
     cBD.screws = [];
 
+    if(true) {
+        return;
+    }
+
     let minDist =  screwRadius + screwBoss;
     if(minDist > Epsilon) {
         let remSet = [];
