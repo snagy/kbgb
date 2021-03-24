@@ -805,19 +805,21 @@ function screwAddLayer(screw, layerName) {
     }
 }
 
-export function addScrewHoles(cRD, cBD, outline, primaryLayerName, layerOutlines) {
+export function addScrewHoles(cRD, cBD, outline, minBezelOffset, primaryLayerName, layerOutlines) {
     const defaultScrew = {};
     const screwBoss = getScrewBoss();
     const screwRadius = getScrewRadius(defaultScrew);
-    const bezelOffset =  ((cBD.bezelThickness - screwBoss * 2.0) * cBD.screwBezelBias + screwBoss) - cBD.bezelThickness;
+    const totalRad = screwRadius + screwBoss;
+    const bezelOffset =  ((cBD.bezelThickness + minBezelOffset - totalRad * 2.0) * cBD.screwBezelBias + totalRad + minBezelOffset) - cBD.bezelThickness;
+    // console.log(`screw offset: ${bezelOffset} thickness ${cBD.bezelThickness} boss ${totalRad} bias ${cBD.screwBezelBias}`)
     let screwLocs = coremath.offsetOutlinePoints(outline,bezelOffset);
     cBD.screws = [];
 
-    if(true) {
-        return;
-    }
+    // if(true) {
+    //     return;
+    // }
 
-    let minDist =  screwRadius + screwBoss;
+    let minDist = (totalRad) * 2;
     if(minDist > Epsilon) {
         let remSet = [];
         for(let i = screwLocs.length-1; i >= 0; i--) {
@@ -1688,6 +1690,7 @@ export function refreshCase() {
         vectorGeo["caseFrameTaper"] = coremath.offsetAndFilletOutline(cRD.outline, -cBD.bezelThickness*.1, cBD.caseCornerFillet, false);
         tesselatedGeo["caseFrameTaper"] = coremath.genPointsFromVectorPath(vectorGeo["caseFrameTaper"],8);
     
+        const taperOffsetMax = -cBD.bezelThickness*.1;
     
         if(cBD.hasUSBPort) {
             addUSBPort(cRD, cBD);
@@ -1721,7 +1724,7 @@ export function refreshCase() {
         vectorGeo["pcbOutline"] = coremath.offsetAndFilletOutline(globals.pcbData[caseIdx].outline, 0.0, 2.0, false);
         tesselatedGeo["pcbOutline"] = coremath.genPointsFromVectorPath(vectorGeo["pcbOutline"]);
 
-        addScrewHoles(cRD, cBD, cRD.outline, "caseFrameWithPortCut", tesselatedGeo);
+        addScrewHoles(cRD, cBD, cRD.outline, taperOffsetMax, "caseFrameWithPortCut", tesselatedGeo);
         getFeet(bd, cRD, cBD);
 
         let plateGroups = findOverlappingGroups(kRD, "switchCut", caseIdx);
