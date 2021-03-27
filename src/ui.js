@@ -187,6 +187,22 @@ function createDropdown(container, initialOption, options, selectionAction) {
     },
     {width:"150px"});
 }
+  
+let createSlider = function(parent, txt, initialVal, min, max, onChangeFunc) {
+    let label = kbgbGUI.addLabel(txt + initialVal)
+    var slider = new Slider();
+    slider.minimum = min;
+    slider.maximum = max;
+    slider.value = initialVal;
+    slider.height = "15px";
+    slider.width = "100px";
+    slider.onValueChangedObservable.add(function(value) {
+        label.text = txt + value;
+        onChangeFunc(value, label);
+    });
+    parent.addControl(label);   
+    parent.addControl(slider); 
+}
 
 export const kbgbGUI = {
 
@@ -388,34 +404,16 @@ export const kbgbGUI = {
             
                     parent.addControl(header);    
                 }
-            
-            
-                let createSlider = function(txt, initialVal, min, max, onChangeFunc) {
-                    let label = kbgbGUI.addLabel(txt + initialVal)
-                    var slider = new Slider();
-                    slider.minimum = min;
-                    slider.maximum = max;
-                    slider.value = initialVal;
-                    slider.height = "15px";
-                    slider.width = "100px";
-                    slider.onValueChangedObservable.add(function(value) {
-                        label.text = txt + value;
-                        onChangeFunc(value, label);
-                    });
-                    ctrlBar.addControl(label);   
-                    ctrlBar.addControl(slider); 
-                }
 
                 let radioCtrl = new StackPanel();  
                 radioCtrl.height = "1";
                 radioCtrl.width = "200px";
                 radioCtrl.isVertical = true;
-                addRadio("rectangle", radioCtrl);
                 addRadio("convex", radioCtrl);
                 addRadio("concave", radioCtrl);
                 ctrlBar.addControl(radioCtrl);
 
-                createSlider("Fit: ", globals.boardData.cases[kbgbGUI.activeCase].bezelConcavity, 0, 1, (v) => {
+                createSlider(ctrlBar, "Fit: ", globals.boardData.cases[kbgbGUI.activeCase].bezelConcavity, 0, 1, (v) => {
                     globals.boardData.cases[kbgbGUI.activeCase].bezelConcavity = v; boardOps.refreshCase();
                 });
 
@@ -447,17 +445,11 @@ export const kbgbGUI = {
                 ctrlBar.addControl(kbgbGUI.addLabel("FEET: "));
                 ctrlBar.addControl(ftbx);
 
-                createSlider("Thickness: ", globals.boardData.cases[kbgbGUI.activeCase].bezelThickness, 5.5, 50, (v) => {
+                createSlider(ctrlBar, "Thickness: ", globals.boardData.cases[kbgbGUI.activeCase].bezelThickness, 5.5, 50, (v) => {
                     globals.boardData.cases[kbgbGUI.activeCase].bezelThickness = v; boardOps.refreshCase();
                 });
-                createSlider("Fillet: ", globals.boardData.cases[kbgbGUI.activeCase].caseCornerFillet, 0.5, 30, (v) => {
+                createSlider(ctrlBar, "Fillet: ", globals.boardData.cases[kbgbGUI.activeCase].caseCornerFillet, 0.5, 30, (v) => {
                     globals.boardData.cases[kbgbGUI.activeCase].caseCornerFillet = v; boardOps.refreshCase();
-                }); 
-                createSlider("Screw span: ", globals.boardData.cases[kbgbGUI.activeCase].maxScrewSpan, 40, 300, (v) => {
-                    globals.boardData.cases[kbgbGUI.activeCase].maxScrewSpan = v; boardOps.refreshCase();
-                }); 
-                createSlider("Screw offset: ", globals.boardData.cases[kbgbGUI.activeCase].screwBezelBias, 0.0, 1.0, (v) => {
-                    globals.boardData.cases[kbgbGUI.activeCase].screwBezelBias = v; boardOps.refreshCase();
                 }); 
                 
                 globals.screengui.addControl(ctrlBar);
@@ -514,14 +506,21 @@ export const kbgbGUI = {
                     return input;
                 } 
 
-                ctrlBar.addControl(kbgbGUI.addLabel("SYM: "));
-                ctrlBar.addControl(createCheckbox("forcePCBSymmetrical"));
                 ctrlBar.addControl(kbgbGUI.addLabel("USB: "));
                 ctrlBar.addControl(createCheckbox("hasUSBPort"));
+                // ctrlBar.addControl(kbgbGUI.addLabel("SYM: "));
+                // ctrlBar.addControl(createCheckbox("forcePCBSymmetrical"));
                 ctrlBar.addControl(kbgbGUI.addLabel("LOC: "));
                 ctrlBar.addControl(createTextInput("usbPortPos"))
                 ctrlBar.addControl(kbgbGUI.addLabel("Center? "));
                 ctrlBar.addControl(createCheckbox("usbPortCentered"));
+
+                createSlider(ctrlBar, "Screw span: ", globals.boardData.cases[kbgbGUI.activeCase].maxScrewSpan, 40, 300, (v) => {
+                    globals.boardData.cases[kbgbGUI.activeCase].maxScrewSpan = v; boardOps.refreshCase();
+                }); 
+                createSlider(ctrlBar, "Screw offset: ", globals.boardData.cases[kbgbGUI.activeCase].screwBezelBias, 0.0, 1.0, (v) => {
+                    globals.boardData.cases[kbgbGUI.activeCase].screwBezelBias = v; boardOps.refreshCase();
+                }); 
 
                 globals.screengui.addControl(ctrlBar);
                 kbgbGUI.activeModeCtrl = ctrlBar;
@@ -665,7 +664,7 @@ export const kbgbGUI = {
 
         ctrlBar.addControl(addButton("layout", () => {kbgbGUI.setGUIMode("key")}, {height:"1",width:"120px"}));
         ctrlBar.addControl(addButton("case", () => {kbgbGUI.setGUIMode("case")}, {height:"1",width:"120px"}));
-        ctrlBar.addControl(addButton("pcb", () => {kbgbGUI.setGUIMode("pcb")}, {height:"1",width:"120px"}));
+        ctrlBar.addControl(addButton("parts", () => {kbgbGUI.setGUIMode("pcb")}, {height:"1",width:"120px"}));
         ctrlBar.addControl(addButton("layers", () => {kbgbGUI.setGUIMode("details")}, {height:"1",width:"120px"}));
 
         kbgbGUI.modeCtrl = ctrlBar;

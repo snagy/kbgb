@@ -1262,8 +1262,11 @@ function finalizeLayout() {
             const nextAngle = coremath.getRotFromNormal(pToNext);
             // console.log(`prevAngle ${prevAngle}`)
 
-            if(p.delaunayPoints.length == 2) {
-                p.isOnConvexHull = true;
+            for(const dP of p.delaunayPoints) {
+                if(dP.maxTheta > 9000) {
+                    p.isOnConvexHull = true;
+                    break;
+                }
             }
 
             p.delaunayPoints.sort((a,b) => {
@@ -1360,10 +1363,6 @@ function finalizeLayout() {
         
         let convexHull = [];
         for(const p of kPs) {
-            if(p.isOnConvexHull) {
-                convexHull.push(p);
-            }
-
             if(p.linkingEdges && p.linkingEdges.length > 1) {
                 // radially sort the linked edges counter clockwise from the outline start
                 const pToPrev = p.subtract(kPs[p.outlinePoints[0]]).normalize();
@@ -1392,6 +1391,9 @@ function finalizeLayout() {
         let realOutline = [];
         let outlineIdx = [];
         do {
+            if(thisP.isOnConvexHull) {
+                convexHull.push(thisP);
+            }
             realOutline.push(thisP);
             if(outlineIdx.includes(thisP.pointIdx)) {
                 console.log(`oh boy loop detected`);
@@ -1421,13 +1423,18 @@ function finalizeLayout() {
             }
         } while(thisP.pointIdx != firstP.pointIdx)
 
-        if( globals.voronoiDbgLines ) {
-            globals.scene.removeMesh(globals.voronoiDbgLines)
-        }
-        
-        globals.voronoiDbgLines = MeshBuilder.CreateLineSystem("voronoiDbgLines", {lines: dbglines, colors:linecolors}, globals.scene);
         thetaValues.sort((a,b) => a - b);
-        globals.renderData.layoutData.push({keyGroups:keyGroups,convexHull:convexHull,kgOutlines:kgOutlines,minOutline:realOutline,kPs:kPs,thetaValues:thetaValues});
+
+        const bounds = { mins:[100000.0, 100000.0],
+                         maxs:[-100000.0, -100000.0] };
+        for(let oP of convexHull) {
+            bounds.mins[0] = Math.min(bounds.mins[0],oP.x);
+            bounds.maxs[0] = Math.max(bounds.maxs[0],oP.x);
+            bounds.mins[1] = Math.min(bounds.mins[1],oP.z);
+            bounds.maxs[1] = Math.max(bounds.maxs[1],oP.z);
+        }
+
+        globals.renderData.layoutData.push({bounds:bounds, keyGroups:keyGroups,convexHull:convexHull,kgOutlines:kgOutlines,minOutline:realOutline,kPs:kPs,thetaValues:thetaValues});
     }
 }
 
@@ -1493,17 +1500,7 @@ export function refreshCase() {
         vectorGeo["bezel"] = []
         tesselatedGeo["bezel"] = [];
         
-        let mins = [100000.0, 100000.0]
-        let maxs = [-100000.0, -100000.0];
-        for (const [id, rd] of Object.entries(globals.renderData.keys)) {
-            if(rd.caseIdx == caseIdx ) {
-                mins[0] = Math.min(rd.mins[0], mins[0]);
-                maxs[0] = Math.max(rd.maxs[0], maxs[0]);
-                mins[1] = Math.min(rd.mins[1], mins[1]);
-                maxs[1] = Math.max(rd.maxs[1], maxs[1]);
-            }
-        }
-        cRD.bounds = { mins: mins, maxs: maxs };
+        cRD.bounds = layoutData.bounds;
 
         for(const [id,outline] of Object.entries(kgOutlines)) {
             let bezelOutlineVec = coremath.offsetAndFilletOutline(outline, 0.0, tuning.bezelCornerFillet, false);
@@ -1511,32 +1508,10 @@ export function refreshCase() {
             tesselatedGeo["bezel"].push(coremath.genPointsFromVectorPath(bezelOutlineVec));
         }
     
-        if(cBD.caseType === "convex") {
-            let kPs = [];
-            for( let [id,rd] of Object.entries(kRD) ) {
-                if(rd.caseIdx === caseIdx) {
-                    if(rd.outline) {
-                        for( let p of rd.outline ) {
-                            kPs.push(p)
-                        }
-                    }
-                }
-            }
-            for(let p of globals.pcbData[caseIdx].outline) {
-                kPs.push(p);
-            }
-            cRD.outline = coremath.convexHull2d(kPs);
-    
-            if(cBD.forceSymmetrical) {
-                let midPoint = (cRD.bounds.maxs[0] - cRD.bounds.mins[0]) * 0.5 + cRD.bounds.mins[0];
-                for(let oP of cRD.outline) {
-                    kPs.push(new Vector3(midPoint - (oP.x - midPoint), oP.y, oP.z));
-                }
-                cRD.outline = coremath.convexHull2d(kPs);
-            }
-        }
-        else if(cBD.caseType === "concave") {
-            cRD.outline = layoutData.minOutline;
+        if(cBD.caseType === "concave") {
+            // cRD.outline = layoutData.minOutline;
+            cRD.outline = layoutData.convexHull;
+            // gfx.drawDbgOutline("badOutline", cRD.outline);
         }
         else if(cBD.caseType === "concave_slider") {
             let kPs = layoutData.kPs;
@@ -1673,12 +1648,71 @@ export function refreshCase() {
         {
             let pcbBounds = globals.pcbData[caseIdx].outlineBounds;
             let bounds = cRD.bounds;
-            cRD.outline = [
+            const rectangularBounds = [
                 new Vector3(Math.min(bounds.mins[0],pcbBounds.mins[0]), 0, Math.min(bounds.mins[1],pcbBounds.mins[1])),
                 new Vector3(Math.max(bounds.maxs[0],pcbBounds.maxs[0]), 0, Math.min(bounds.mins[1],pcbBounds.mins[1])),
                 new Vector3(Math.max(bounds.maxs[0],pcbBounds.maxs[0]), 0, Math.max(bounds.maxs[1],pcbBounds.maxs[1])),
                 new Vector3(Math.min(bounds.mins[0],pcbBounds.mins[0]), 0, Math.max(bounds.maxs[1],pcbBounds.maxs[1]))
             ];
+
+            let convexHull = layoutData.convexHull;
+    
+            if(cBD.forceSymmetrical) {
+                let midPoint = (bounds.maxs[0] - bounds.mins[0]) * 0.5 + bounds.mins[0];
+                let cvPs = [...convexHull];
+                for(let oP of convexHull) {
+                    cvPs.push(new Vector3(midPoint - (oP.x - midPoint), oP.y, oP.z));
+                }
+                convexHull = coremath.convexHull2d(cvPs);
+            }
+
+            let dists = [1000000,1000000,1000000,1000000];
+            let points = [-1, -1, -1, -1];
+
+            for(let iP = 0; iP < convexHull.length; iP++) {
+                const p = convexHull[iP];
+                for(let iR = 0; iR < 4; iR++) {
+                    let dist = Vector3.DistanceSquared(p,rectangularBounds[iR]);
+                    if(dist < dists[iR]) {
+                        points[iR] = iP;
+                        dists[iR] = dist;
+                    }
+                }
+            }
+            let targets = new Array(convexHull.length);
+
+            let nPoints = 4;
+            for(let i = 0; i < nPoints; i++) {
+                let iThis = points[i];
+                let iNext = points[(i+1)%nPoints];
+                if(iNext < iThis) {
+                    iNext+=convexHull.length;
+                }
+
+                let pThis = rectangularBounds[i];
+                let pNext = rectangularBounds[(i+1)%nPoints];
+                // let pThis = convexHull[iThis];
+                // let pNext = convexHull[iNext%convexHull.length];
+
+                let line = pNext.subtract(pThis);
+                let lineLen = line.length();
+                line.normalizeFromLength(lineLen);
+                let step = lineLen/(iNext-iThis);
+                
+                for(let j = iThis+1; j < iNext; j++) {
+                    targets[j%convexHull.length] = coremath.nearestPointOnLine(pThis,line,convexHull[j%convexHull.length]);
+                    // targets[j%convexHull.length] = pThis.add(line.scale((j-iThis)*step));
+                }
+                targets[iThis] = pThis;
+            }
+
+            cRD.outline = [...convexHull];
+
+            for(let iP = 0; iP < convexHull.length; iP++) {
+                cRD.outline[iP] = convexHull[iP].scale(cBD.bezelConcavity).add(targets[iP].scale(1.0-cBD.bezelConcavity));
+            }
+            // gfx.drawDbgOutline("badOutline", cRD.outline);
+            // cRD.outline = convexHull;
         }
 
         cRD.outline = coremath.offsetAndFixOutlinePoints(cRD.outline, tuning.bezelGap + cBD.bezelThickness,null).outline;

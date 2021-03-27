@@ -21,7 +21,7 @@ export const tuning = {
         screwSideBuffer: 0,
         maxScrewSpan: 150,
         screwBezelBias:0.5,
-        forceSymmetrical:true,
+        forceSymmetrical:false,
         hasUSBPort:false,
         usbPortPos:1.85,
         usbPortCentered:true,

@@ -55,16 +55,15 @@ export function lineLineIntersection(p0, d0, p1, d1) {
     return intersection;
 }
 
-function nearestPointOnLine(x0, xL, y0) {
+export function nearestPointOnLine(x0, xLNormalized, y0) {
     let dir = y0.subtract(x0);
-    let xNormalized = xL.normalizeToNew();
-    let dot = Vector3.Dot(dir,xNormalized);
+    let dot = Vector3.Dot(dir,xLNormalized);
     
-    return x0.add(xNormalized.scale(dot));
+    return x0.add(xLNormalized.scale(dot));
 }
 
 function pointToLineDistSq(x0, xL, y0) {
-    let nearestPoint = nearestPointOnLine(x0, xL, y0);
+    let nearestPoint = nearestPointOnLine(x0, xL.normalizeToNew(), y0);
     // return y0.subtract(nearestPoint).lengthSquared();
     //ugh
     y0.subtractToRef(nearestPoint,TmpVectors.Vector3[0]);
@@ -597,7 +596,7 @@ export function fixupOutline(outline, originalOutline, fillets, intersectionFill
     }  while(curr.subtract(output[0]).lengthSquared() > Epsilon*Epsilon);
     output.pop();
 
-    console.log(`pre angle-check output length: ${output.length}`)
+    // console.log(`pre angle-check output length: ${output.length}`)
 
     if(false && output.length > 0) {
         gfx.drawDbgOutline("output_prev",output,red,red,false);
@@ -622,7 +621,7 @@ export function fixupOutline(outline, originalOutline, fillets, intersectionFill
         }
     }
 
-    console.log(`output length: ${output.length}`)
+    // console.log(`output length: ${output.length}`)
     if(false && output.length) {
         gfx.drawDbgOutline("outline_output",output,red,blue,false);
     }
@@ -659,7 +658,7 @@ export function copyWithoutColinear(outline,offset,fillets) {
         let prevDir = prev.normalizeFromLength(prevLen);
 
         let dot = Vector3.Dot(prevDir,nextDir);
-        if (dot > 0.997 || dot < -0.9)
+        if (dot > 0.999 || dot < -0.9)
         {
             // console.log(`Skipping colinearish point ${dot} ${i}`);
             outline.splice(i,1);
@@ -834,7 +833,7 @@ export function offsetOutlinePoints(outline, offset, skippedPoints) {
         let intersection = lineLineIntersection(inPoint, prevNorm,
             outPoint, nextNorm);
         if (intersection === null) {
-            console.log("Backup skipping colinear point");
+            // console.log("Backup skipping colinear point");
             skippedPoints.push(i);
             continue;
         }
