@@ -6,9 +6,9 @@ const BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPl
 
 
 module.exports = {
-    mode: 'production',
+    mode: 'development',
     entry: './src/base.js',
-    // devtool: 'source-map',
+    devtool: 'source-map',
     //devtool: 'eval-source-map',
     optimization: {
         usedExports: true,

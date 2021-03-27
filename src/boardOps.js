@@ -1509,8 +1509,8 @@ export function refreshCase() {
         }
     
         if(cBD.caseType === "concave") {
-            // cRD.outline = layoutData.minOutline;
-            cRD.outline = layoutData.convexHull;
+            cRD.outline = layoutData.minOutline;
+            // cRD.outline = layoutData.convexHull;
             // gfx.drawDbgOutline("badOutline", cRD.outline);
         }
         else if(cBD.caseType === "concave_slider") {
