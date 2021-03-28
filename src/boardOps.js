@@ -657,7 +657,7 @@ function getCombinedOutlineFromPolyGroup(group, ignoreOverlapping) {
                 }
             }
         }
-        // yeah this isn't exactly correct.
+        // yeah this isn't exactly correct. but it mostly works
         if(outline.length > bestOutlineLength) {
             bestOutline = outline;
             bestOutlineLength = outline.length;
@@ -1510,139 +1510,7 @@ export function refreshCase() {
     
         if(cBD.caseType === "concave") {
             cRD.outline = layoutData.minOutline;
-            // cRD.outline = layoutData.convexHull;
             // gfx.drawDbgOutline("badOutline", cRD.outline);
-        }
-        else if(cBD.caseType === "concave_slider") {
-            let kPs = layoutData.kPs;
-
-            let lastP = null;
-            let firstP = null;
-            let thisP = null;
-
-            // we only consider this line part of the whole deal if either of these things are true and we already passed
-            // the dist > theta * 2 check from earlier. (and dist > eps)
-            console.log(`thetas`);
-            console.log(layoutData.thetaValues);
-            const theta = Math.min(layoutData.thetaValues[Math.floor(cBD.bezelConcavity*(layoutData.thetaValues.length-1))] + Epsilon / 2,
-                                   layoutData.thetaValues[layoutData.thetaValues.length-1] - Epsilon / 2);
-            console.log(`bc ${cBD.bezelConcavity} theta idx ${Math.floor(cBD.bezelConcavity*layoutData.thetaValues.length)} of ${layoutData.thetaValues.length} = ${theta}`)
-            cRD.outline = [];
-
-            const getDPoints = function(p,prevIdx) {
-                let foundLast = prevIdx < 0;
-                const dps = [];
-
-                if(p.linkingEdge && prevIdx >= 0) {
-                    // exiting on the linking edge!
-                    if(p.linkingEdge.p.pointIdx != prevIdx) {
-                        dps.push(p.linkingEdge.p);
-                        return dps;
-                    }
-                }
-
-                for(const d of p.delaunayPoints) {
-                    if(foundLast) {
-                        if(theta > d.minTheta && theta <= d.maxTheta) {
-                            dps.push(d.p);
-                        }
-                    } else {
-                        if(d.p.pointIdx == prevIdx) {
-                            foundLast = true;
-                        }
-                    }
-                }
-                return dps;
-            }
-            
-            for(const p of kPs) {
-                // find a point guaranteed to be on the convex hull (so we can guess winding order below)
-                if(!firstP || p.z < firstP.z || (Math.abs(p.z-firstP.z) < Epsilon && p.x <= firstP.x)) {
-                    thisP = p;
-                    firstP = p;
-                }
-            }
-            const dps = getDPoints(thisP, -1);
-            if(dps.length === 2) {
-                // find the winding of the edges of first point
-                let b = dps[0];
-                let c = dps[1];
-
-                let ab = b.subtract(thisP);
-                let ac = c.subtract(thisP);
-                let xp = Vector3.Cross(ab,ac);
-                if(xp.y > Epsilon) {
-                    lastP = thisP;
-                    thisP = c;
-                } else {
-                    lastP = thisP;
-                    thisP = b;
-                }
-
-                // cRD.outline.push(lastP);
-            } else {
-                console.log(`failed to find start due to split/end`);
-                console.log(thisP);
-                console.log(dps);
-                thisP = null;
-            }
-
-            let dbglines = [];
-            let color1 = new Color4(1,0,0,1);
-            let color2 = new Color4(0,0,1,1);
-            let linecolors = [];
-            let followOutline = function(o,tP,lP) {
-                const dPs = getDPoints(tP, lP.pointIdx);
-                if(dPs.length === 0 || o.length > kPs.length) {
-                    console.log(`breaking out due to end/overflow`);
-                    console.log(dPs);
-                    console.log(tP);
-                    console.log(lP);
-                    console.log(o);
-                    return null;
-                }
-                if(o.includes(tP.pointIdx)) {
-                    console.log(`loop detected, discarding`);
-                    console.log(tP);
-                    console.log(o);
-                    return null;
-                }
-                o.push(tP.pointIdx);
-                lP = tP;
-                if(tP.pointIdx === firstP.pointIdx) {
-                    console.log(`found end point!`);
-                    return o;
-                }
-                for(let i = 0; i < dPs.length; i++) {
-                    tP = dPs[i];
-                    const nextO = i>0?[...o]:o;
-                    let newO = followOutline(nextO,tP,lP);
-                    if(newO != null) {
-                        return newO;
-                    }
-                }
-
-                for(let i = 1; i < o.length; i++) {
-                    dbglines.push([kPs[o[i-1]], kPs[o[i]]]);
-                    let c = i==(o.length-1)?color1:color2;
-                    linecolors.push([c,c]);
-                }
-                console.log(`i think this means we failed to get any outline`);
-                return null;
-            }
-
-            const idxOutline = followOutline([],thisP,lastP);
-            console.log(`showing ${dbglines.length} lines `)
-            if( globals.lineSystem ) {
-                globals.scene.removeMesh(globals.lineSystem)
-            }
-            globals.lineSystem = MeshBuilder.CreateLineSystem("lineSystem", {lines: dbglines, colors:linecolors}, globals.scene);
-
-            cRD.outline = [];
-            for(const idx of idxOutline) {
-                cRD.outline.push(kPs[idx]);
-            }
-            console.log(`outline has ${cRD.outline.length} points`)
         }
         else
         {

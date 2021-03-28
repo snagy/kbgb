@@ -138,6 +138,14 @@ function initKBGB() {
         'testkbs/keysize_test.kle' 
     ]
     let kbdidx = 0;
+
+    const urlParams = new URLSearchParams(location.search);
+    let paramIdx = urlParams.get("kbIdx");
+
+    if(paramIdx!==null && keyboards[paramIdx]) {
+        kbdidx = paramIdx;
+    }
+
     // load a keyboard
     loadKeyboardFromPath(keyboards[kbdidx]);
 

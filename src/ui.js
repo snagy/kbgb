@@ -281,7 +281,6 @@ export const kbgbGUI = {
                             let k = bd.layout.keys[kId];
                             keyAction(k);
                         }
-                        boardOps.refreshKeyboard();
                 };
                 let setKeyAction = (key,v) => kAction((k) => {
                     k[key] = v;
@@ -291,13 +290,14 @@ export const kbgbGUI = {
                 let keySelectionAction = (o,a,b) => {
                     if(o.width) {
                         setKeyAction("width", o.width);
+                        boardOps.refreshKeyboard();
                     }
                     else if(o.special) {
-                        setKeyAction("type", o.special);
-
                         if(o.special === "ec11") {
                             setKeyAction("encoder_knob_size", o.rad);
                         }
+                        setKeyAction("type", o.special);
+                        boardOps.refreshKeyboard();
                     }
                 }
                 ctrlBar.addControl(
