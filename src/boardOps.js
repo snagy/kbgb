@@ -3,77 +3,9 @@ import {tuning} from './tuning.js';
 import * as coremath from './coremath.js';
 import * as gfx from './gfx.js';
 import * as pcb from './pcbOps.js';
+import * as keyPicking from './keyPicking.js';
 import {Vector3, Space, MeshBuilder, Matrix, Epsilon, Color3, Color4, Mesh,
         Animation, EasingFunction, QuinticEase, TransformNode, TmpVectors} from '@babylonjs/core'
-
-export function refreshOutlines() {
-    let kRD = globals.renderData.keys;
-    let oRD = globals.renderData.outlines;
-    let mats = globals.renderData.mats;
-
-    for (const [k, o] of Object.entries(oRD)) {
-        globals.scene.removeMesh(o);
-        o.dispose();
-    }
-
-    oRD.length = 0;
-
-    for (const id of globals.pickedKeys) {
-        if (!kRD[id]) {
-            console.log("picked nonexistant key");
-        }
-        else {
-            let rd = kRD[id];
-
-            oRD[id] = MeshBuilder.CreateRibbon(id + "outline",
-                {
-                    pathArray: [coremath.genArrayFromOutline(rd.outline, 0.1, 0.1, true),
-                        coremath.genArrayFromOutline(rd.outline, 0.5, 0.5, true)]
-                }, globals.scene);
-            oRD[id].material = mats["keySel"];
-            oRD[id].translate(new Vector3(0, 10.5, 0), 1, Space.LOCAL);
-        }
-    }
-}
-
-export function clearPickedKeys() {
-    let kRD = globals.renderData.keys;
-    for (const id of globals.pickedKeys) {
-        if (!kRD[id]) {
-            console.log("picked nonexistant key");
-        } else {
-            let rd = kRD[id];
-            rd.keycap.renderOverlay = false;
-            for (const child of rd.keycap.getChildMeshes()){			
-                child.renderOverlay = false; 
-            }
-        }
-    }
-    globals.pickedKeys.length = 0;
-}
-export function togglePickedKey(id) {
-    let kRD = globals.renderData.keys;
-
-    if (!kRD[id]) {
-        console.log("picked nonexistant key");
-    } else {
-        let rd = kRD[id];
-        if (globals.pickedKeys.indexOf(id) >= 0) {
-            rd.keycap.renderOverlay = false;
-            for (const child of rd.keycap.getChildMeshes()){			
-                child.renderOverlay = false; 
-            }
-            globals.pickedKeys.splice(globals.pickedKeys.indexOf(id), 1)
-        } else {
-            rd.keycap.renderOverlay = true;
-
-            for (const child of rd.keycap.getChildMeshes()){			
-                child.renderOverlay = true; 
-            }
-            globals.pickedKeys.push(id);
-        }
-    }
-}
 
 function getPlateCutsWithStabs(id,width,height,kXform,flipStab,plateCuts,caseIdx) {
     let switchCutDims = [tuning.switchCutout[0]*0.5, tuning.switchCutout[1]*0.5];
@@ -213,7 +145,7 @@ export function refreshLayout() {
     
             if (tuning.keyShape) {
                 rd.keycap = MeshBuilder.CreatePolygon(id, { shape: coremath.genArrayFromOutline(rd.outline,0,0.25), depth: 2, smoothingThreshold: 0.1, updatable: false }, scene);
-                if(globals.pickedKeys.indexOf(id)>=0) {
+                if(keyPicking.pickedKeys.indexOf(id)>=0) {
                     rd.keycap.renderOverlay = true;
                 }
                 rd.keycap.parent = root;
@@ -259,7 +191,7 @@ export function refreshLayout() {
     
             if (tuning.keyShape) {
                 rd.keycap = MeshBuilder.CreatePolygon(id, { shape: coremath.genArrayFromOutline(rd.outline,0,0), depth: 9, smoothingThreshold: 0.1, updatable: false }, scene);
-                if(globals.pickedKeys.indexOf(id)>=0) {
+                if(keyPicking.pickedKeys.indexOf(id)>=0) {
                     rd.keycap.renderOverlay = true;
                 }
                 rd.keycap.parent = root;
@@ -363,7 +295,7 @@ export function refreshLayout() {
                     }
                     rd.keycap.material = mat;
                 }
-                if(globals.pickedKeys.indexOf(id)>=0) {
+                if(keyPicking.pickedKeys.indexOf(id)>=0) {
                     rd.keycap.renderOverlay = true;
                     for (const child of rd.keycap.getChildMeshes()){			
                         child.renderOverlay = true; 
@@ -391,6 +323,7 @@ export function refreshLayout() {
     refreshPCBs();
 
     // refreshOutlines();
+    refreshCase();
 }
 
 function getCombinedOutlineFromPolyGroup(group, ignoreOverlapping) {
@@ -1450,12 +1383,9 @@ export function refreshPCBs() {
     }
 }
 
-export function refreshCase() {
+export function removeCaseData() {
     const scene = globals.scene;
     const bd = globals.boardData;
-    const kRD = globals.renderData.keys;
-    const mats = globals.renderData.mats;
-
     for(const [caseIdx,cBD] of Object.entries(bd.cases)) {
         if(!globals.renderData.cases[caseIdx]) {
             globals.renderData.cases.push({layers:{}});
@@ -1477,8 +1407,23 @@ export function refreshCase() {
                 layer.meshes.length = 0;
             }
         }
-        
         cRD.layers = {};
+    }
+}
+export function refreshCase() {
+    const scene = globals.scene;
+    const bd = globals.boardData;
+    const kRD = globals.renderData.keys;
+    const mats = globals.renderData.mats;
+
+    removeCaseData();
+
+    for(const [caseIdx,cBD] of Object.entries(bd.cases)) {
+        if(!globals.renderData.cases[caseIdx]) {
+            globals.renderData.cases.push({layers:{}});
+        }
+        const cRD = globals.renderData.cases[caseIdx];
+
         const root = cRD.rootXform;
         root.position.x = 50*caseIdx;
     
@@ -1716,8 +1661,6 @@ export function setCaseMat(iBD, matName) {
 
 export function refreshKeyboard() {
     refreshLayout();
-
-    refreshCase();
 }
 
 export function updateRotation(cRD, cBD) {

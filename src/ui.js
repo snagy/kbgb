@@ -4,6 +4,8 @@ import * as boardOps from './boardOps.js'
 import * as svg from './svg_export.js'
 import * as gbr from './gbr_export.js'
 import * as interactions from './interactions.js'
+import {PointerEventTypes, Vector3, Space, MeshBuilder} from '@babylonjs/core';
+import * as keyPicking from './keyPicking.js'
 import {snapCamera} from './gfx.js'
 import {Button, Rectangle, Control, TextBlock, InputText, StackPanel, RadioButton, Checkbox, 
         Slider, ScrollViewer, AdvancedDynamicTexture} from '@babylonjs/gui'
@@ -204,6 +206,104 @@ let createSlider = function(parent, txt, initialVal, min, max, onChangeFunc) {
     parent.addControl(slider); 
 }
 
+let pointerController = {
+    activeMode: null,
+    enterModePosition: null,
+    getLocFromInfo: function(pointerInfo) {
+        const pickResult = pointerInfo.pickInfo;
+        const ray = pickResult.ray;
+        const t = -ray.origin.y / ray.direction.y;
+        return ray.origin.add(ray.direction.scale(t));
+    },
+    setMode: function(mode, pointerInfo) {
+        if(pointerController.activeMode && pointerController.modes[pointerController.activeMode].exit) {
+            pointerController.modes[pointerController.activeMode].exit(pointerInfo);
+        }
+        pointerController.activeMode = mode;
+        if(mode) {
+            pointerController.enterModePosition = this.getLocFromInfo(pointerInfo);
+            pointerController.modes[mode].enter(pointerInfo);
+        }
+    },
+    processMove: function(pointerInfo) {
+        let m = pointerController.modes[pointerController.activeMode];
+        if(m && m.move) {
+            m.move(pointerInfo);
+        }
+    },
+    processUp: function(pointerInfo) {
+        let m = pointerController.modes[pointerController.activeMode];
+        if(m && m.up) {
+            m.up(pointerInfo);
+        }
+    },
+    modes: {   
+        "keyMove": {
+            keyInfo: {},
+            enter: function(pointerInfo) {
+                for (let kId of keyPicking.pickedKeys) {
+                    let bd = globals.boardData;
+                    let k = bd.layout.keys[kId];
+                    pointerController.modes.keyMove.keyInfo[kId] = {x: k.x, y: k.y};
+                }
+            },
+            move: function(pointerInfo) {
+                let hitLoc = pointerController.getLocFromInfo(pointerInfo);
+                console.log(`hitloc ${hitLoc}`)
+                kbgbGUI.keyAction((k) => {
+                    const savedInfo = pointerController.modes.keyMove.keyInfo[k.id];
+                    if(savedInfo) {
+                        k.x = savedInfo.x + Math.floor(4*(hitLoc.x - pointerController.enterModePosition.x)/tuning.base1U[0])*tuning.base1U[0]/4;
+                        k.y = savedInfo.y - Math.floor(4*(hitLoc.z - pointerController.enterModePosition.z)/tuning.base1U[1])*tuning.base1U[1]/4;
+                    }
+                });
+            },
+            up: function(pointerInfo) {
+                pointerController.setMode(null,pointerInfo);
+                console.log(`pointer up.... mode is ${pointerController.activeMode}`)
+            }
+        },
+        "selection": {
+            enter: function(pointerInfo) {
+
+            },
+            move: function(pointerInfo) {
+                let hitLoc = pointerController.getLocFromInfo(pointerInfo);
+                updateSelectionBox(pointerController.enterModePosition,hitLoc);
+            },
+            up: function(pointerInfo) {
+                updateSelectionBox();
+                pointerController.setMode(null,pointerInfo);
+            }
+        }
+    }
+}
+
+let selMesh = null;
+function updateSelectionBox(start,end) {
+    let mats = globals.renderData.mats;
+    
+    if(selMesh) {
+        globals.scene.removeMesh(selMesh);
+        selMesh.dispose();
+    }
+
+    if(start && end) {
+        let selOutline = [new Vector3(start.x, 0, start.z),
+                          new Vector3(end.x, 0, start.z),
+                          new Vector3(end.x, 0, end.z),
+                          new Vector3(start.x, 0, end.z),
+                          new Vector3(start.x, 0, start.z)
+        ];
+        selMesh = MeshBuilder.CreateTube( "selOutline",
+        {
+            path:selOutline, radius: 1
+        }, globals.scene);
+        selMesh.material = mats["keySel"];
+        selMesh.translate(new Vector3(0, 20.5, 0), 1, Space.LOCAL);
+    }
+}
+
 export const kbgbGUI = {
 
     addLabel: function(txt) {
@@ -215,18 +315,16 @@ export const kbgbGUI = {
         t.fontSize = 24;
         return t;
     },
-    getKeyAction: function(keyAction) {
-        return function () {
-            for (let kId of globals.pickedKeys) {
-                let bd = globals.boardData;
-                let k = bd.layout.keys[kId];
-                keyAction(k);
-            }
-            boardOps.refreshKeyboard();
+    keyAction: function(action) {
+        for (let kId of keyPicking.pickedKeys) {
+            let bd = globals.boardData;
+            let k = bd.layout.keys[kId];
+            action(k);
         }
+        boardOps.refreshLayout();
     },
     addKeyActionButton: function(txt, keyAction, keyCode) {
-        const appliedKeyAction = kbgbGUI.getKeyAction(keyAction);
+        const appliedKeyAction = function() {keyAction(keyAction)};
         if(keyCode) {
             interactions.addBinding("keydown", keyCode, appliedKeyAction)
         }
@@ -250,6 +348,58 @@ export const kbgbGUI = {
         "key":{
             cameraMode:"top",
             add: function() {
+                interactions.addPointerBinding(PointerEventTypes.POINTERDOWN, (pointerInfo) => {
+                    const pickResult = pointerInfo.pickInfo;
+                    const ray = pickResult.ray;
+                    const t = -ray.origin.y / ray.direction.y;
+                    const hitLoc = ray.origin.add(ray.direction.scale(t));
+
+                    let hitPickedKey = false;
+
+                    if (pickResult && pickResult.pickedMesh) {
+                        const parent = pickResult.pickedMesh.parent;
+                        let name = pickResult.pickedMesh.name;
+                        if (parent && globals.boardData.layout.keys[parent.name]) {
+                            name = parent.name;
+                        }
+                        if (keyPicking.pickedKeys.indexOf(name) >= 0) {
+                            hitPickedKey = true;
+                            pointerController.setMode("keyMove",pointerInfo);
+                        }
+                    }
+
+                    if(!hitPickedKey) {
+                        pointerController.setMode("selection",pointerInfo);
+                    }
+                });
+                interactions.addPointerBinding(PointerEventTypes.POINTERMOVE, (pointerInfo) => {
+                    pointerController.processMove(pointerInfo);
+                });
+                interactions.addPointerBinding(PointerEventTypes.POINTERUP, (pointerInfo) => {
+                    pointerController.processUp(pointerInfo);
+                });
+                interactions.addPointerBinding(PointerEventTypes.POINTERTAP, (pointerInfo) => {
+                    const pickResult = pointerInfo.pickInfo;
+                    const e = pointerInfo.event;
+                    console.log(`pointer ${e.x} ${e.y}`)
+                    if (pickResult && pickResult.pickedMesh) {
+                        const parent = pickResult.pickedMesh.parent;
+                        let name = pickResult.pickedMesh.name;
+                        if (parent && globals.boardData.layout.keys[parent.name]) {
+                            name = parent.name;
+                        }
+                        if (globals.boardData.layout.keys[name]) {
+                            if (!(e.metaKey || e.ctrlKey)) {
+                                keyPicking.clearPickedKeys();
+                            }
+                            keyPicking.togglePickedKey(name);
+            
+                            console.log("picked key " + name)
+                            // boardOps.refreshOutlines();
+                        }
+                    }
+                });
+                // boardOps.removeCaseData();
                 //let ctrlBar = Control.AddHeader(control, text, size, options { isHorizontal, controlFirst }):
                 let ctrlBar = new StackPanel();  
                 ctrlBar.height = ".2";
@@ -260,7 +410,7 @@ export const kbgbGUI = {
             
                 ctrlBar.addControl(addButton("add key", (e) => {
                     boardOps.addKey();
-                    boardOps.refreshKeyboard();
+                    boardOps.refreshLayout();
                 }, {height:"60px", width:"120px"}));
 
                 ctrlBar.addControl(kbgbGUI.addLabel("Pos: "));
@@ -276,7 +426,7 @@ export const kbgbGUI = {
             
                 ctrlBar.addControl(kbgbGUI.addLabel("  "));
                 let kAction = (keyAction) => {
-                        for (let kId of globals.pickedKeys) {
+                        for (let kId of keyPicking.pickedKeys) {
                             let bd = globals.boardData;
                             let k = bd.layout.keys[kId];
                             keyAction(k);
@@ -290,14 +440,14 @@ export const kbgbGUI = {
                 let keySelectionAction = (o,a,b) => {
                     if(o.width) {
                         setKeyAction("width", o.width);
-                        boardOps.refreshKeyboard();
+                        boardOps.refreshLayout();
                     }
                     else if(o.special) {
                         if(o.special === "ec11") {
                             setKeyAction("encoder_knob_size", o.rad);
                         }
                         setKeyAction("type", o.special);
-                        boardOps.refreshKeyboard();
+                        boardOps.refreshLayout();
                     }
                 }
                 ctrlBar.addControl(
@@ -334,40 +484,25 @@ export const kbgbGUI = {
                     boardOps.refreshCase();
                 });
 
-                ctrlBar.addControl(kbgbGUI.addLabel("FLIPSTAB: "));
+                ctrlBar.addControl(kbgbGUI.addLabel("STAB: "));
                 ctrlBar.addControl(checkbox);
-
-                // ctrlBar.addControl(kbgbGUI.addLabel("W: "));
-                // ctrlBar.addControl(kbgbGUI.addKeyActionButton(`⬌`, (k) => {
-                //     const currIdx = keyWidths.indexOf(k.width);
-                //     if(currIdx != -1 && currIdx >= 1) {
-                //         k.width = keyWidths[currIdx-1];
-                //     }
-                // }));
-                // ctrlBar.addControl(kbgbGUI.addKeyActionButton(`⬄`, (k) => {
-                //     const currIdx = keyWidths.indexOf(k.width);
-                //     if(currIdx != -1 && currIdx < keyWidths.length-1) {
-                //         k.width = keyWidths[currIdx+1];
-                //     }
-                // }));
 
                 ctrlBar.addControl(kbgbGUI.addLabel("  "));
 
                 ctrlBar.addControl(kbgbGUI.addKeyActionButton("del", (k) => {
                     boardOps.removeKey(k.id);
                 }, {height:"60px", width:"120px"}));
-            
-                // ctrlBar.addControl(kbgbGUI.addLabel("H: "));
-                // ctrlBar.addControl(kbgbGUI.addKeyActionButton(`⬍`, (k) => k.height += 0.25 ));
-                // ctrlBar.addControl(kbgbGUI.addKeyActionButton(`⇳`, (k) => k.height -= 0.25 ));
                 
                 globals.screengui.addControl(ctrlBar);
                 kbgbGUI.activeModeCtrl = ctrlBar;
                 boardOps.setFlatRotations();
             },
             remove: () => {
+                interactions.removePointerBinding(PointerEventTypes.POINTERPICK);
                 globals.screengui.removeControl(kbgbGUI.activeModeCtrl);
-                boardOps.clearPickedKeys();
+                keyPicking.clearPickedKeys();
+                boardOps.refreshPCBs();
+                boardOps.refreshCase();
             }
         },
         "case":{

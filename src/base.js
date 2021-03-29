@@ -10,7 +10,6 @@ import * as interactions from './interactions.js'
 import Amplify from '@aws-amplify/core';
 import Auth from '@aws-amplify/auth';
 import Analytics from '@aws-amplify/analytics';
-import {PointerEventTypes} from '@babylonjs/core';
 
 // import Amplify from 'aws-amplify';
 import awsconfig from './aws-exports';
@@ -54,52 +53,6 @@ function initKBGB() {
     gfx.init(boardOps.refreshKeyboard);
 
 
-    const scene = globals.scene;
-
-    scene.onPointerObservable.add((pointerInfo) => {
-        const e = pointerInfo.event;
-        switch (pointerInfo.type) {
-            // case PointerEventTypes.POINTERDOWN:
-            //     console.log("POINTER DOWN");
-            //     break;
-            // case PointerEventTypes.POINTERUP:
-            //     console.log("POINTER UP");
-            //     break;
-            // case PointerEventTypes.POINTERMOVE:
-            //     console.log("POINTER MOVE");
-            //     break;
-            // case PointerEventTypes.POINTERWHEEL:
-            //     console.log("POINTER WHEEL");
-            //     break;
-            case PointerEventTypes.POINTERPICK:
-                const pickResult = pointerInfo.pickInfo;
-                if (pickResult && pickResult.pickedMesh) {
-                    if(kbgbGUI.activeMode == "key") {
-                        const parent = pickResult.pickedMesh.parent;
-                        let name = pickResult.pickedMesh.name;
-                        if (parent && globals.boardData.layout.keys[parent.name]) {
-                            name = parent.name;
-                        }
-                        if (globals.boardData.layout.keys[name]) {
-                            if (!(e.metaKey || e.ctrlKey)) {
-                                boardOps.clearPickedKeys();
-                            }
-                            boardOps.togglePickedKey(name);
-            
-                            console.log("picked key " + name)
-                            // boardOps.refreshOutlines();
-                        }
-                    }
-                }
-                break;
-            // case PointerEventTypes.POINTERTAP:
-            //     console.log("POINTER TAP");
-            //     break;
-            // case PointerEventTypes.POINTERDOUBLETAP:
-            //     console.log("POINTER DOUBLE-TAP");
-            //     break;
-        }
-    });
 
     gfx.setEnvironmentLight(hdris[hdriIdx]);
 
@@ -186,36 +139,36 @@ function initKBGB() {
         }
     }
 
-    interactions.init();
+    interactions.init(globals.scene);
     interactions.addBinding('keydown', 'i', e => inspectorStub.showInspector());
     interactions.addBinding('keydown', 'k', e => {
         tuning.keyShape = tuning.keyShape?null:"square";
-        boardOps.refreshKeyboard();
+        boardOps.refreshLayout();
     });
     interactions.addBinding('keydown', 'c', e => {
         tuning.drawCase = tuning.drawCase?false:true;
-        boardOps.refreshKeyboard();
+        boardOps.refreshCase();
     });
     interactions.addBinding('keydown', 'p', e => {
         tuning.drawPlate = tuning.drawPlate?false:true;
-        boardOps.refreshKeyboard();
+        boardOps.refreshCase();
     });
     interactions.addBinding('keydown', 'o', e => {
         tuning.drawPCB = tuning.drawPCB?false:true;
-        boardOps.refreshKeyboard();
+        boardOps.refreshCase();
     });
     interactions.addBinding('keydown', 'b', e => {
         tuning.drawBezel = tuning.drawBezel?false:true;
-        boardOps.refreshKeyboard();
+        boardOps.refreshCase();
     });
     interactions.addBinding('keydown', 'r', e => {
         kbdidx = (kbdidx+1)%keyboards.length;
         loadKeyboardFromPath(keyboards[kbdidx]);
     });
-    interactions.addBinding('keydown', 'l', e => {
-        hdriIdx = (hdriIdx+1)%hdris.length;
-        gfx.setEnvironmentLight(hdris[hdriIdx]);
-    });
+    // interactions.addBinding('keydown', 'l', e => {
+    //     hdriIdx = (hdriIdx+1)%hdris.length;
+    //     gfx.setEnvironmentLight(hdris[hdriIdx]);
+    // });
 }
 
 window.addEventListener('DOMContentLoaded', function () {
