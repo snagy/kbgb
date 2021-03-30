@@ -190,6 +190,42 @@ export function isPointInPoly(p, poly) {
     return true;
 }
 
+export function polyPolyOverlap(poly1, poly2) {
+    // see if any of the lines bisect the other poly
+    let checkIntersection = (polyA, polyB) => {
+        const hole = polyA.points;
+        const norm = TmpVectors.Vector3[8];
+        for(let iP = 0; iP < hole.length; iP++) {
+            const h0 = hole[iP];
+            const h1 = hole[(iP+1)%hole.length];
+            norm.x = h1.z-h0.z;
+            norm.z = h0.x-h1.x;
+            let allLess = true;
+            let allMore = true;
+            const holeO = polyB.points;
+            const oL = TmpVectors.Vector3[1];
+
+            for(let oP = 0; oP < holeO.length; oP++) {
+                holeO[oP].subtractToRef(hole[iP], oL);
+                let dot = Vector3.Dot(norm,oL);
+                allMore &= dot > Epsilon;
+                allLess &= dot < -Epsilon;
+            }
+
+            if( allMore ) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    let confirmedIntersection = checkIntersection(poly1,poly2);
+    if(confirmedIntersection) {
+        confirmedIntersection = checkIntersection(poly2,poly1);
+    }
+    return confirmedIntersection;
+}
+
 export function getRotFromNormal(norm) {
     let t = Math.acos(norm.x);
     if (norm.z < 0) t = 2 * Math.PI - t;

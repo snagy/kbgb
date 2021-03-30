@@ -47,6 +47,25 @@ export function clearPickedKeys() {
     }
     pickedKeys.length = 0;
 }
+
+export function pickKey(id) {
+    let kRD = globals.renderData.keys;
+
+    if (!kRD[id]) {
+        console.log("picked nonexistant key");
+    } else {
+        let rd = kRD[id];
+        if (pickedKeys.indexOf(id) < 0) {
+            rd.keycap.renderOverlay = true;
+
+            for (const child of rd.keycap.getChildMeshes()){			
+                child.renderOverlay = true; 
+            }
+            pickedKeys.push(id);
+        }
+    }
+}
+
 export function togglePickedKey(id) {
     let kRD = globals.renderData.keys;
 

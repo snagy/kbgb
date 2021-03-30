@@ -1,5 +1,6 @@
 import {globals} from './globals.js'
 import {tuning} from './tuning.js'
+import * as coremath from './coremath.js'
 import * as boardOps from './boardOps.js'
 import * as svg from './svg_export.js'
 import * as gbr from './gbr_export.js'
@@ -249,12 +250,19 @@ let pointerController = {
             },
             move: function(pointerInfo) {
                 let hitLoc = pointerController.getLocFromInfo(pointerInfo);
+                const e = pointerInfo.event;
                 console.log(`hitloc ${hitLoc}`)
                 kbgbGUI.keyAction((k) => {
                     const savedInfo = pointerController.modes.keyMove.keyInfo[k.id];
                     if(savedInfo) {
-                        k.x = savedInfo.x + Math.floor(4*(hitLoc.x - pointerController.enterModePosition.x)/tuning.base1U[0])*tuning.base1U[0]/4;
-                        k.y = savedInfo.y - Math.floor(4*(hitLoc.z - pointerController.enterModePosition.z)/tuning.base1U[1])*tuning.base1U[1]/4;
+                        if(e.shiftKey) {
+                            // don't snap to grid
+                            k.x = savedInfo.x + (hitLoc.x - pointerController.enterModePosition.x);
+                            k.y = savedInfo.y - (hitLoc.z - pointerController.enterModePosition.z);
+                        } else {
+                            k.x = savedInfo.x + Math.floor(4*(hitLoc.x - pointerController.enterModePosition.x)/tuning.base1U[0])*tuning.base1U[0]/4;
+                            k.y = savedInfo.y - Math.floor(4*(hitLoc.z - pointerController.enterModePosition.z)/tuning.base1U[1])*tuning.base1U[1]/4;
+                        }
                     }
                 });
             },
@@ -272,6 +280,27 @@ let pointerController = {
                 updateSelectionBox(pointerController.enterModePosition,hitLoc);
             },
             up: function(pointerInfo) {
+                const e = pointerInfo.event;
+                if(!(e.metaKey || e.ctrlKey)) {
+                    keyPicking.clearPickedKeys();
+                }
+                const end = pointerController.getLocFromInfo(pointerInfo);
+                const start = pointerController.enterModePosition;
+                const mins = {x: Math.min(start.x,end.x),z:Math.min(start.z,end.z)};
+                const maxs = {x: Math.max(start.x,end.x),z:Math.max(start.z,end.z)};
+                const selectionPoly = new coremath.Poly([new Vector3(mins.x, 0, mins.z),
+                    new Vector3(maxs.x, 0, mins.z),
+                    new Vector3(maxs.x, 0, maxs.z),
+                    new Vector3(mins.x, 0, maxs.z)
+                ]);
+                let kRD = globals.renderData.keys;
+                for (const [id, rd] of Object.entries(kRD)) {
+                    for(const [ip, keyPoly] of Object.entries(rd["bezelHoles"])) {
+                        if(coremath.polyPolyOverlap(selectionPoly,keyPoly)) {
+                            keyPicking.pickKey(id);
+                        }
+                    }
+                }
                 updateSelectionBox();
                 pointerController.setMode(null,pointerInfo);
             }
