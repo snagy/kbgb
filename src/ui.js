@@ -352,8 +352,8 @@ export const kbgbGUI = {
         }
         boardOps.refreshLayout();
     },
-    addKeyActionButton: function(txt, keyAction, keyCode) {
-        const appliedKeyAction = function() {keyAction(keyAction)};
+    addKeyActionButton: function(txt, action, keyCode) {
+        const appliedKeyAction = () => {this.keyAction(action)}
         if(keyCode) {
             interactions.addBinding("keydown", keyCode, appliedKeyAction)
         }
@@ -527,7 +527,10 @@ export const kbgbGUI = {
                 boardOps.setFlatRotations();
             },
             remove: () => {
-                interactions.removePointerBinding(PointerEventTypes.POINTERPICK);
+                interactions.removePointerBinding(PointerEventTypes.POINTERDOWN);
+                interactions.removePointerBinding(PointerEventTypes.POINTERMOVE);
+                interactions.removePointerBinding(PointerEventTypes.POINTERUP);
+                interactions.removePointerBinding(PointerEventTypes.POINTERTAP);
                 globals.screengui.removeControl(kbgbGUI.activeModeCtrl);
                 keyPicking.clearPickedKeys();
                 boardOps.refreshPCBs();

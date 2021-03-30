@@ -28,7 +28,7 @@ function keydownEvent(event) {
         keyBindings["keydown"][event.key](event);
     }
     else {
-        console.log(`unbound key ${event.key}`)
+        // console.log(`unbound key ${event.key}`)
     }
 }
 
@@ -40,7 +40,7 @@ export function init(scene) {
             pointerBindings[pointerInfo.type](pointerInfo);
         }
         else {
-            console.log(`unbound pointer event ${pointerInfo.type}`)
+            // console.log(`unbound pointer event ${pointerInfo.type}`)
         }
             // case PointerEventTypes.POINTERDOWN:
             // case PointerEventTypes.POINTERUP:
