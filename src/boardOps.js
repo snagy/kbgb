@@ -4,8 +4,8 @@ import * as coremath from './coremath.js';
 import * as gfx from './gfx.js';
 import * as pcb from './pcbOps.js';
 import * as keyPicking from './keyPicking.js';
-import {Vector3, Space, MeshBuilder, Matrix, Epsilon, Color3, Color4, Mesh,
-        Animation, EasingFunction, QuinticEase, TransformNode, TmpVectors} from '@babylonjs/core'
+import {Vector3, MeshBuilder, Matrix, Epsilon, Color3, Color4,
+        Animation, EasingFunction, QuinticEase, TransformNode, DynamicTexture} from '@babylonjs/core'
 
 function getPlateCutsWithStabs(id,width,height,kXform,flipStab,plateCuts,caseIdx) {
     let switchCutDims = [tuning.switchCutout[0]*0.5, tuning.switchCutout[1]*0.5];
@@ -272,6 +272,15 @@ export function refreshLayout() {
                 const keyCapGLTF = gfx.getKeycap("KAM", primeSearch, k.height, searchOpts);
                 if( keyCapGLTF ) {
                     rd.keycap = keyCapGLTF.container.instantiateModelsToScene(name => id, false).rootNodes[0];
+
+                    // if we ever switch to KRK keycaps
+                    // console.log(rd.keycap.morphTargetManager);
+                    // for (const child of rd.keycap.getChildMeshes()) {
+                    //     console.log(child.morphTargetManager);
+                    //     let mt = child.morphTargetManager.getTarget(1);	
+                    //     mt.influence = 1;
+                    // }
+                    
                     rd.keycap.parent = root;
                     rd.keycap.preXform = keyCapGLTF.preXform;
                     rd.keycap.postXform = Matrix.Scaling(-1,1,1);
@@ -289,7 +298,14 @@ export function refreshLayout() {
 
         
                 if(k.matName && globals.renderData.mats[k.matName]) {
-                    let mat = globals.renderData.mats[k.matName]
+                    let mat = globals.renderData.mats[k.matName];
+                    // let mat = globals.renderData.mats[k.matName].clone()
+                                       
+                    // let myDynamicTexture = new DynamicTexture(k.id, {width:256, height:256}, scene);
+                    // var font = "bold 44px monospace";
+                    // myDynamicTexture.drawText("Z", 128, 128, font, "white", "green", true, true);
+                    // //myDynamicTexture.drawText("Z", x, y, font, color, canvas, color, invertY, update);
+                    // mat.baseTexture = myDynamicTexture;
                     for (const child of rd.keycap.getChildMeshes()){			
                         child.material = mat; 
                     }

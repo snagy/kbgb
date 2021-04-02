@@ -5,7 +5,7 @@ import * as boardOps from './boardOps.js'
 import * as svg from './svg_export.js'
 import * as gbr from './gbr_export.js'
 import * as interactions from './interactions.js'
-import {PointerEventTypes, Vector3, Space, MeshBuilder} from '@babylonjs/core';
+import {PointerEventTypes, Vector3, Space, MeshBuilder, Epsilon} from '@babylonjs/core';
 import * as keyPicking from './keyPicking.js'
 import {snapCamera} from './gfx.js'
 import {Button, Rectangle, Control, TextBlock, InputText, StackPanel, RadioButton, Checkbox, 
@@ -318,18 +318,23 @@ function updateSelectionBox(start,end) {
     }
 
     if(start && end) {
-        let selOutline = [new Vector3(start.x, 0, start.z),
-                          new Vector3(end.x, 0, start.z),
-                          new Vector3(end.x, 0, end.z),
-                          new Vector3(start.x, 0, end.z),
-                          new Vector3(start.x, 0, start.z)
-        ];
-        selMesh = MeshBuilder.CreateTube( "selOutline",
-        {
-            path:selOutline, radius: 1
-        }, globals.scene);
-        selMesh.material = mats["keySel"];
-        selMesh.translate(new Vector3(0, 20.5, 0), 1, Space.LOCAL);
+        const mins = {x: Math.min(start.x,end.x),z:Math.min(start.z,end.z)};
+        const maxs = {x: Math.max(start.x,end.x),z:Math.max(start.z,end.z)};
+        if(maxs.x - mins.x > Epsilon && maxs.z - mins.z > Epsilon) {
+            let selOutline = [new Vector3(mins.x, 0, mins.z),
+                              new Vector3(maxs.x, 0, mins.z),
+                              new Vector3(maxs.x, 0, maxs.z),
+                              new Vector3(mins.x, 0, maxs.z)
+            ];
+    
+            selMesh = MeshBuilder.CreateRibbon("selectionOutline",
+            {
+                pathArray: [coremath.genArrayFromOutline(selOutline, 0.1, 0.1, true),
+                    coremath.genArrayFromOutline(selOutline, 0.5, 0.5, true)]
+            }, globals.scene);
+            selMesh.material = mats["keySel"];
+            selMesh.translate(new Vector3(0, 20.5, 0), 1, Space.LOCAL);
+        }
     }
 }
 
@@ -510,7 +515,7 @@ export const kbgbGUI = {
                 checkbox.color = "green";
                 checkbox.onIsCheckedChangedObservable.add(function(value) {
                     flipStabAction(value);
-                    boardOps.refreshCase();
+                    boardOps.refreshLayout();
                 });
 
                 ctrlBar.addControl(kbgbGUI.addLabel("STAB: "));

@@ -11,6 +11,7 @@ export function createKeyMaterial(name,color) {
     {
         mats[name] = new PBRMetallicRoughnessMaterial(name, globals.scene);
         mats[name].metallic = 0;
+        mats[name].transparencyMode = PBRMaterial.PBRMATERIAL_OPAQUE;
         mats[name].roughness = 0.6;
         mats[name].baseColor = color;
     }
@@ -72,6 +73,7 @@ export function createMaterials() {
     {
         mats[switchMatName] = new PBRMaterial(switchMatName, globals.scene);
         mats[switchMatName].metallic = 0;
+        mats[switchMatName].transparencyMode = PBRMaterial.PBRMATERIAL_OPAQUE;
         mats[switchMatName].roughness = 0.7;
         mats[switchMatName].baseColor = new Color3(0.1, 0.1, 0.1);
     }
@@ -81,6 +83,7 @@ export function createMaterials() {
     {
         mats[pcbMatName] = new PBRMetallicRoughnessMaterial(pcbMatName, globals.scene);
         mats[pcbMatName].metallic = 0;
+        mats[pcbMatName].transparencyMode = PBRMaterial.PBRMATERIAL_OPAQUE;
         mats[pcbMatName].roughness = 0.2;
         mats[pcbMatName].baseColor = new Color3(45/255, 90/255, 10/255);
     }
@@ -225,7 +228,7 @@ function createScene() {
 
 export const switchAsset = {container:null,details:null};
 
-export const keyAssets = {"KAT":{},"DSA":{},"KAM":{}};
+export const keyAssets = {"KAT":{},"DSA":{},"KAM":{},"KRK":{}};
 export function getKeycap(profile, width, height, opts) {
     const prof = keyAssets[profile];
     if(!prof) return null;
@@ -244,6 +247,9 @@ export function getKeycap(profile, width, height, opts) {
     }
     else if(profile == "KAT") {
         xForm = Matrix.RotationY(Math.PI);
+    }
+    else if(profile == "KRK") {
+        xForm = Matrix.Scaling(-1,1,1);
     }
 
     const sized = prof[width];
@@ -267,6 +273,11 @@ export function getKeycap(profile, width, height, opts) {
         }
     }
     return {container:best,preXform:xForm};
+}
+
+const krkList = {
+    "1r_1u.glb": {r:"1", w:"1"},
+    "ISO_enter.glb": {r:"special", w:"ISO", type:"ISO ENTER", nub:false, stepped:false}
 }
 
 const katList = {
@@ -332,7 +343,7 @@ export function init(loadCB) {
     globals.scene = createScene();
     let loading = [];
 
-    SceneLoader.LoadAssetContainer("assets/", "MX_SWITCH.glb", globals.scene, function (container) {
+    SceneLoader.LoadAssetContainer("assets/", "MX_SWITCH_opt.glb", globals.scene, function (container) {
         switchAsset.container = container;
         loadCB();
     });
@@ -344,6 +355,24 @@ export function init(loadCB) {
                 keyAssets.KAM[d.w] = [];
             }
             keyAssets.KAM[d.w].push({container:container, details:d});
+            var i = loading.indexOf(n);
+            if (i >= 0) {
+                loading.splice(i, 1 );
+            }
+
+            if(loading.length == 0) {
+                loadCB();
+            }
+        });
+    }
+
+    for(const [n,d] of Object.entries(krkList)) {
+        loading.push(n);
+        SceneLoader.LoadAssetContainer("assets/KRK/", n, globals.scene, function (container) {
+            if(!keyAssets.KRK[d.w]) {
+                keyAssets.KRK[d.w] = [];
+            }
+            keyAssets.KRK[d.w].push({container:container, details:d});
             var i = loading.indexOf(n);
             if (i >= 0) {
                 loading.splice(i, 1 );
