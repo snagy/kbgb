@@ -353,7 +353,7 @@ export function convexHull2d(points) {
 
 export function createVoronoi(points) {
     var vSites = [];
-    var bbox = {xl:1000000, xr:-100000, zt:1000000, zb:-1000000};
+    var bbox = {xl:1000000, xr:-1000000, zt:1000000, zb:-1000000};
 
     let addSite = function(site) {
         vSites.push(site);

@@ -447,11 +447,11 @@ export const kbgbGUI = {
                     boardOps.refreshLayout();
                 }, {height:"60px", width:"120px"}));
 
-                ctrlBar.addControl(kbgbGUI.addLabel("Pos: "));
-                ctrlBar.addControl(kbgbGUI.addKeyActionButton(`◄`, (k) => k.x -= 0.25*tuning.base1U[0], "ArrowLeft"));
-                ctrlBar.addControl(kbgbGUI.addKeyActionButton(`▲`, (k) => k.y -= 0.25*tuning.base1U[1], "ArrowUp"));
-                ctrlBar.addControl(kbgbGUI.addKeyActionButton(`▼`, (k) => k.y += 0.25*tuning.base1U[1], "ArrowDown"));
-                ctrlBar.addControl(kbgbGUI.addKeyActionButton(`►`, (k) => k.x += 0.25*tuning.base1U[0], "ArrowRight"));
+                // ctrlBar.addControl(kbgbGUI.addLabel("Pos: "));
+                // ctrlBar.addControl(kbgbGUI.addKeyActionButton(`◄`, (k) => k.x -= 0.25*tuning.base1U[0], "ArrowLeft"));
+                // ctrlBar.addControl(kbgbGUI.addKeyActionButton(`▲`, (k) => k.y -= 0.25*tuning.base1U[1], "ArrowUp"));
+                // ctrlBar.addControl(kbgbGUI.addKeyActionButton(`▼`, (k) => k.y += 0.25*tuning.base1U[1], "ArrowDown"));
+                // ctrlBar.addControl(kbgbGUI.addKeyActionButton(`►`, (k) => k.x += 0.25*tuning.base1U[0], "ArrowRight"));
             
             
                 ctrlBar.addControl(kbgbGUI.addLabel("Rot: "));
@@ -485,7 +485,7 @@ export const kbgbGUI = {
                     }
                 }
                 ctrlBar.addControl(
-                    createDropdown(globals.screengui,0, [
+                    createDropdown(globals.screengui, 0, [
                         {txt:"1U", width:1 },
                         {txt:"1.25U", width:1.25 },
                         {txt:"1.5U", width:1.5 },
@@ -521,15 +521,42 @@ export const kbgbGUI = {
                 ctrlBar.addControl(kbgbGUI.addLabel("STAB: "));
                 ctrlBar.addControl(checkbox);
 
+
+                let caseIdxSwap = (v) => kAction((k) => {
+                    if(k.caseIdx == 1) {
+                        k.caseIdx = 0;
+                    } else {
+                        k.caseIdx = 1;
+                    }
+                    boardOps.removeKeyRD(k.id);
+                    boardOps.addCase(k.caseIdx);
+                });
+
+                var cb = new Checkbox();
+                cb.width = "10px";
+                cb.height = "10px";
+                cb.isChecked = false;
+                cb.color = "blue";
+                cb.onIsCheckedChangedObservable.add(function(value) {
+                    caseIdxSwap(value);
+                    boardOps.refreshLayout();
+                });
+                ctrlBar.addControl(kbgbGUI.addLabel("split"));
+                ctrlBar.addControl(cb);
+
                 ctrlBar.addControl(kbgbGUI.addLabel("  "));
 
                 ctrlBar.addControl(kbgbGUI.addKeyActionButton("del", (k) => {
                     boardOps.removeKey(k.id);
                 }, {height:"60px", width:"120px"}));
+
                 
                 globals.screengui.addControl(ctrlBar);
                 kbgbGUI.activeModeCtrl = ctrlBar;
                 boardOps.setFlatRotations();
+            },
+            refresh: () => {
+
             },
             remove: () => {
                 interactions.removePointerBinding(PointerEventTypes.POINTERDOWN);

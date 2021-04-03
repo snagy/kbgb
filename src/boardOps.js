@@ -4,7 +4,7 @@ import * as coremath from './coremath.js';
 import * as gfx from './gfx.js';
 import * as pcb from './pcbOps.js';
 import * as keyPicking from './keyPicking.js';
-import {Vector3, MeshBuilder, Matrix, Epsilon, Color3, Color4,
+import {Vector3, Vector4, MeshBuilder, Matrix, Epsilon, Color3, Color4,
         Animation, EasingFunction, QuinticEase, TransformNode, DynamicTexture} from '@babylonjs/core'
 
 function getPlateCutsWithStabs(id,width,height,kXform,flipStab,plateCuts,caseIdx) {
@@ -144,7 +144,11 @@ export function refreshLayout() {
             }
     
             if (tuning.keyShape) {
-                rd.keycap = MeshBuilder.CreatePolygon(id, { shape: coremath.genArrayFromOutline(rd.outline,0,0.25), depth: 2, smoothingThreshold: 0.1, updatable: false }, scene);
+                const faceUV = [];
+                faceUV[0] = new Vector4(0, 0, 1, 1);
+                faceUV[1] = new Vector4(0, 0, 0, 0);
+                faceUV[2] = new Vector4(0, 0, 0, 0);
+                rd.keycap = MeshBuilder.CreatePolygon(id, { shape: coremath.genArrayFromOutline(rd.outline,0,0.25), faceUV: faceUV, depth: 2, smoothingThreshold: 0.1, updatable: false }, scene);
                 if(keyPicking.pickedKeys.indexOf(id)>=0) {
                     rd.keycap.renderOverlay = true;
                 }
@@ -153,7 +157,18 @@ export function refreshLayout() {
                 rd.keycap.position.y = rd.keycap.heightOffset;
         
                 if(k.matName && globals.renderData.mats[k.matName]) {
-                    rd.keycap.material = globals.renderData.mats[k.matName];
+
+                    let mat = globals.renderData.mats[k.matName].clone()
+                                       
+                    let myDynamicTexture = new DynamicTexture(k.id, {width:128, height:32}, scene);
+                    var font = "bold 24px monospace";
+                    myDynamicTexture.drawText("kbgb", 32, 24, font, "white", "black", true, true);
+                    //myDynamicTexture.drawText("Z", x, y, font, color, canvas, color, invertY, update);
+                    mat.baseTexture = myDynamicTexture;
+                    mat.roughness = 0.1;
+                    mat.baseColor = new Color3(1, 1, 1);
+
+                    rd.keycap.material = mat;//globals.renderData.mats[k.matName];
                 }
             }
         }
@@ -971,7 +986,7 @@ function getFeet(bd, cRD, cBD) {
 function finalizeLayout() {
     const bd = globals.boardData;
     const kRD = globals.renderData.keys;
-    globals.renderData.layoutData = [];
+    globals.renderData.layoutData = {};
     for(const [caseIdx,cBD] of Object.entries(bd.cases)) {
         let keyGroups = findOverlappingGroups(kRD, "bezelHoles", caseIdx);
         let kgOutlines = {};
@@ -981,6 +996,9 @@ function finalizeLayout() {
                 let outline = getCombinedOutlineFromPolyGroup(KG);
                 kgOutlines[kgId] = outline;
             }
+        }
+        else {
+            continue;
         }
 
 
@@ -1346,7 +1364,7 @@ function finalizeLayout() {
             bounds.maxs[1] = Math.max(bounds.maxs[1],oP.z);
         }
 
-        globals.renderData.layoutData.push({bounds:bounds, keyGroups:keyGroups,convexHull:convexHull,kgOutlines:kgOutlines,minOutline:realOutline,kPs:kPs,thetaValues:thetaValues});
+        globals.renderData.layoutData[caseIdx] = {bounds:bounds, keyGroups:keyGroups,convexHull:convexHull,kgOutlines:kgOutlines,minOutline:realOutline,kPs:kPs,thetaValues:thetaValues};
     }
 }
 
@@ -1356,7 +1374,9 @@ export function refreshPCBs() {
         const cRD = globals.renderData.cases[caseIdx];
         const layoutData = globals.renderData.layoutData[caseIdx];
 
-        pcb.refreshPCBOutline(layoutData.minOutline, caseIdx, cRD);
+        if(layoutData) {
+            pcb.refreshPCBOutline(layoutData.minOutline, caseIdx, cRD);
+        }
 
         // cBD.pcbBounds = globals.pcbData[caseIdx].outlineBounds;
     }
@@ -1412,8 +1432,7 @@ export function refreshCase() {
     
         const layoutData = globals.renderData.layoutData[caseIdx];
     
-        let keyGroups = layoutData.keyGroups;
-        if( Object.keys(keyGroups).length <= 0 ) {
+        if(!layoutData || Object.keys(layoutData.keyGroups).length <= 0 ) {
             continue;
         }
 
@@ -1780,7 +1799,7 @@ export function addKey() {
     bd.layout.keys[k.id] = k;
 }
 
-export function removeKey(kId) {
+export function removeKeyRD(kId) {
     const rd = globals.renderData.keys[kId];
     if(rd) {
         if (rd.keycap) {
@@ -1795,6 +1814,10 @@ export function removeKey(kId) {
         }
         delete globals.renderData.keys[kId];
     }
+}
+
+export function removeKey(kId) {
+    removeKeyRD(kId);
     const bd = globals.boardData;
     delete bd.layout.keys[kId];
 }
@@ -1946,6 +1969,16 @@ export function loadKeyboard(data) {
     gfx.createMaterials();
     refreshKeyboard();
     gfx.snapCamera("angle");
+}
+
+export function addCase(newId) {
+    const bd = globals.boardData;
+    if(!bd.cases[newId]) {
+        bd.cases[newId]  = Object.assign({}, tuning.defaultCase);
+        const cRD = {layers:{}, rootXform: new TransformNode(`case${newId}Root`)};
+        globals.renderData.cases[newId] = cRD;
+        setNaturalRotation(cRD, bd.cases[newId]);
+    }
 }
 
 export function saveKeyboard() {
