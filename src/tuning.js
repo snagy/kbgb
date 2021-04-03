@@ -29,6 +29,13 @@ export const tuning = {
         caseType:"rectangle"
     },
     caseMats: {
+        "ac_clear": {
+            metallic:0,
+            roughness:0.2,
+            baseColor:[190/255, 190/255, 190/255],
+            albedoColor:[1.0,1.0,1.0],
+            alpha:0.6
+        },
         "ac_blue": {
             metallic:0,
             roughness:0.2,
@@ -65,6 +72,7 @@ export const tuning = {
             alpha:0.85
         },
         "aluminium":{alpha:1, metallic:1, roughness:0.2, albedoColor:[0.5,0.5,0.5]},
+        "brass":{alpha:1, metallic:1, roughness:0.2, albedoColor:[181/255,166/255,66/255]},
         "pom_white":{alpha:1, metallic:0, roughness:0.4, albedoColor:[0.9,0.9,0.9]},
         "pom_black":{alpha:1, metallic:0, roughness:0.4, albedoColor:[0.02,0.02,0.02]},
         "steel":{alpha:1, metallic:1, roughness:0.05, albedoColor:[0.3,0.3,0.3]},

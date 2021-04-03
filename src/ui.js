@@ -752,6 +752,7 @@ export const kbgbGUI = {
                         {txt:"pom(b)",val:"pom_black"},
                         {txt:"steel",val:"steel"},
                         {txt:"fr4",val:"fr4"},
+                        {txt:"brass",val:"brass"},
                         {txt:"pc",val:"pc_cl"}
                     ], plateMatSelection));
 
@@ -762,13 +763,15 @@ export const kbgbGUI = {
                 ctrlBar.addControl(
                     createDropdown(globals.screengui,0, [
                         {txt:"smoke",val:"ac_smoke"},
+                        {txt:"clear",val:"ac_clear"},
                         {txt:"blue",val:"ac_blue"},
                         {txt:"purp",val:"ac_purple"},
                         {txt:"yello",val:"ac_yellow"},
                         {txt:"alu",val:"aluminium"},
                         {txt:"pom",val:"pom_white"},
                         {txt:"pom(b)",val:"pom_black"},
-                        {txt:"stl",val:"steel"}
+                        {txt:"stl",val:"steel"},
+                        {txt:"pc",val:"pc_cl"}
                     ], caseMatSelection));
 
                 ctrlBar.addControl(addButton("export SVGs", () => {
