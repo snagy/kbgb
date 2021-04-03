@@ -1,7 +1,7 @@
 import {globals} from './globals.js';
 import {tuning} from './tuning.js';
 import * as coremath from './coremath.js';
-import {Matrix, Vector3, Epsilon, MeshBuilder, Color4} from '@babylonjs/core'
+import {Matrix, Vector3, Epsilon, MeshBuilder, Color4} from 'babylonjs'
 import FlatQueue from 'flatqueue';
 import { find } from '@svgdotjs/svg.js';
 

@@ -1,5 +1,5 @@
 import {globals} from './globals.js'
-import * as Core from '@babylonjs/core';
+import * as Core from 'babylonjs';
 
 export function showInspector() {
     window.BABYLON = { ...Core };

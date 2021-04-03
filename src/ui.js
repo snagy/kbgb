@@ -5,14 +5,13 @@ import * as boardOps from './boardOps.js'
 import * as svg from './svg_export.js'
 import * as gbr from './gbr_export.js'
 import * as interactions from './interactions.js'
-import {PointerEventTypes, Vector3, Space, MeshBuilder, Epsilon} from '@babylonjs/core';
+import {PointerEventTypes, Vector3, Space, MeshBuilder, Epsilon} from 'babylonjs';
 import * as keyPicking from './keyPicking.js'
 import {snapCamera} from './gfx.js'
 import {Button, Rectangle, Control, TextBlock, InputText, StackPanel, RadioButton, Checkbox, 
-        Slider, ScrollViewer, AdvancedDynamicTexture} from '@babylonjs/gui'
+        Slider, ScrollViewer, AdvancedDynamicTexture} from 'babylonjsGUI'
 import JSZip from 'jszip/dist/jszip';
 import Analytics from '@aws-amplify/analytics';
-import { GLTFBinaryExtension } from '@babylonjs/loaders/glTF/1.0'
 
 function download(content, fileName, contentType) {
     var a = document.createElement("a");

@@ -1,6 +1,6 @@
 import {globals} from './globals.js';
 import * as coremath from './coremath.js';
-import {Vector3, Space, MeshBuilder, Matrix} from '@babylonjs/core'
+import {Vector3, Space, MeshBuilder, Matrix} from 'babylonjs'
 
 export const pickedKeys = []
 

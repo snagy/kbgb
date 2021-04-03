@@ -1,4 +1,4 @@
-import {Epsilon, Vector3, Color4, TmpVectors} from '@babylonjs/core';
+import {Epsilon, Vector3, Color4, TmpVectors} from 'babylonjs';
 import * as gfx from './gfx.js';
 
 let polyID = 0;

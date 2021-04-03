@@ -2,8 +2,8 @@ import {globals} from './globals.js'
 import {tuning} from './tuning.js'
 import {Engine, ArcRotateCamera, CubeTexture, Scene, Vector3, VertexBuffer, 
         VertexData, Color3, DefaultRenderingPipeline, StandardMaterial, PBRMaterial, PBRMetallicRoughnessMaterial,
-        Animation, QuinticEase, EasingFunction, Texture, SceneLoader, Matrix, MeshBuilder, Color4} from '@babylonjs/core'
-import {GLTFFileLoader} from "@babylonjs/loaders";
+        Animation, QuinticEase, EasingFunction, Texture, SceneLoader, Matrix, MeshBuilder, Color4} from 'babylonjs'
+import {GLTFFileLoader} from "babylonjs";
 
 export function createKeyMaterial(name,color) {
     let mats = globals.renderData.mats;

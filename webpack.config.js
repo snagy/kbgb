@@ -25,6 +25,10 @@ module.exports = {
             }
         ]
     },
+    externals: {
+        babylonjs: 'BABYLON',
+        babylonjsGUI: 'BABYLON.GUI'
+    },
     devServer: {
         contentBase: './static',
         overlay: true,

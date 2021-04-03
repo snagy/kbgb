@@ -5,7 +5,7 @@ import * as gfx from './gfx.js';
 import * as pcb from './pcbOps.js';
 import * as keyPicking from './keyPicking.js';
 import {Vector3, Vector4, MeshBuilder, Matrix, Epsilon, Color3, Color4,
-        Animation, EasingFunction, QuinticEase, TransformNode, DynamicTexture} from '@babylonjs/core'
+        Animation, EasingFunction, QuinticEase, TransformNode, DynamicTexture} from 'babylonjs'
 
 function getPlateCutsWithStabs(id,width,height,kXform,flipStab,plateCuts,caseIdx) {
     let switchCutDims = [tuning.switchCutout[0]*0.5, tuning.switchCutout[1]*0.5];
