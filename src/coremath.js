@@ -174,6 +174,30 @@ export function segmentToPoly(s0, s1, poly) {
     return {numIntersections:numIntersections,nearestIntersection:closestIntersection,nearestDistSq:closest};
 }
 
+// this can be improved
+export function polyIntersectionSlice(s0, s1, poly) {
+    let intersections = [];
+
+    const tL = TmpVectors.Vector3[7];
+    s1.subtractToRef(s0, tL);
+    const tNorm = TmpVectors.Vector3[2];
+    tNorm.x = tL.z;
+    tNorm.y = 0;
+    tNorm.z = -tL.x;
+    tNorm.normalize();
+
+    const intL = TmpVectors.Vector3[3];
+
+    for(let j = 0; j < poly.length; j++) {
+        let segRes = segmentToSegment(s0, s1, tL, tNorm, poly[j], poly[(j+1)%poly.length]);
+        if(segRes.type == "in_segment" && segRes.intersection) {
+            intersections.push(segRes.intersection);
+        }
+    }
+
+    return intersections;
+}
+
 // only convex
 export function isPointInPoly(p, poly) {
     for(let i = 0; i < poly.length; i++) {

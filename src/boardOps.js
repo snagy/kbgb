@@ -19,7 +19,7 @@ function getPlateCutsWithStabs(id,width,height,kXform,flipStab,plateCuts,caseIdx
     if(width !== 666) {
         plateCuts.push(coremath.createRectPoly(switchCutDims[0], switchCutDims[1], sXform));
 
-        pcb.addDevice(id, "mx", sXform, caseIdx);
+        pcb.addDevice(id, "mx_hotswap", sXform, caseIdx);
     }
 
     let span = width;

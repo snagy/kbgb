@@ -1,9 +1,8 @@
 import {globals} from './globals.js';
 import {tuning} from './tuning.js';
 import * as coremath from './coremath.js';
-import {Matrix, Vector3, Epsilon, MeshBuilder, Color4} from 'babylonjs'
+import {Matrix, Vector3, Epsilon, TmpVectors} from 'babylonjs'
 import FlatQueue from 'flatqueue';
-import { find } from '@svgdotjs/svg.js';
 
 // DRL = drill  
 // GKO = outline           +
@@ -64,6 +63,24 @@ const footprintDefs = {
         ],
         pins: ["1","2"]
     },
+    "mx_hotswap": {
+        pthDefs: {
+            "switchPin":  {radius:3.0/2, ring: 0.1/2},
+            "stemPin": {radius:3.988/2, ring:0.0},
+            "sidePin": {radius:1.75/2, ring:0.0}
+        },
+        bounds: [9,6.75],
+        pthList: [
+            {pin: 1, loc: [-3.81, 2.54], defName:"switchPin"},
+            {pin: 2, loc: [2.54, 5.08], defName:"switchPin"},
+            {pin: 0, loc: [0, 0], defName:"stemPin"},
+            {pin: 0, loc: [-5.08, 0], defName:"sidePin"},
+            {pin: 0, loc: [5.08, 0], defName:"sidePin"}
+        ],  //x: p loc + 2.275, to 2.275 + 2.55, z = ploc +/1.25
+        padList: [[[-3.81, 2.54], [-3.81-2.275, 2.54 + 1.25],[-3.81-2.275-2.55, 2.54 + 1.25],[-3.81-2.275-2.55, 2.54 - 1.25],[-3.81-2.275, 2.54 - 1.25]], 
+                  [[2.54, 5.08], [2.54+2.275, 5.08 + 1.25],[2.54+2.275+2.55, 5.08 + 1.25],[2.54+2.275+2.55, 5.08 - 1.25],[2.54+2.275, 5.08 - 1.25]]],
+        pins: ["1","2"]
+    },
     "oled":{
         bounds:[15,6.75]
     },
@@ -88,17 +105,20 @@ const footprintDefs = {
 };
 
 export function clearPCBs() {
-    globals.pcbData = [];
-    for(const [k,cRD] of Object.entries(globals.renderData.cases)) {
-        globals.pcbData[k] = {outline:[], devices:{}, nets:{}};
+    globals.pcbData = {};
+    const bd = globals.boardData;
+    for(const [k,cBD] of Object.entries(bd.cases)) {
+        globals.pcbData[k] = {outline:[], devices:{}, nets:{}, caseIdx:k};
     }
 }
 
 export function addDevice(id, t, xForm, caseIdx) {
-    if(!globals.pcbData[caseIdx].devices[id]) {
-        globals.pcbData[caseIdx].devices[id] = {footprints:[],type:t,id:id, caseIdx:caseIdx};
+    const pcbData = globals.pcbData;
+    const caseData = pcbData[caseIdx];
+    if(!caseData.devices[id]) {
+        caseData.devices[id] = {footprints:[],type:t,id:id, caseIdx:caseIdx};
     }
-    let d = globals.pcbData[caseIdx].devices[id];
+    let d = caseData.devices[id];
 
     let newDef = footprintDefs[t];
     let newFootprint = {pths:[],pins:[],pads:[]};
@@ -182,7 +202,7 @@ function createMatrix(pcb) {
 
 function genVoronoi(pcb) {
     var vSites = [];
-    var bbox = {xl:1000000, xr:-100000, yt:1000000, yb:-1000000};
+    var bbox = {xl:1000000, xr:-1000000, yt:1000000, yb:-1000000};
 
     let addSite = function(x,y) {
         const site = {x:x,y:y};
@@ -206,14 +226,14 @@ function genVoronoi(pcb) {
     //     addSite(p.x,p.z);
     // }
 
-    bbox.xl -= 100000;
-    bbox.yt -= 100000;
-    bbox.xr += 100000;
-    bbox.yb += 100000;
+    bbox.xl -= 1000;
+    bbox.yt -= 1000;
+    bbox.xr += 1000;
+    bbox.yb += 1000;
                 
     // xl, xr means x left, x right
     // yt, yb means y top, y bottom
-    var voronoi = new Voronoi();
+    let voronoi = new Voronoi();
     // pass an object which exhibits xl, xr, yt, yb properties. The bounding
     // box will be used to connect unbound edges, and to close open cells
     const vRes = voronoi.compute(vSites, bbox);
@@ -221,23 +241,6 @@ function genVoronoi(pcb) {
 
     console.log(`voronoi!`);
     console.log(vRes);
-
-    let dbglines = [];
-    let lineColors = [];
-    let dtColor = new Color4(1,0,0,1);
-    let vColor = new Color4(0,0,1,1);
-    for(const edge of vRes.edges) {
-        if(edge.lSite && edge.rSite) {
-            dbglines.push([new Vector3(edge.lSite.x,0,edge.lSite.y), new Vector3(edge.rSite.x,0,edge.rSite.y)]);
-            lineColors.push([dtColor,dtColor]);
-        }
-        dbglines.push([new Vector3(edge.va.x,0,edge.va.y), new Vector3(edge.vb.x,0,edge.vb.y)]);
-        lineColors.push([vColor,vColor]);
-    }
-    if( globals.voronoiLines ) {
-        globals.scene.removeMesh(globals.voronoiLines)
-    }
-    globals.voronoiLines = MeshBuilder.CreateLineSystem("voronoiLines", {lines: dbglines, colors:lineColors}, globals.scene);
 }
 
 function genSDF(pcb) {
@@ -333,7 +336,7 @@ function genSDF(pcb) {
     let kXform = Matrix.RotationY(45.0 * Math.PI / 180.0);
     kXform = kXform.multiply(Matrix.Translation(maxPos[0], 0, maxPos[1]));
 
-    addDevice("MCU", "UFQFPN48", kXform, pcb.caseIdx);
+    // addDevice("MCU", "UFQFPN48", kXform, pcb.caseIdx);
 }
 
 export function createNets(pcb) {
@@ -352,10 +355,40 @@ export function createNets(pcb) {
     const top = 0;
     const bottom = 1;
     console.log(`occupancy: ${w} cols ${h} rows`)
+    const s0 = TmpVectors.Vector3[11];
+    s0.x = pcb.outlineBounds.mins[0] - 100.0;
+    s0.y = 0;
+    const s1 = TmpVectors.Vector3[12];
+    s1.x = pcb.outlineBounds.maxs[0] + 100.0;
+    s1.y = 0;
+    let out_marker = {type:"out"};
     for(let i = 0; i < h; i++) {
         occupancy[0].push(new Array(w));
         occupancy[1].push(new Array(w));
         vias.push({});
+        //rasterize across each line of the occupancy
+        const lineZ = pcb.outlineBounds.mins[1] + cellSizeMM*(i+0.5);
+        s0.z = s1.z = lineZ
+        const intersections = coremath.polyIntersectionSlice(s0, s1, pcb.outline);
+        intersections.sort((a,b) => a.x - b.x);
+
+        let is_out = true;
+        let nextIntIdx = 0;
+        for(let j = 0; j < w; j++) {
+            if(intersections.length > nextIntIdx) {
+                const pointX = is_out?pcb.outlineBounds.mins[0] + cellSizeMM*(j-1.5):pcb.outlineBounds.mins[0] + cellSizeMM*(j+1.5);
+                let nextIntersection = intersections[nextIntIdx]
+                while(intersections.length > nextIntIdx && nextIntersection.x < pointX ) {
+                    is_out = !is_out;
+                    nextIntIdx+=1;
+                    nextIntersection = intersections[nextIntIdx]
+                }
+            }
+            if(is_out) {
+                occupancy[0][i][j] = out_marker;
+                occupancy[1][i][j] = out_marker;
+            }
+        }
     }
 
     for( let [id,d] of Object.entries(pcb.devices) ) {
@@ -403,30 +436,108 @@ export function createNets(pcb) {
             for( const pad of f.pads ) {
                 // todo: currently we assume all pads are on the bottom
                 // and round. :/
-                const side = 0;
-                // rasterize this into the occupancy map
-                // deal with if this was already set?
-                let centerP = new Vector3();
+                let mins = [100000,100000]
+                let maxs = [-100000,-100000]
                 for(const p of pad) {
-                    centerP.addInPlace(p);
+                    mins[0] = Math.min(mins[0],p.x);
+                    mins[1] = Math.min(mins[1],p.z);
+                    maxs[0] = Math.max(maxs[0],p.x);
+                    maxs[1] = Math.max(maxs[1],p.z);
                 }
-                centerP.scaleInPlace(1 / pad.length);
-                const center = [(centerP.x - xStart)*cellSizeMMInv,(centerP.z-yStart)*cellSizeMMInv];
-                const radius = 0.5 + cellSizeMM;
-                const pixRad = Math.ceil(radius * cellSizeMMInv);
-                for( let x = -pixRad; x <= pixRad; x++ ) {
-                    const locX = center[0] + x;
-                    if( locX < 0 || locX >= w) {
-                        continue;
-                    }
-                    for( let y = -pixRad; y <= pixRad; y++ ) {
-                        const locY = center[1] + y;
-                        if( locY < 0 || locY >= h) {
-                            continue;
-                        }
+                let minJ = Math.floor((mins[1] - pcb.outlineBounds.mins[1]) * cellSizeMMInv)-1;
+                let jSpan = Math.ceil((maxs[1]-mins[1]) * cellSizeMMInv)+2;
 
-                        if(x*x+y*y < pixRad*pixRad) {
-                            occupancy[side][Math.floor(locY)][Math.floor(locX)] = pad;
+                let padRasterLines = new Array(jSpan);
+                for(let j = 0; j < jSpan; j++) {
+                    padRasterLines[j] = [];
+                }
+
+                const lP = TmpVectors.Vector3[10];
+
+                for(let iP = 0; iP < pad.length; iP++) {
+                    const p = pad[iP];
+                    const nP = pad[(iP+1)%pad.length];
+                    nP.subtractToRef(p,lP);
+                    
+                    let minH = Math.floor((Math.min(p.z, nP.z) - pcb.outlineBounds.mins[1]) * cellSizeMMInv)-1;
+                    let hOffset = minH - minJ;
+                    let maxH = Math.ceil((Math.max(p.z, nP.z) - pcb.outlineBounds.mins[1]) * cellSizeMMInv)+1;
+                    let hSpan = maxH-minH;
+
+                    let minX = Math.min(p.x, nP.x);
+                    let maxX = Math.max(p.x, nP.x);
+
+                    const ws = new Array(hSpan);
+                    for(let h = 0; h < hSpan; h++) { 
+                        const z = (h+minH) * cellSizeMM + pcb.outlineBounds.mins[1];
+                        if(lP.z < Epsilon) {
+                            if(h==0) {
+                                ws[h] = minX;
+                            } else {
+                                ws[h] = maxX;
+                            }
+                        }
+                        else {
+                            ws[h] = Math.min(Math.max(minX,((z - p.z) / lP.z) * lP.x + p.x),maxX);
+                        }
+                    }
+                    for(let h = 0; h < hSpan-1; h++) { 
+                        const l = padRasterLines[h+hOffset];
+                        const maxW = Math.max(ws[h],ws[h+1]);
+                        const minW = Math.min(ws[h],ws[h+1]);
+
+                        //insert max/min range
+                        let iRL = 0;
+                        while(iRL != l.length && l[iRL] < minW) {
+                            iRL++;
+                        }
+                        if(iRL%2 == 0) {
+                            // new range
+                            if(iRL == l.length || maxW < l[iRL]) {
+                                l.splice(iRL,0,minW,maxW);
+                            }
+                            else {
+                                let jRL = iRL;
+                                while(jRL != l.length && l[jRL] < maxW) {
+                                    jRL++;
+                                }
+                                if(jRL%2==1) {
+                                    //ending in a range
+                                    l.splice(iRL,jRL-iRL,minW);
+                                } else {
+                                    //consume range(s)
+                                    l.splice(iRL,jRL-iRL,minW,maxW);
+                                }
+                            }
+                        }
+                        else { //starting in a range
+                            let jRL = iRL;
+                            while(jRL != l.length && l[jRL] < maxW) {
+                                jRL++;
+                            }
+                            if(jRL%2==1) {
+                                //ending in a range
+                                l.splice(iRL,jRL-iRL);
+                            } else {
+                                //merge ranges
+                                l.splice(iRL,jRL-iRL,maxW);
+                            }
+                        }
+                    }
+                }
+
+                // HARDCODED TO BOTTOM HERE, FIX THIS SOMEDAY
+                const side = 0;
+                // write the lines into the map
+                for(let j = 0; j < jSpan; j++) {
+                    const l = padRasterLines[j];
+                    const destH = j+minJ;
+                    for(let i = 0; i < l.length; i+=2) {
+                        const start = Math.floor((l[i] - xStart)*cellSizeMMInv)-1;
+                        const end = Math.ceil((l[i+1] - xStart)*cellSizeMMInv)+1; // todo check offset by 1?
+                        // console.log(`writing from ${start} to ${end}`)
+                        for(let x = start; x <= end; x++) {
+                            occupancy[side][destH][x] = pad;
                         }
                     }
                 }
@@ -626,7 +737,7 @@ export function refreshPCBOutline(minOutline, caseIdx, cRD) {
     pD.trackWidth = defaultTrackWidth;
 
     // const voronoi = genVoronoi(pD);
-    // const sdf = genSDF(pD);
+    const sdf = genSDF(pD);
 
-    // createNets(pD);
+    createNets(pD);
 }

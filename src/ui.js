@@ -53,18 +53,20 @@ function downloadGBRs() {
     Analytics.record({ name: 'GBR export' });
     var zip = new JSZip();
     const bd = globals.boardData;
-    const pcb = globals.pcbData;
+    for(const [cID,cRD] of Object.entries(globals.renderData.cases)) {
+        const pcb = globals.pcbData[cID];
 
-    gbr.beginSetExport();
-    const pcbName = "pcb";
-    zip.file(`${pcbName}.gml`, gbr.exportEdgeCutsLayer(pcb));
-    zip.file(`${pcbName}.txt`, gbr.exportDrillFile(pcb));
+        gbr.beginSetExport();
+        const pcbName = `pcb${cID}`;
+        zip.file(`${pcbName}.gml`, gbr.exportEdgeCutsLayer(pcb));
+        zip.file(`${pcbName}.txt`, gbr.exportDrillFile(pcb));
 
-    zip.file(`${pcbName}.gtl`, gbr.exportLayer(pcb, "copper", "top"));
-    zip.file(`${pcbName}.gbl`, gbr.exportLayer(pcb, "copper", "bot"));
+        zip.file(`${pcbName}.gtl`, gbr.exportLayer(pcb, "copper", "top"));
+        zip.file(`${pcbName}.gbl`, gbr.exportLayer(pcb, "copper", "bot"));
 
-    zip.file(`${pcbName}.gts`, gbr.exportLayer(pcb, "mask", "top"));
-    zip.file(`${pcbName}.gbs`, gbr.exportLayer(pcb, "mask", "bot"));
+        zip.file(`${pcbName}.gts`, gbr.exportLayer(pcb, "mask", "top"));
+        zip.file(`${pcbName}.gbs`, gbr.exportLayer(pcb, "mask", "bot"));
+    }
 
     zip.generateAsync({type:"blob"})
         .then(function(content) {
