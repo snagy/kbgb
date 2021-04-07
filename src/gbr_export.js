@@ -113,7 +113,7 @@ export function exportLayer(pcb,layer,side) {
                     if(!tools["pads"]) {
                         tools["pads"] = {locs:[],polys:[],usage:`ComponentPad`,diameter:0.1};
                     }
-                    tools["pads"].polys.push(pad);
+                    tools["pads"].polys.push(pad.poly);
                 }
             }
         }

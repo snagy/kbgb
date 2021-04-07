@@ -19,6 +19,8 @@ import FlatQueue from 'flatqueue';
 
 const defaultTrackWidth = 0.2032; // 8 mil.  10 mil = .25, pins are 2.25, maybe go with that as a mult?
 
+
+// FIX THIS TO GEN PIN IDS
 function genPads(centerToPadStart, sideWidth, nPadsPerSide, padH, padW, padPitch) {
     let pads = [];
 
@@ -77,8 +79,12 @@ const footprintDefs = {
             {pin: 0, loc: [-5.08, 0], defName:"sidePin"},
             {pin: 0, loc: [5.08, 0], defName:"sidePin"}
         ],  //x: p loc + 2.275, to 2.275 + 2.55, z = ploc +/1.25
-        padList: [[[-3.81, 2.54], [-3.81-2.275, 2.54 + 1.25],[-3.81-2.275-2.55, 2.54 + 1.25],[-3.81-2.275-2.55, 2.54 - 1.25],[-3.81-2.275, 2.54 - 1.25]], 
-                  [[2.54, 5.08], [2.54+2.275, 5.08 + 1.25],[2.54+2.275+2.55, 5.08 + 1.25],[2.54+2.275+2.55, 5.08 - 1.25],[2.54+2.275, 5.08 - 1.25]]],
+        padList: [{pin:1, 
+                   poly:[[-3.81, 2.54], [-3.81-2.275, 2.54 + 1.25],[-3.81-2.275-2.55, 2.54 + 1.25],[-3.81-2.275-2.55, 2.54 - 1.25],[-3.81-2.275, 2.54 - 1.25]],
+                   loc:[-3.81-2.275-(2.55/2),2.54]}, 
+                  {pin:2,
+                   poly:[[2.54, 5.08], [2.54+2.275, 5.08 + 1.25],[2.54+2.275+2.55, 5.08 + 1.25],[2.54+2.275+2.55, 5.08 - 1.25],[2.54+2.275, 5.08 - 1.25]],
+                   loc:[2.54+2.275+(2.55/2),5.08]}],
         pins: ["1","2"]
     },
     "oled":{
@@ -121,7 +127,7 @@ export function addDevice(id, t, xForm, caseIdx) {
     let d = caseData.devices[id];
 
     let newDef = footprintDefs[t];
-    let newFootprint = {pths:[],pins:[],pads:[]};
+    let newFootprint = {pths:[],pads:[]};
 
     if(newDef.bounds) {
         newFootprint.box = coremath.createRectPoly(newDef.bounds[0], newDef.bounds[1], xForm);
@@ -136,28 +142,38 @@ export function addDevice(id, t, xForm, caseIdx) {
         }
     }
 
-    if(newDef.pthList) {
-        for(const hole of newDef.pthList) {
-            const holeDef = newDef.pthDefs[hole.defName];
-            const pth = {radius:holeDef.radius, ring:holeDef.ring, pin:hole.pin};
-            pth.location = Vector3.TransformCoordinates(new Vector3(hole.loc[0], 0, hole.loc[1]), xForm);
-            newFootprint.pths.push(pth);
+    if(newDef.pins) {
+        newFootprint.pins = {};
+        for(const pin of newDef.pins) {
+            newFootprint.pins[pin] = {name:pin};
         }
     }
 
-    if(newDef.pins) {
-        for(const pin of newDef.pins) {
-            newFootprint.pins.push({name:pin})
+    if(newDef.pthList) {
+        for(const hole of newDef.pthList) {
+            const holeDef = newDef.pthDefs[hole.defName];
+            const pth = {type:"pth", radius:holeDef.radius, ring:holeDef.ring};
+            if(hole.pin) {
+                pth.pin = newFootprint.pins[hole.pin];
+            }
+            pth.location = Vector3.TransformCoordinates(new Vector3(hole.loc[0], 0, hole.loc[1]), xForm);
+            newFootprint.pths.push(pth);
         }
     }
 
     if(newDef.padList) {
         for(const pad of newDef.padList) {
             let xPad = [];
-            for(const p of pad) {
-                xPad.push(Vector3.TransformCoordinates(new Vector3(p[0], 0, p[1]), xForm));
+            for(const p of pad.poly) {
+                const xformedP = Vector3.TransformCoordinates(new Vector3(p[0], 0, p[1]), xForm);
+                xPad.push(xformedP);
             }
-            newFootprint.pads.push(xPad);
+            const xformedLocation = Vector3.TransformCoordinates(new Vector3(pad.loc[0], 0, pad.loc[1]), xForm);
+            const newPad = {type:"pad", poly:xPad,location:xformedLocation};
+            if(pad.pin) {
+                newPad.pin = newFootprint.pins[pad.pin];
+            }
+            newFootprint.pads.push(newPad);
         }
     }
 
@@ -176,8 +192,8 @@ function createMatrix(pcb) {
     }
     for( let [id,d] of Object.entries(pcb.devices) ) {
         for(let f of d.footprints) {
-            // if it has pins, needs to be in the matrix
-            if(f.pins.length > 0) {
+            // HAAACK if it has pins, needs to be in the matrix
+            if(f.pins) {
                 let colGuess = Math.floor((f.bounds.mins[0]-pcb.outlineBounds.mins[0])/tuning.base1U[0]) % maxW;
                 let rowGuess = Math.floor((f.bounds.mins[1]-pcb.outlineBounds.mins[1])/tuning.base1U[1]) % maxH;
 
@@ -344,7 +360,8 @@ export function createNets(pcb) {
     const matrix = createMatrix(pcb);
 
     const matrixCreatedTime = window.performance.now();
-    const cellSizeMM = pcb.trackWidth*1.5;
+    // const cellSizeMM = 0.8;// via size, was
+    const cellSizeMM = 1.5*pcb.trackWidth;
     const cellSizeMMInv = 1.0/cellSizeMM;
     const xStart = pcb.outlineBounds.mins[0];
     const yStart = pcb.outlineBounds.mins[1];
@@ -395,20 +412,27 @@ export function createNets(pcb) {
         for(let f of d.footprints) {
             for( const pth of f.pths ) {
                 // i guess we could assign nets here
-                if(pth.pin == 1) {
-                    pth.net = `mRow${f.matrixPos.row}`;
-                }
-                else if(pth.pin == 2) {
-                    pth.net = `mCol${f.matrixPos.col}`;
+                let pin = pth.pin;
+                if(pin && !pin.net) {
+                    if(pin.name == 1) {
+                        pin.net = `mRow${f.matrixPos.row}`;
+                        pin.subnet = -1;
+                    }
+                    else if(pin.name == 2) {
+                        pin.net = `mCol${f.matrixPos.col}`;
+                        pin.subnet = -1;
+                    }
                 }
 
-                if(pth.net) {
-                    if(!pcb.nets[pth.net]) {
-                        pcb.nets[pth.net] = {members:[],connectivity:[]};
+                if(pin && pin.net) {
+                    if(!pcb.nets[pin.net]) {
+                        pcb.nets[pin.net] = {members:[],connectivity:[]};
                     }
-                    pth.subnet = pcb.nets[pth.net].members.length;
-                    pcb.nets[pth.net].members.push(pth);
-                    pcb.nets[pth.net].connectivity.push([pth.subnet]);
+                    if(pin.subnet == -1) {
+                        pin.subnet = pcb.nets[pin.net].connectivity.length;
+                        pcb.nets[pin.net].connectivity.push([pin.subnet]);
+                    }
+                    pcb.nets[pin.net].members.push(pth);   // NOT pin
                 }
                 // rasterize this into the occupancy map
                 // deal with if this was already set?
@@ -433,9 +457,34 @@ export function createNets(pcb) {
                     }
                 }
             }
-            for( const pad of f.pads ) {
+            for( const padInfo of f.pads ) {
                 // todo: currently we assume all pads are on the bottom
-                // and round. :/
+
+                // i guess we could assign nets here
+                let pin = padInfo.pin;
+                if(pin && !pin.net) {
+                    if(pin.name == 1) {
+                        pin.net = `mRow${f.matrixPos.row}`;
+                        pin.subnet = -1;
+                    }
+                    else if(pin.name == 2) {
+                        pin.net = `mCol${f.matrixPos.col}`;
+                        pin.subnet = -1;
+                    }
+                }
+
+                if(pin && pin.net) {
+                    if(!pcb.nets[pin.net]) {
+                        pcb.nets[pin.net] = {members:[],connectivity:[]};
+                    }
+                    if(pin.subnet == -1) {
+                        pin.subnet = pcb.nets[pin.net].connectivity.length;
+                        pcb.nets[pin.net].connectivity.push([pin.subnet]);
+                    }
+                    pcb.nets[pin.net].members.push(padInfo);   // NOT pin
+                }
+
+                const pad = padInfo.poly;
                 let mins = [100000,100000]
                 let maxs = [-100000,-100000]
                 for(const p of pad) {
@@ -537,7 +586,7 @@ export function createNets(pcb) {
                         const end = Math.ceil((l[i+1] - xStart)*cellSizeMMInv)+1; // todo check offset by 1?
                         // console.log(`writing from ${start} to ${end}`)
                         for(let x = start; x <= end; x++) {
-                            occupancy[side][destH][x] = pad;
+                            occupancy[side][destH][x] = padInfo;
                         }
                     }
                 }
@@ -564,11 +613,12 @@ export function createNets(pcb) {
     }
 
     for(const [netName,net] of Object.entries(pcb.nets)) {
-        while(net.connectivity[0].length != net.members.length) {
+        while(net.connectivity[0].length != net.connectivity.length) {
             for(const pth of net.members) {
-                if(net.connectivity[0].length == net.members.length) break;
+                if(net.connectivity[0].length == net.connectivity.length) break;
                 // pathfind from here to the net!
-                let current = [Math.floor((pth.location.x - xStart)*cellSizeMMInv),Math.floor((pth.location.z-yStart)*cellSizeMMInv),(pth.pin == 1)?0:1];
+                // always start on the bottom
+                let current = [Math.floor((pth.location.x - xStart)*cellSizeMMInv),Math.floor((pth.location.z-yStart)*cellSizeMMInv),0];//(pth.pin == 1)?0:1];
                 let currentDist = 0;
                 let startTok = current[2]*w*h+current[1]*w+current[0];
                 const cameFrom = {};
@@ -586,7 +636,7 @@ export function createNets(pcb) {
                             let occupant = occupancy[next[2]][next[1]][next[0]];
                             const nameTok = next[2]*w*h+next[1]*w+next[0];
                             if(!cameFrom[nameTok]) {
-                                let blocker = (occupant && occupant != pth && occupant.net != pth.net)
+                                let blocker = (occupant && occupant != pth && (!occupant.pin || occupant.pin.net != pth.pin.net || (side != current[2] && occupant.type == "pad")))
                                 if( !blocker ) {
                                     cameFrom[nameTok] = curTok;
 
@@ -594,12 +644,15 @@ export function createNets(pcb) {
                                     let findCostGuess = function() {
                                         let minGuess = 100000000;
                                         for(const oth of net.members) { 
-                                            if(!net.connectivity[oth.subnet].includes(pth.subnet)) {
+                                            if(!net.connectivity[oth.pin.subnet].includes(pth.pin.subnet)) {
                                                 //todo:  add cost of side switching for pads
                                                 let end = [Math.floor((oth.location.x - xStart)*cellSizeMMInv),Math.floor((oth.location.z-yStart)*cellSizeMMInv)];
 
                                                 // let estCost = Math.abs(end[0]-next[0]) + Math.abs(end[1]-next[1]);
                                                 let estCost = Math.sqrt(Math.pow(Math.abs(end[0]-next[0]),2) + Math.pow(Math.abs(end[1]-next[1]),2));
+                                                if(oth.type == "pad" && next[2] != 0) {
+                                                    estCost += 8;
+                                                }
                                                 estCost *= 10;
                                                 
                                                 minGuess = Math.min(minGuess,estCost);
@@ -609,8 +662,10 @@ export function createNets(pcb) {
                                     }
 
                                     if(occupant) {
-                                        if(!net.connectivity[occupant.subnet].includes(pth.subnet)) {
-                                            // console.log(`found a destination: ${nameTok}`);
+                                        if(!net.connectivity[occupant.pin.subnet].includes(pth.pin.subnet)) {
+                                            console.log(`found a route`);
+                                            console.log(pth);
+                                            console.log(occupant);
                                             if(occupant.location) {
                                                 let end = [Math.floor((occupant.location.x - xStart)*cellSizeMMInv),Math.floor((occupant.location.z-yStart)*cellSizeMMInv)];
                                                 let endTok = next[2]*w*h+end[1]*w+end[0];
@@ -620,7 +675,7 @@ export function createNets(pcb) {
                                             else {
                                                 destination = nameTok;
                                             }
-                                            connectGraphs(net, occupant.subnet, pth.subnet);
+                                            connectGraphs(net, occupant.pin.subnet, pth.pin.subnet);
                                             break;
                                         }
                                         else {
@@ -647,6 +702,7 @@ export function createNets(pcb) {
                     let lineSide = Math.floor(nextTok / (w*h));
                     let lineStartLoc = new Vector3(((nextTok%(w*h)) % w) * cellSizeMM + xStart, 0, Math.floor((nextTok%(w*h)) / w) * cellSizeMM + yStart);
                     let prevLoc = lineStartLoc;
+                    let steps = 0;
                     while(cameFrom[nextTok] && cameFrom[nextTok] != 'START') {
                         // console.log(`came from ${cameFrom[nextTok]}`);
                         nextTok = cameFrom[nextTok];
@@ -654,7 +710,7 @@ export function createNets(pcb) {
                         let sideTok = nextTok%(w*h)
                         let nextLoc = new Vector3((sideTok % w) * cellSizeMM + xStart, 0, Math.floor(sideTok / w) * cellSizeMM + yStart);
                         if(!occupancy[nextSide][Math.floor(sideTok / w)][sideTok % w]) {
-                            occupancy[nextSide][Math.floor(sideTok / w)][sideTok % w] = {type:"route",net:pth.net,subnet:pth.subnet};
+                            occupancy[nextSide][Math.floor(sideTok / w)][sideTok % w] = {type:"route",pin:{net:pth.pin.net,subnet:pth.pin.subnet}};
                         }
     
                         if(nextSide != lineSide || (Math.abs(lineStartLoc.x - nextLoc.x) > Epsilon && Math.abs(lineStartLoc.z - nextLoc.z) > Epsilon) ) // new line!
@@ -663,14 +719,17 @@ export function createNets(pcb) {
                             let routeSide = (lineSide == 1)?pcb.topRoutes:pcb.bottomRoutes;
                             routeSide.push(route);
                             if(nextSide != lineSide) {
+                                console.log(`placing a via at step ${steps}`)
                                 pcb.vias.push(nextLoc);
-                                vias[Math.floor(sideTok / w)][sideTok % w] = {net:pth.net,subnet:pth.subnet};
+                                vias[Math.floor(sideTok / w)][sideTok % w] = {net:pth.pin.net,subnet:pth.pin.subnet};
                             }
                             lineStartLoc = prevLoc;
                             lineSide = nextSide;
                         }
+                        steps +=1;
                         prevLoc = nextLoc;
                     }
+                    console.log(`route took a total of ${steps} steps`)
                     let routeSide = (lineSide == 1)?pcb.topRoutes:pcb.bottomRoutes;
                     routeSide.push([lineStartLoc,prevLoc]);
                 }
