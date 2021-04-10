@@ -360,8 +360,8 @@ export function createNets(pcb) {
     const matrix = createMatrix(pcb);
 
     const matrixCreatedTime = window.performance.now();
-    // const cellSizeMM = 0.8;// via size, was
-    const cellSizeMM = 1.5*pcb.trackWidth;
+    const cellSizeMM = 0.8;// via size, was
+    // const cellSizeMM = 1.5*pcb.trackWidth;
     const cellSizeMMInv = 1.0/cellSizeMM;
     const xStart = pcb.outlineBounds.mins[0];
     const yStart = pcb.outlineBounds.mins[1];
@@ -534,44 +534,53 @@ export function createNets(pcb) {
                         const l = padRasterLines[h+hOffset];
                         const maxW = Math.max(ws[h],ws[h+1]);
                         const minW = Math.min(ws[h],ws[h+1]);
+                        if(l.length > 1 ) {
+                            l[0] = Math.min(l[0],minW);
+                            l[1] = Math.max(l[1],maxW);
+                        }
+                        else {
+                            l[0] = minW;
+                            l[1] = maxW;
+                        }
 
-                        //insert max/min range
-                        let iRL = 0;
-                        while(iRL != l.length && l[iRL] < minW) {
-                            iRL++;
-                        }
-                        if(iRL%2 == 0) {
-                            // new range
-                            if(iRL == l.length || maxW < l[iRL]) {
-                                l.splice(iRL,0,minW,maxW);
-                            }
-                            else {
-                                let jRL = iRL;
-                                while(jRL != l.length && l[jRL] < maxW) {
-                                    jRL++;
-                                }
-                                if(jRL%2==1) {
-                                    //ending in a range
-                                    l.splice(iRL,jRL-iRL,minW);
-                                } else {
-                                    //consume range(s)
-                                    l.splice(iRL,jRL-iRL,minW,maxW);
-                                }
-                            }
-                        }
-                        else { //starting in a range
-                            let jRL = iRL;
-                            while(jRL != l.length && l[jRL] < maxW) {
-                                jRL++;
-                            }
-                            if(jRL%2==1) {
-                                //ending in a range
-                                l.splice(iRL,jRL-iRL);
-                            } else {
-                                //merge ranges
-                                l.splice(iRL,jRL-iRL,maxW);
-                            }
-                        }
+                        // whoops this was overkill.  actually did wireframe blitting
+                        // //insert max/min range
+                        // let iRL = 0;
+                        // while(iRL != l.length && l[iRL] < minW) {
+                        //     iRL++;
+                        // }
+                        // if(iRL%2 == 0) {
+                        //     // new range
+                        //     if(iRL == l.length || maxW < l[iRL]) {
+                        //         l.splice(iRL,0,minW,maxW);
+                        //     }
+                        //     else {
+                        //         let jRL = iRL;
+                        //         while(jRL != l.length && l[jRL] < maxW) {
+                        //             jRL++;
+                        //         }
+                        //         if(jRL%2==1) {
+                        //             //ending in a range
+                        //             l.splice(iRL,jRL-iRL,minW);
+                        //         } else {
+                        //             //consume range(s)
+                        //             l.splice(iRL,jRL-iRL,minW,maxW);
+                        //         }
+                        //     }
+                        // }
+                        // else { //starting in a range
+                        //     let jRL = iRL;
+                        //     while(jRL != l.length && l[jRL] < maxW) {
+                        //         jRL++;
+                        //     }
+                        //     if(jRL%2==1) {
+                        //         //ending in a range
+                        //         l.splice(iRL,jRL-iRL);
+                        //     } else {
+                        //         //merge ranges
+                        //         l.splice(iRL,jRL-iRL,maxW);
+                        //     }
+                        // }
                     }
                 }
 
@@ -586,7 +595,9 @@ export function createNets(pcb) {
                         const end = Math.ceil((l[i+1] - xStart)*cellSizeMMInv)+1; // todo check offset by 1?
                         // console.log(`writing from ${start} to ${end}`)
                         for(let x = start; x <= end; x++) {
-                            occupancy[side][destH][x] = padInfo;
+                            if(!occupancy[side][destH][x]) {
+                                occupancy[side][destH][x] = padInfo;
+                            }
                         }
                     }
                 }
@@ -612,9 +623,12 @@ export function createNets(pcb) {
         }
     }
 
+    pathingLoop:
     for(const [netName,net] of Object.entries(pcb.nets)) {
         while(net.connectivity[0].length != net.connectivity.length) {
-            for(const pth of net.members) {
+            // for(const pth of net.members) {
+            {
+                const pth = net.members[0];
                 if(net.connectivity[0].length == net.connectivity.length) break;
                 // pathfind from here to the net!
                 // always start on the bottom
@@ -690,7 +704,7 @@ export function createNets(pcb) {
                     if(pending.length == 0) {
                         console.log("could not reach destination!");
                         console.log(pth);
-                        return;
+                        break pathingLoop;
                     }
                     const nextNode = pending.pop()
                     currentDist = nextNode.dist;
@@ -737,6 +751,45 @@ export function createNets(pcb) {
         }
     }
     const pathingTime = window.performance.now();
+
+    var ctx = globals.debugCanvas.getContext('2d');
+    globals.debugCanvas.width = w;
+    globals.debugCanvas.height = 2*h;
+    var myImageData = ctx.createImageData(w, 2*h);
+    function setColorAtCoord(x, y, s, r,g,b,a) {
+        const width = myImageData.width;
+        myImageData.data[(s*h+y)*(width*4)+x*4+0] = r;
+        myImageData.data[(s*h+y)*(width*4)+x*4+1] = g;
+        myImageData.data[(s*h+y)*(width*4)+x*4+2] = b;
+        myImageData.data[(s*h+y)*(width*4)+x*4+3] = a;
+      }
+    for(let s = 0; s < 2; s++) {
+        for(let y = 0; y < h; y++) {
+            for(let x = 0; x < w; x++) {
+                const occupant = occupancy[s][h-y-1][x];
+    
+                if(occupant) {
+                    if(occupant.type == "out") {
+                        setColorAtCoord(x,y,s,0,0,0,255);
+                    }
+                    else if(occupant.type == "pth" || occupant.type == "pad") {
+                        if(occupant.pin) {
+                            setColorAtCoord(x,y,s,0,0,255,255);
+                        } else {
+                            setColorAtCoord(x,y,s,76,0,0,255);
+                        }
+                    }
+                    else {
+                        setColorAtCoord(x,y,s,255,0,0,255);
+                    }
+                }
+                else {
+                    setColorAtCoord(x,y,s,0,64,0,255);
+                }
+            }
+        }
+    }
+    ctx.putImageData(myImageData, 0, 0);
 
     console.log(`creating matrix took ${matrixCreatedTime-startTime} ms`);
     console.log(`creating occupancy took ${occupancyCreatedTime-matrixCreatedTime} ms`);

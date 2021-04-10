@@ -14,6 +14,8 @@ export const tuning = {
     drawBezel:true,
     drawPlate:true,
     drawPCB:true,
+    drawCaseFoam:true,
+    drawPlateFoam:true,
     defaultCase: {
         bezelThickness: 12,
         bezelConcavity: 1.0,

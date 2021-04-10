@@ -895,7 +895,9 @@ function getFootShape(layerName, layerDef, cRD, cBD, bd) {
 }
 
 export const layerDefs = {
-    "pcbMesh":{height:1.6,offset:-5,stackOrder:null,visFilter:"drawPCB",shape:"pcbOutline",holes:[],mat:"fr4",physicalMat:"FR4"},
+    "pcbMesh":{height:1.6,offset:-5.1,stackOrder:null,visFilter:"drawPCB",shape:"pcbOutline",holes:[],mat:"fr4",physicalMat:"FR4"},
+    "plateFoam":{height:3.5,offset:-1.5,stackOrder:null,visFilter:"drawPlateFoam",shape:"pcbOutline",holes:["switchCuts"],mat:"foam",physicalMat:"FOAM"},
+    "caseFoam":{height:3.5,offset:-7.5,stackOrder:null,visFilter:"drawCaseFoam",shape:"cavityInner",holes:[],mat:"foam",physicalMat:"FOAM"},
     "bezel":{height:3,offset:6,stackOrder:2,visFilter:"drawBezel",shape:"caseFrameTaper",holes:["bezel","screwHoles"],mat:"case",physicalMat:"acrylic"},
     "bezelmid":{height:3,offset:3,stackOrder:1,visFilter:"drawBezel",shape:"caseFrame",holes:["bezel","screwHoles"],mat:"case",physicalMat:"acrylic"},
     "plate":{height:1.5,offset:0,stackOrder:0,visFilter:"drawPlate",shape:"caseFrame",holes:["screwHoles","switchCuts"],mat:"plate",physicalMat:"alu"},
@@ -1527,9 +1529,12 @@ export function refreshCase() {
         }
 
         cRD.outline = coremath.offsetAndFixOutlinePoints(cRD.outline, tuning.bezelGap + cBD.bezelThickness,null).outline;
-    
-        vectorGeo["cavityInnerEdge"] = [coremath.offsetAndFilletOutline(cRD.outline, -cBD.bezelThickness, tuning.bezelCornerFillet, false)];
-        tesselatedGeo["cavityInnerEdge"] = vectorGeo["cavityInnerEdge"].map((a) => coremath.genPointsFromVectorPath(a,8));
+
+        vectorGeo["cavityInner"] = coremath.offsetAndFilletOutline(cRD.outline, -cBD.bezelThickness, tuning.bezelCornerFillet, false);
+        tesselatedGeo["cavityInner"] = coremath.genPointsFromVectorPath(vectorGeo["cavityInner"],8);
+
+        vectorGeo["cavityInnerEdge"] = [vectorGeo["cavityInner"]];
+        tesselatedGeo["cavityInnerEdge"] = [tesselatedGeo["cavityInner"]];
         vectorGeo["caseFrame"] = coremath.offsetAndFilletOutline(cRD.outline, 0, cBD.caseCornerFillet, false);
         tesselatedGeo["caseFrame"] = coremath.genPointsFromVectorPath(vectorGeo["caseFrame"],8);
         vectorGeo["caseFrameTaper"] = coremath.offsetAndFilletOutline(cRD.outline, -cBD.bezelThickness*.1, cBD.caseCornerFillet, false);

@@ -157,6 +157,11 @@ function initKBGB() {
         tuning.drawPCB = tuning.drawPCB?false:true;
         boardOps.refreshCase();
     });
+    interactions.addBinding('keydown', 'f', e => {
+        tuning.drawPlateFoam = tuning.drawPlateFoam?false:true;
+        tuning.drawCaseFoam = tuning.drawCaseFoam?false:true;
+        boardOps.refreshCase();
+    });
     interactions.addBinding('keydown', 'b', e => {
         tuning.drawBezel = tuning.drawBezel?false:true;
         boardOps.refreshCase();

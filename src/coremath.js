@@ -148,7 +148,7 @@ export function segmentToPoly(s0, s1, poly) {
 
     const tL = TmpVectors.Vector3[7];
     s1.subtractToRef(s0, tL);
-    const tNorm = TmpVectors.Vector3[2];
+    const tNorm = TmpVectors.Vector3[8];
     tNorm.x = tL.z;
     tNorm.y = 0;
     tNorm.z = -tL.x;
@@ -180,7 +180,7 @@ export function polyIntersectionSlice(s0, s1, poly) {
 
     const tL = TmpVectors.Vector3[7];
     s1.subtractToRef(s0, tL);
-    const tNorm = TmpVectors.Vector3[2];
+    const tNorm = TmpVectors.Vector3[8];
     tNorm.x = tL.z;
     tNorm.y = 0;
     tNorm.z = -tL.x;
@@ -192,6 +192,10 @@ export function polyIntersectionSlice(s0, s1, poly) {
         let segRes = segmentToSegment(s0, s1, tL, tNorm, poly[j], poly[(j+1)%poly.length]);
         if(segRes.type == "in_segment" && segRes.intersection) {
             intersections.push(segRes.intersection);
+        }
+        else if(segRes.type == "colinear") {
+            // HACK TODO this needs to be improved for general usage
+            intersections.push(poly[j]);
         }
     }
 

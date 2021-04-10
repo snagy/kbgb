@@ -776,6 +776,11 @@ export const kbgbGUI = {
                         {txt:"pc",val:"pc_cl"}
                     ], caseMatSelection));
 
+
+                ctrlBar.addControl(addButton("DEBUG", () => {
+                            globals.debugCanvas.hidden = false;
+                        }, {height:"60px",width:"120px"}));
+
                 ctrlBar.addControl(addButton("export SVGs", () => {
                             downloadSVGs();
                         }, {height:"60px",width:"120px"}));

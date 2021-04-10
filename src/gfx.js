@@ -88,6 +88,16 @@ export function createMaterials() {
         mats[pcbMatName].baseColor = new Color3(45/255, 90/255, 10/255);
     }
 
+    let foamMatName = "foam";
+    if(!mats[foamMatName])
+    {
+        mats[foamMatName] = new PBRMetallicRoughnessMaterial(foamMatName, globals.scene);
+        mats[foamMatName].metallic = 0;
+        mats[foamMatName].transparencyMode = PBRMaterial.PBRMATERIAL_OPAQUE;
+        mats[foamMatName].roughness = 0.9;
+        mats[foamMatName].baseColor = new Color3(10/255, 10/255, 10/255);
+    }
+
     createKeyMaterial("key", new Color3(0.9, 0.9, 0.9));
 }
 
@@ -335,6 +345,7 @@ const kamList = {
 export function init(loadCB) {
     // get the canvas DOM element
     globals.canvas = document.getElementById('renderCanvas');
+    globals.debugCanvas = document.getElementById('debugCanvas');
 
     // load the 3D engine
     globals.engine = new Engine(globals.canvas, true);
