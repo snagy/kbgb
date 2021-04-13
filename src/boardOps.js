@@ -1962,6 +1962,11 @@ export function loadKeyboard(data) {
     }
     else if(data.kbdVersion) {
         globals.boardData = data;
+        for(const k of Object.values(data.layout.keys)) {
+            if(!mats[k.matName]) {
+                gfx.createKeyMaterial(k.matName,Color3.FromHexString(k.matName));
+            }
+        }
     }
 
     globals.renderData.cases = {};

@@ -88,7 +88,8 @@ function initKBGB() {
         'testkbs/three_key_vtest.kle',
         'testkbs/fourkeygap.kle',
         'testkbs/atreus_row.kle',
-        'testkbs/keysize_test.kle' 
+        'testkbs/keysize_test.kle',
+        'testkbs/staggertest.kbd' //25
     ]
     let kbdidx = 0;
 

@@ -659,15 +659,15 @@ export function createNets(pcb) {
                                         let minGuess = 100000000;
                                         for(const oth of net.members) { 
                                             if(!net.connectivity[oth.pin.subnet].includes(pth.pin.subnet)) {
-                                                //todo:  add cost of side switching for pads
                                                 let end = [Math.floor((oth.location.x - xStart)*cellSizeMMInv),Math.floor((oth.location.z-yStart)*cellSizeMMInv)];
 
                                                 // let estCost = Math.abs(end[0]-next[0]) + Math.abs(end[1]-next[1]);
                                                 let estCost = Math.sqrt(Math.pow(Math.abs(end[0]-next[0]),2) + Math.pow(Math.abs(end[1]-next[1]),2));
+                                                // add cost of side switching for pads
                                                 if(oth.type == "pad" && next[2] != 0) {
                                                     estCost += 8;
                                                 }
-                                                estCost *= 10;
+                                                estCost *= 7; // this needs to be < 10.  lower gives better paths but takes longer
                                                 
                                                 minGuess = Math.min(minGuess,estCost);
                                             }
@@ -693,7 +693,7 @@ export function createNets(pcb) {
                                             break;
                                         }
                                         else {
-                                            cost = 1;
+                                            cost = 0;
                                         }
                                     }
                                     pending.push({node:next,dist:currentDist+cost},currentDist+cost+findCostGuess());
@@ -714,7 +714,7 @@ export function createNets(pcb) {
                     // reconstruct path here
                     let nextTok = destination;
                     let lineSide = Math.floor(nextTok / (w*h));
-                    let lineStartLoc = new Vector3(((nextTok%(w*h)) % w) * cellSizeMM + xStart, 0, Math.floor((nextTok%(w*h)) / w) * cellSizeMM + yStart);
+                    let lineStartLoc = new Vector3(((nextTok%(w*h)) % w + 0.5) * cellSizeMM + xStart, 0, Math.floor((nextTok%(w*h)) / w + 0.5) * cellSizeMM + yStart);
                     let prevLoc = lineStartLoc;
                     let steps = 0;
                     while(cameFrom[nextTok] && cameFrom[nextTok] != 'START') {
@@ -722,7 +722,7 @@ export function createNets(pcb) {
                         nextTok = cameFrom[nextTok];
                         let nextSide = Math.floor(nextTok / (w*h));
                         let sideTok = nextTok%(w*h)
-                        let nextLoc = new Vector3((sideTok % w) * cellSizeMM + xStart, 0, Math.floor(sideTok / w) * cellSizeMM + yStart);
+                        let nextLoc = new Vector3((sideTok % w + 0.5) * cellSizeMM + xStart, 0, Math.floor(sideTok / w + 0.5) * cellSizeMM + yStart);
                         if(!occupancy[nextSide][Math.floor(sideTok / w)][sideTok % w]) {
                             occupancy[nextSide][Math.floor(sideTok / w)][sideTok % w] = {type:"route",pin:{net:pth.pin.net,subnet:pth.pin.subnet}};
                         }
