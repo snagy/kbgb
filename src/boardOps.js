@@ -133,14 +133,10 @@ export function refreshLayout() {
 
             rd.outline = getCombinedOutlineFromPolyGroup(keyOutlines);
             if (rd.keycap) {
-                rd.keycap.parent = null;
-                scene.removeMesh(rd.keycap);
-                rd.keycap.dispose();
+                gfx.removeMesh(rd.keycap);
             }
             if(rd.switch) {
-                rd.switch.parent = null;
-                scene.removeMesh(rd.switch);
-                rd.switch.dispose();
+                gfx.removeMesh(rd.switch);
             }
     
             if (tuning.keyShape) {
@@ -155,6 +151,7 @@ export function refreshLayout() {
                 rd.keycap.parent = root;
                 rd.keycap.heightOffset = 4.5,
                 rd.keycap.position.y = rd.keycap.heightOffset;
+                gfx.addShadows(rd.keycap);
         
                 if(k.matName && globals.renderData.mats[k.matName]) {
 
@@ -194,14 +191,10 @@ export function refreshLayout() {
             
             rd.outline = getCombinedOutlineFromPolyGroup(keyOutlines);
             if (rd.keycap) {
-                rd.keycap.parent = null;
-                scene.removeMesh(rd.keycap);
-                rd.keycap.dispose();
+                gfx.removeMesh(rd.keycap);
             }
             if(rd.switch) {
-                rd.switch.parent = null;
-                scene.removeMesh(rd.switch);
-                rd.switch.dispose();
+                gfx.removeMesh(rd.switch);
             }
     
             if (tuning.keyShape) {
@@ -212,6 +205,7 @@ export function refreshLayout() {
                 rd.keycap.parent = root;
                 rd.keycap.heightOffset = 10.5;
                 rd.keycap.position.y = rd.keycap.heightOffset;
+                gfx.addShadows(rd.keycap);
         
                 if(k.matName && globals.renderData.mats[k.matName]) {
                     rd.keycap.material = globals.renderData.mats[k.matName];
@@ -257,6 +251,7 @@ export function refreshLayout() {
                     for (const child of rd.switch.getChildMeshes()){
                         child.setPreTransformMatrix(Matrix.RotationY(Math.PI).multiply(Matrix.Scaling(-1,1,1)));	
                     }
+                    gfx.addShadows(rd.switch);
                 }
             }
 
@@ -267,16 +262,12 @@ export function refreshLayout() {
 
             rd.outline = getCombinedOutlineFromPolyGroup(keyOutlines);
             // if (rd.keycap) {
-            //     rd.keycap.parent = null;
-            //     scene.removeMesh(rd.keycap);
-            //     rd.keycap.dispose();
+            //     gfx.removeMesh(rd.keycap);
             // }
     
             if (tuning.keyShape && (!rd.keycap || rd.keycap.width != k.width || rd.keycap.row != k.row)) {
                 if (rd.keycap) {
-                    rd.keycap.parent = null;
-                    scene.removeMesh(rd.keycap);
-                    rd.keycap.dispose();
+                    gfx.removeMesh(rd.keycap);
                 }
 
                 let primeSearch = k.width;
@@ -300,12 +291,14 @@ export function refreshLayout() {
                     rd.keycap.preXform = keyCapGLTF.preXform;
                     rd.keycap.postXform = Matrix.Scaling(-1,1,1);
                     rd.keycap.heightOffset = 3.5;
+                    gfx.addShadows(rd.keycap);
                 }
                 else {
                     rd.keycap = MeshBuilder.CreatePolygon(id, { shape: coremath.genArrayFromOutline(rd.outline,0,0.25), depth: 7, smoothingThreshold: 0.1, updatable: false }, scene);
                     rd.keycap.parent = root;
                     rd.keycap.preXform = null;
                     rd.keycap.heightOffset = 10.5;
+                    gfx.addShadows(rd.keycap);
                 }
 
                 rd.keycap.width = k.width;
@@ -886,6 +879,7 @@ function getFootShape(layerName, layerDef, cRD, cBD, bd) {
         mesh.parent = root;
         mesh.position.y = layerDef.offset;
         mesh.material = mats["case"];
+        gfx.addShadows(mesh);
         const meshBounds = mesh.getBoundingInfo();
         cRD.layers[layerName].meshes.push(mesh);
         const outlineBounds = coremath.getVectorPathBounds(points);
@@ -1395,15 +1389,11 @@ export function removeCaseData() {
 
         for(const [layerName, layer] of Object.entries(cRD.layers)) {
             if(layer.mesh) {
-                layer.mesh.parent = null;
-                scene.removeMesh(layer.mesh);
-                layer.mesh.dispose();
+                gfx.removeMesh(layer.mesh);
             }
             if(layer.meshes) {
                 for(const m of layer.meshes) {
-                    m.parent = null;
-                    scene.removeMesh(m);
-                    m.dispose();
+                    gfx.removeMesh(m);
                 }
                 layer.meshes.length = 0;
             }
@@ -1622,6 +1612,7 @@ export function refreshCase() {
                     mesh.parent = root;
                     mesh.position.y = layerDef.offset;
                     mesh.material = mats[layerDef.mat];
+                    gfx.addShadows(mesh);
                     cRD.layers[layerName].meshes.push(mesh);
                     cRD.layers[layerName].outlineBounds = coremath.getVectorPathBounds(vectorGeo[layerDef.shape]);
                 }
@@ -1808,14 +1799,10 @@ export function removeKeyRD(kId) {
     const rd = globals.renderData.keys[kId];
     if(rd) {
         if (rd.keycap) {
-            rd.keycap.parent = null;
-            globals.scene.removeMesh(rd.keycap);
-            rd.keycap.dispose();
+            gfx.removeMesh(rd.keycap);
         }
         if(rd.switch) {
-            rd.switch.parent = null;
-            globals.scene.removeMesh(rd.switch);
-            rd.switch.dispose();
+            gfx.removeMesh(rd.switch);
         }
         delete globals.renderData.keys[kId];
     }
@@ -1830,14 +1817,10 @@ export function removeKey(kId) {
 function clearOldBoard() {
     for(const [id, rd] of Object.entries(globals.renderData.keys)) {
         if (rd.keycap) {
-            rd.keycap.parent = null;
-            globals.scene.removeMesh(rd.keycap);
-            rd.keycap.dispose();
+            gfx.removeMesh(rd.keycap);
         }
         if(rd.switch) {
-            rd.switch.parent = null;
-            globals.scene.removeMesh(rd.switch);
-            rd.switch.dispose();
+            gfx.removeMesh(rd.switch);
         }
     }
     globals.renderData.keys = {};
@@ -1845,15 +1828,11 @@ function clearOldBoard() {
     for(const [k,cRD] of Object.entries(globals.renderData.cases)) {
         for(const [layerName, layer] of Object.entries(cRD.layers)) {
             if(layer.mesh) {
-                layer.mesh.parent = null;
-                globals.scene.removeMesh(layer.mesh);
-                layer.mesh.dispose();
+                gfx.removeMesh(layer.mesh);
             }
             if(layer.meshes) {
                 for(const m of layer.meshes) {
-                    m.parent = null;
-                    globals.scene.removeMesh(m);
-                    m.dispose();
+                    gfx.removeMesh(m);
                 }
                 layer.meshes.length = 0;
             }
@@ -1948,10 +1927,6 @@ export function loadKeyboard(data) {
                 keyInfo.y2 = k.y2;
             }
             
-            if(!mats[keyInfo.matName]) {
-                gfx.createKeyMaterial(keyInfo.matName,Color3.FromHexString(keyInfo.matName));
-            }
-            
             //todo: handle decals better
             if(k.decal === false && k.ghost === false) {
                 bd.layout.keys[keyInfo.id] = keyInfo;
@@ -1962,10 +1937,11 @@ export function loadKeyboard(data) {
     }
     else if(data.kbdVersion) {
         globals.boardData = data;
-        for(const k of Object.values(data.layout.keys)) {
-            if(!mats[k.matName]) {
-                gfx.createKeyMaterial(k.matName,Color3.FromHexString(k.matName));
-            }
+    }
+
+    for(const k of Object.values(globals.boardData.layout.keys)) {
+        if(!mats[k.matName]) {
+            gfx.createKeyMaterial(k.matName,Color3.FromHexString(k.matName));
         }
     }
 

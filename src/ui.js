@@ -4,6 +4,7 @@ import * as coremath from './coremath.js'
 import * as boardOps from './boardOps.js'
 import * as svg from './svg_export.js'
 import * as gbr from './gbr_export.js'
+import * as pcbOps from './pcbOps.js'
 import * as interactions from './interactions.js'
 import {PointerEventTypes, Vector3, Space, MeshBuilder, Epsilon} from 'babylonjs';
 import * as keyPicking from './keyPicking.js'
@@ -54,6 +55,7 @@ function downloadGBRs() {
     var zip = new JSZip();
     const bd = globals.boardData;
     for(const [cID,cRD] of Object.entries(globals.renderData.cases)) {
+        pcbOps.routePCB(cID);
         const pcb = globals.pcbData[cID];
 
         gbr.beginSetExport();
@@ -778,6 +780,9 @@ export const kbgbGUI = {
 
 
                 ctrlBar.addControl(addButton("DEBUG", () => {
+                            for(const [cID,cRD] of Object.entries(globals.renderData.cases)) {
+                                pcbOps.routePCB(cID);
+                            }
                             globals.debugCanvas.hidden = false;
                         }, {height:"60px",width:"120px"}));
 

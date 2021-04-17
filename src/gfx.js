@@ -1,9 +1,11 @@
 import {globals} from './globals.js'
 import {tuning} from './tuning.js'
-import {Engine, ArcRotateCamera, CubeTexture, Scene, Vector3, VertexBuffer, 
+import {Engine, ArcRotateCamera, CubeTexture, Scene, Vector3, VertexBuffer,  DirectionalLight, ShadowGenerator,
         VertexData, Color3, DefaultRenderingPipeline, StandardMaterial, PBRMaterial, PBRMetallicRoughnessMaterial,
         Animation, QuinticEase, EasingFunction, Texture, SceneLoader, Matrix, MeshBuilder, Color4} from 'babylonjs'
 import {GLTFFileLoader} from "babylonjs";
+
+const gfxLocals = {};
 
 export function createKeyMaterial(name,color) {
     let mats = globals.renderData.mats;
@@ -50,6 +52,7 @@ export function setMatFromTuning(matType, pmName) {
     else {
         mat.subSurface.isRefractionEnabled = false;
         mat.subSurface.isTranslucencyEnabled = false;
+        mat.transparencyMode = PBRMaterial.PBRMATERIAL_OPAQUE;
     }
 }
 
@@ -64,7 +67,7 @@ export function createMaterials() {
         mats[name].specularColor = new Color3(0, 0, 0);
     }
 
-    setMatFromTuning("case", "ac_smoke");
+    setMatFromTuning("case", "pom_white");
 
     setMatFromTuning("plate", "aluminium");
 
@@ -173,6 +176,22 @@ export function drawDbgOutline(groupName, points, startColor, endColor, close) {
         linecolors.push([startColor,endColor]);
     }
     drawDbgLines(groupName, dbglines, linecolors);
+}
+
+export function addShadows(mesh) {
+    gfxLocals.shadowGenerator.addShadowCaster(mesh);
+    
+    mesh.receiveShadows = true;
+    for(const m of mesh.getChildMeshes()) {
+        m.receiveShadows = true;
+    }
+}
+
+export function removeMesh(mesh) {
+    mesh.parent = null;
+    globals.scene.removeMesh(mesh);
+    gfxLocals.shadowGenerator.removeShadowCaster(mesh);
+    mesh.dispose();
 }
 
 export function setEnvironmentLight(path) {
@@ -353,6 +372,17 @@ export function init(loadCB) {
     // call the createScene function
     globals.scene = createScene();
     let loading = [];
+
+    globals.scene.environmentIntensity = 0.5;
+    let light = new DirectionalLight("DirectionalLight", new Vector3(-0.5, -0.3, 0.28), globals.scene);
+    light.autoCalcShadowZBounds = true;
+    gfxLocals.dirLight = light;
+
+    const shadowGenerator = new ShadowGenerator(2048, light);
+    shadowGenerator.useContactHardeningShadow = true;
+    shadowGenerator.bias = 0.009;
+    shadowGenerator.contactHardeningLightSizeUVRatio = 0.075;
+    gfxLocals.shadowGenerator = shadowGenerator;
 
     SceneLoader.LoadAssetContainer("assets/", "MX_SWITCH_opt.glb", globals.scene, function (container) {
         switchAsset.container = container;

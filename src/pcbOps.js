@@ -654,7 +654,7 @@ export function createNets(pcb) {
                                 if( !blocker ) {
                                     cameFrom[nameTok] = curTok;
 
-                                    let cost = i==4?80:10; //8x the cost for a via
+                                    let cost = (next[2]!=current[2])?80:10; //8x the cost for a via
                                     let findCostGuess = function() {
                                         let minGuess = 100000000;
                                         for(const oth of net.members) { 
@@ -848,8 +848,13 @@ export function refreshPCBOutline(minOutline, caseIdx, cRD) {
     }
     pD.trackWidth = defaultTrackWidth;
 
+}
+
+export function routePCB(caseIdx) {
+    const pD = globals.pcbData[caseIdx];
     // const voronoi = genVoronoi(pD);
     const sdf = genSDF(pD);
 
     createNets(pD);
 }
+
