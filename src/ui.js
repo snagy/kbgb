@@ -306,6 +306,7 @@ let pointerController = {
                 }
                 updateSelectionBox();
                 pointerController.setMode(null,pointerInfo);
+                kbgbGUI.refresh();
             }
         }
     }
@@ -340,6 +341,26 @@ function updateSelectionBox(start,end) {
         }
     }
 }
+
+const keySizeOptions = [
+    {txt:"1U", width:1 },
+    {txt:"1.25U", width:1.25 },
+    {txt:"1.5U", width:1.5 },
+    {txt:"1.75U", width:1.75 },
+    {txt:"2U", width:2 },
+    {txt:"2.25U", width:2.25 },
+    {txt:"2.75U", width:2.75 },
+    {txt:"3U", width:3 },
+    {txt:"6U", width:6 },
+    {txt:"6.25U", width:6.25 },
+    {txt:"7U", width:7 },
+    {txt:"OLED", type:"oled"},
+    {txt:"EC11-18", type:"ec11", rad:18},
+    {txt:"EC11-19", type:"ec11", rad:19.05},
+    {txt:"EC11-30", type:"ec11", rad:30},
+    {txt:"ISO"},
+    {txt:"1.75U STEPPED"}
+];
 
 export const kbgbGUI = {
 
@@ -378,9 +399,13 @@ export const kbgbGUI = {
         let caseSelectionAction = (o,a,b) => {
             kbgbGUI.activeCase = o.val;
         }
-        holder.addControl(
-            createDropdown(globals.screengui,0, caseOptions, caseSelectionAction));
+        const dropdown = createDropdown(globals.screengui,0, caseOptions, caseSelectionAction);
+        holder.addControl(dropdown);
+        if(caseOptions.length <= 1) {
+            dropdown.isVisible = false;
+        }
     },
+    mData: {},
     modes:{
         "key":{
             cameraMode:"top",
@@ -435,6 +460,7 @@ export const kbgbGUI = {
                             // boardOps.refreshOutlines();
                         }
                     }
+                    kbgbGUI.refresh();
                 });
                 // boardOps.removeCaseData();
                 //let ctrlBar = Control.AddHeader(control, text, size, options { isHorizontal, controlFirst }):
@@ -475,37 +501,14 @@ export const kbgbGUI = {
                 let keyWidths = [1,1.25,1.5,1.75,2,2.25,2.5,2.75,3,4,4.5,5.5,6,6.25,6.5,7,8,9,10];
                 // modalPop(globals.screengui,"YOOO", () => {console.log("ACK");});
                 let keySelectionAction = (o,a,b) => {
-                    if(o.width) {
-                        setKeyAction("width", o.width);
-                        boardOps.refreshLayout();
-                    }
-                    else if(o.special) {
-                        if(o.special === "ec11") {
-                            setKeyAction("encoder_knob_size", o.rad);
-                        }
-                        setKeyAction("type", o.special);
-                        boardOps.refreshLayout();
-                    }
+                    setKeyAction("type", o.type);
+                    setKeyAction("width", o.width);
+                    setKeyAction("encoder_knob_size", o.rad);
+                    boardOps.refreshLayout();
                 }
-                ctrlBar.addControl(
-                    createDropdown(globals.screengui, 0, [
-                        {txt:"1U", width:1 },
-                        {txt:"1.25U", width:1.25 },
-                        {txt:"1.5U", width:1.5 },
-                        {txt:"1.75U", width:1.75 },
-                        {txt:"2U", width:2 },
-                        {txt:"2.25U", width:2.25 },
-                        {txt:"2.75U", width:2.75 },
-                        {txt:"3U", width:3 },
-                        {txt:"6U", width:6 },
-                        {txt:"6.25U", width:6.25 },
-                        {txt:"7U", width:7 },
-                        {txt:"OLED", special:"oled"},
-                        {txt:"EC11-18", special:"ec11", rad:18},
-                        {txt:"EC11-19", special:"ec11", rad:19.05},
-                        {txt:"EC11-30", special:"ec11", rad:30},
-                        {txt:"ISO"},
-                        {txt:"1.75U STEPPED"}], keySelectionAction));
+                kbgbGUI.mData.keySizeDropdown = createDropdown(globals.screengui, 0, keySizeOptions, keySelectionAction);
+
+                ctrlBar.addControl( kbgbGUI.mData.keySizeDropdown );
 
                 let flipStabAction = (v) => kAction((k) => {
                     k.flipStab = v;
@@ -522,6 +525,7 @@ export const kbgbGUI = {
                 });
 
                 ctrlBar.addControl(kbgbGUI.addLabel("STAB: "));
+                kbgbGUI.mData.stabCheckbox = checkbox;
                 ctrlBar.addControl(checkbox);
 
 
@@ -559,7 +563,16 @@ export const kbgbGUI = {
                 boardOps.setFlatRotations();
             },
             refresh: () => {
-
+                for (let kId of keyPicking.pickedKeys) {
+                    let bd = globals.boardData;
+                    let k = bd.layout.keys[kId];
+                    for(const o of keySizeOptions) {
+                        if(o.type === k.type && o.width === k.width && o.rad === k.rad) {
+                            kbgbGUI.mData.keySizeDropdown.textBlock.text = o.txt;
+                        }
+                    }
+                    kbgbGUI.mData.stabCheckbox = k.flipStab;
+                }
             },
             remove: () => {
                 interactions.removePointerBinding(PointerEventTypes.POINTERDOWN);
@@ -570,6 +583,8 @@ export const kbgbGUI = {
                 keyPicking.clearPickedKeys();
                 boardOps.refreshPCBs();
                 boardOps.refreshCase();
+                kbgbGUI.mData.keySizeDropdown = null;
+                kbgbGUI.mData.stabCheckbox = null;
             }
         },
         "case":{
@@ -659,6 +674,7 @@ export const kbgbGUI = {
 
                 boardOps.setNaturalRotations();
             },
+            refresh: () => {},
             remove: () => {
                 globals.screengui.removeControl(kbgbGUI.activeModeCtrl);
             }
@@ -729,6 +745,7 @@ export const kbgbGUI = {
 
                 boardOps.setNaturalRotations();
             },
+            refresh: () => {},
             remove: () => {
                 globals.screengui.removeControl(kbgbGUI.activeModeCtrl);
             }
@@ -845,6 +862,7 @@ export const kbgbGUI = {
                 kbgbGUI.activeModeCtrl = ctrlBar;
                 boardOps.expandLayers();
             },
+            refresh: () => {},
             remove: () => {
                 boardOps.collapseLayers();
                 globals.screengui.removeControl(kbgbGUI.activeModeCtrl);
@@ -853,16 +871,27 @@ export const kbgbGUI = {
         },
     },
     setGUIMode: function(mode) {
-        if(mode == kbgbGUI.activeMode) return;
+        if(mode == kbgbGUI.activeMode) {      
+            if(kbgbGUI.modes[kbgbGUI.activeMode]) {
+                kbgbGUI.modes[kbgbGUI.activeMode].refresh();
+            }
+            return;
+        }
 
         if(kbgbGUI.modes[kbgbGUI.activeMode]) {
             kbgbGUI.modes[kbgbGUI.activeMode].remove();
         }
         if(kbgbGUI.modes[mode]) {
             kbgbGUI.modes[mode].add();
+            kbgbGUI.modes[mode].refresh();
             snapCamera(kbgbGUI.modes[mode].cameraMode);
         }
         kbgbGUI.activeMode = mode;
+    },
+    refresh: function() {
+        if(kbgbGUI.modes[kbgbGUI.activeMode]) {
+            kbgbGUI.modes[kbgbGUI.activeMode].refresh();
+        }
     },
     addModeGUI: function() {
         globals.screengui = AdvancedDynamicTexture.CreateFullscreenUI("screenUI");

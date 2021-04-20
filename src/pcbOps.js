@@ -26,20 +26,26 @@ function genPads(centerToPadStart, sideWidth, nPadsPerSide, padH, padW, padPitch
 
     const corners = [{x:0,y:1},{x:0,y:0},{x:1,y:0},{x:1,y:1},]
 
+    let pin = 1;
     //assume 4 sides
     for(let t = -1; t <= 1; t+=2) {
         for(let s = 0; s <= 1; s++) {
             for(let p = 0; p < nPadsPerSide; p++) {
                 let pos = -(sideWidth / 2) + p*padPitch;
-                let pad = [];
+                let poly = [];
+                let loc = [0,0];
                 for(const corner of corners) {
                     let pX = pos + corner.x*padW;
                     let pY = centerToPadStart + corner.y*padH;
                     let fX = s==0?pX*t:pY*t;
                     let fY = s==1?pX*t:pY*t;
-                    pad.push([fX,fY]);
+                    poly.push([fX,fY]);
+                    loc[0] += fX; loc[1] += fY;
                 }
-                pads.push(pad);
+                loc[0] /= corners.length;
+                loc[1] /= corners.length;
+                pads.push({pin:pin,poly:poly,loc:loc});
+                pin+=1;
             }
         }
     }
@@ -106,7 +112,8 @@ const footprintDefs = {
     },
     "UFQFPN48":{
         bounds: [7.3/3,7.3/2],
-        padList: genPads(3.1, 5.8, 12, 0.55, 0.3, 0.5)
+        padList: genPads(3.1, 5.8, 12, 0.55, 0.3, 0.5),
+        pins:[]
     }
 };
 
@@ -352,7 +359,7 @@ function genSDF(pcb) {
     let kXform = Matrix.RotationY(45.0 * Math.PI / 180.0);
     kXform = kXform.multiply(Matrix.Translation(maxPos[0], 0, maxPos[1]));
 
-    // addDevice("MCU", "UFQFPN48", kXform, pcb.caseIdx);
+    addDevice("MCU", "UFQFPN48", kXform, pcb.caseIdx);
 }
 
 export function createNets(pcb) {
@@ -378,6 +385,8 @@ export function createNets(pcb) {
     const s1 = TmpVectors.Vector3[12];
     s1.x = pcb.outlineBounds.maxs[0] + 100.0;
     s1.y = 0;
+
+    // mark areas outside the mesh as 'out'
     let out_marker = {type:"out"};
     for(let i = 0; i < h; i++) {
         occupancy[0].push(new Array(w));
@@ -829,7 +838,8 @@ export function createNets(pcb) {
 export function refreshPCBOutline(minOutline, caseIdx, cRD) {
     const pD = globals.pcbData[caseIdx];
 
-    pD.outline = minOutline;
+    // pD.outline = minOutline;
+    pD.outline = coremath.offsetOutlinePoints(minOutline,-1.25)
     // if(bd.forcePCBSymmetrical) {
     //     let midPoint = (bd.layout.bounds.maxs[0] - bd.layout.bounds.mins[0]) * 0.5 + bd.layout.bounds.mins[0];
     //     for(let oP of pD.outline) {

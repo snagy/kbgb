@@ -1248,32 +1248,29 @@ function finalizeLayout() {
             // out of the set of short edges, find the two that are the farthest apart (in the center, maybe do seg->seg in the future?)
             let maxDist = -1;
             let bestEdges = [];
-                for(const e of minEdges) {
-                    for(const oE of minEdges) {
-                        if(e.p.pointIdx !== oE.p.pointIdx) {
-                            const e_center = (kPs[e.p.pointIdx].add(kPs[e.dp.p.pointIdx]).scale(0.5));
-                            const oE_center = (kPs[oE.p.pointIdx].add(kPs[oE.dp.p.pointIdx]).scale(0.5))
-                            let dist = e_center.subtract(oE_center).lengthSquared();
-                            if( dist > maxDist ) {
-                                maxDist = dist;
-                                bestEdges = [e,oE];
-                            }
+            for(const e of minEdges) {
+                for(const oE of minEdges) {
+                    if(e.p.pointIdx !== oE.p.pointIdx) {
+                        const e_center = (kPs[e.p.pointIdx].add(kPs[e.dp.p.pointIdx]).scale(0.5));
+                        const oE_center = (kPs[oE.p.pointIdx].add(kPs[oE.dp.p.pointIdx]).scale(0.5))
+                        let dist = e_center.subtract(oE_center).lengthSquared();
+                        if( dist > maxDist ) {
+                            maxDist = dist;
+                            bestEdges = [e,oE];
                         }
                     }
                 }
+            }
 
 
 
             // set the linking edges in the points  (todo: this should be an array that we rotationally sort)
-            let bestEdgesRev = [];
             for(const e of bestEdges) {
                 if(!e.p.linkingEdges) {
                     e.p.linkingEdges = [];
                 }
                 e.p.linkingEdges.push(e.dp);
                 const revP = kPs[e.dp.p.pointIdx];
-                // dbglines.push([e.p,e.dp.p]);
-                // linecolors.push([color1, color2]);
                 for(const dp of revP.delaunayPoints) {
                     if(dp.p.pointIdx === e.p.pointIdx) {
                         if(!revP.linkingEdges) {
@@ -1378,6 +1375,16 @@ export function refreshPCBs() {
     }
 }
 
+function addScrewModels(cRD, cBD) {
+    let screwIdx = 0;
+    for(const screw of cBD.screws) {
+        let cyl = MeshBuilder.CreateCylinder(`screw${screwIdx}`, {height:100, diameter:2.2}, globals.scene);
+        
+        cyl.position = screw.location; //, getScrewRadius(screw, layerName)
+        screwIdx += 1;
+    }
+}
+
 export function removeCaseData() {
     const scene = globals.scene;
     const bd = globals.boardData;
@@ -1401,6 +1408,7 @@ export function removeCaseData() {
         cRD.layers = {};
     }
 }
+
 export function refreshCase() {
     const scene = globals.scene;
     const bd = globals.boardData;
@@ -1515,7 +1523,6 @@ export function refreshCase() {
                 cRD.outline[iP] = convexHull[iP].scale(cBD.bezelConcavity).add(targets[iP].scale(1.0-cBD.bezelConcavity));
             }
             // gfx.drawDbgOutline("badOutline", cRD.outline);
-            // cRD.outline = convexHull;
         }
 
         cRD.outline = coremath.offsetAndFixOutlinePoints(cRD.outline, tuning.bezelGap + cBD.bezelThickness,null).outline;
@@ -1640,6 +1647,7 @@ export function refreshCase() {
         else {
             cBD.typingAngle = 0;
         }
+        // addScrewModels(cRD, cBD);
         updateRotation(cRD, cBD);
         console.log(`typing angle: ${cBD.typingAngle * 180 / Math.PI}`)
     }
