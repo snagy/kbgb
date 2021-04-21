@@ -26,8 +26,9 @@ const hdris = [
 ];
 
 let hdriIdx = 2;
+let kbdIdx = 0;
 
-function loadKeyboardFromPath(path) {
+export function loadKeyboardFromPath(path) {
     fetch(path)
     .then(response => response.json())
     .then(data => {
@@ -48,6 +49,49 @@ function loadKeyboardFromKBD(txt) {
     boardOps.loadKeyboard(JSON.parse(txt));
 }
 
+const keyboardPaths = [
+    'testkbs/hy_nova.kle',
+    'testkbs/ansi104.kle',
+    'testkbs/fc660m.kle',
+    'testkbs/fake_alice.kle',
+    'testkbs/fake_alice_split.kle',
+    'testkbs/kle_atreus.kle',  //5
+    'testkbs/basis-mono-og.kle',
+    'testkbs/basis-stagger-3.kle',
+    'testkbs/kle-ergodox.kle',
+    'testkbs/foggy_sp_knobs.kle',
+    'testkbs/reddit-9d-ortho.kle', //10
+    'testkbs/boston-noISO.kle',
+    'testkbs/atreus_solo.kle',
+    'testkbs/blank.kle', 
+    'testkbs/onekey.kle',
+    'testkbs/twokey.kle', //15
+    'testkbs/threekey.kle',
+    'testkbs/threekey_split.kle',
+    'testkbs/threekeyoffset.kle',
+    'testkbs/one_bigass.kle',
+    'testkbs/twoonone.kle', //20
+    'testkbs/three_key_vtest.kle',
+    'testkbs/fourkeygap.kle',
+    'testkbs/atreus_row.kle',
+    'testkbs/keysize_test.kle',
+    'testkbs/staggertest.kbd' //25
+];
+
+export function getKBPathFromIdx(idx) {
+    return keyboardPaths[idx];
+}
+
+export function loadNextKeyboard() {
+    kbdIdx = (kbdIdx+1)%keyboardPaths.length;
+    loadKeyboardFromPath(getKBPathFromIdx(kbdIdx));
+}
+
+export function loadPrevKeyboard() {
+    kbdIdx = (kbdIdx+keyboardPaths.length-1)%keyboardPaths.length;
+    loadKeyboardFromPath(getKBPathFromIdx(kbdIdx));
+}
+
 function initKBGB() {
     Analytics.record({ name: 'initKBGB' });
     gfx.init(boardOps.refreshKeyboard);
@@ -63,45 +107,15 @@ function initKBGB() {
         globals.scene.render();
     });
 
-    let keyboards = [
-        'testkbs/hy_nova.kle',
-        'testkbs/ansi104.kle',
-        'testkbs/fc660m.kle',
-        'testkbs/fake_alice.kle',
-        'testkbs/fake_alice_split.kle',
-        'testkbs/kle_atreus.kle',  //5
-        'testkbs/basis-mono-og.kle',
-        'testkbs/basis-stagger-3.kle',
-        'testkbs/kle-ergodox.kle',
-        'testkbs/foggy_sp_knobs.kle',
-        'testkbs/reddit-9d-ortho.kle', //10
-        'testkbs/boston-noISO.kle',
-        'testkbs/atreus_solo.kle',
-        'testkbs/blank.kle', 
-        'testkbs/onekey.kle',
-        'testkbs/twokey.kle', //15
-        'testkbs/threekey.kle',
-        'testkbs/threekey_split.kle',
-        'testkbs/threekeyoffset.kle',
-        'testkbs/one_bigass.kle',
-        'testkbs/twoonone.kle', //20
-        'testkbs/three_key_vtest.kle',
-        'testkbs/fourkeygap.kle',
-        'testkbs/atreus_row.kle',
-        'testkbs/keysize_test.kle',
-        'testkbs/staggertest.kbd' //25
-    ]
-    let kbdidx = 0;
-
     const urlParams = new URLSearchParams(location.search);
     let paramIdx = urlParams.get("kbIdx");
 
     if(paramIdx!==null && keyboards[paramIdx]) {
-        kbdidx = paramIdx;
+        kbdIdx = paramIdx;
     }
 
     // load a keyboard
-    loadKeyboardFromPath(keyboards[kbdidx]);
+    loadKeyboardFromPath(getKBPathFromIdx(kbdIdx));
 
     // the canvas/window resize event handler
     window.addEventListener('resize', function () {
@@ -168,8 +182,7 @@ function initKBGB() {
         boardOps.refreshCase();
     });
     interactions.addBinding('keydown', 'r', e => {
-        kbdidx = (kbdidx+1)%keyboards.length;
-        loadKeyboardFromPath(keyboards[kbdidx]);
+        loadNextKeyboard();
     });
     // interactions.addBinding('keydown', 'l', e => {
     //     hdriIdx = (hdriIdx+1)%hdris.length;

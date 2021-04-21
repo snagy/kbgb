@@ -2,7 +2,7 @@ import {globals} from './globals.js'
 import {tuning} from './tuning.js'
 import {Engine, ArcRotateCamera, CubeTexture, Scene, Vector3, VertexBuffer,  DirectionalLight, ShadowGenerator,
         VertexData, Color3, DefaultRenderingPipeline, StandardMaterial, PBRMaterial, PBRMetallicRoughnessMaterial,
-        Animation, QuinticEase, EasingFunction, Texture, SceneLoader, Matrix, MeshBuilder, Color4} from 'babylonjs'
+        Animation, QuinticEase, EasingFunction, Texture, SceneLoader, Matrix, MeshBuilder, Color4, GLTF2Export} from 'babylonjs'
 import {GLTFFileLoader} from "babylonjs";
 
 const gfxLocals = {};
@@ -384,9 +384,19 @@ export function init(loadCB) {
     shadowGenerator.contactHardeningLightSizeUVRatio = 0.075;
     gfxLocals.shadowGenerator = shadowGenerator;
 
-    SceneLoader.LoadAssetContainer("assets/", "MX_SWITCH_opt.glb", globals.scene, function (container) {
+    const switchAssetName = "MX_SWITCH_opt_2.glb";
+    loading.push(switchAssetName)
+    SceneLoader.LoadAssetContainer("assets/", switchAssetName, globals.scene, function (container) {
         switchAsset.container = container;
-        loadCB();
+
+        let i = loading.indexOf(switchAssetName);
+        if (i >= 0) {
+            loading.splice(i, 1 );
+        }
+
+        if(loading.length === 0) {
+            loadCB();
+        }
     });
 
     for(const [n,d] of Object.entries(kamList)) {
@@ -396,12 +406,12 @@ export function init(loadCB) {
                 keyAssets.KAM[d.w] = [];
             }
             keyAssets.KAM[d.w].push({container:container, details:d});
-            var i = loading.indexOf(n);
+            let i = loading.indexOf(n);
             if (i >= 0) {
                 loading.splice(i, 1 );
             }
 
-            if(loading.length == 0) {
+            if(loading.length === 0) {
                 loadCB();
             }
         });
@@ -414,12 +424,12 @@ export function init(loadCB) {
                 keyAssets.KRK[d.w] = [];
             }
             keyAssets.KRK[d.w].push({container:container, details:d});
-            var i = loading.indexOf(n);
+            let i = loading.indexOf(n);
             if (i >= 0) {
                 loading.splice(i, 1 );
             }
 
-            if(loading.length == 0) {
+            if(loading.length === 0) {
                 loadCB();
             }
         });
@@ -444,3 +454,4 @@ export function init(loadCB) {
     // }
 
 }
+

@@ -1,12 +1,13 @@
 import {globals} from './globals.js'
 import {tuning} from './tuning.js'
+import * as base from './base.js'
 import * as coremath from './coremath.js'
 import * as boardOps from './boardOps.js'
 import * as svg from './svg_export.js'
 import * as gbr from './gbr_export.js'
 import * as pcbOps from './pcbOps.js'
 import * as interactions from './interactions.js'
-import {PointerEventTypes, Vector3, Space, MeshBuilder, Epsilon} from 'babylonjs';
+import {PointerEventTypes, Vector3, Space, MeshBuilder, Epsilon, GLTF2Export} from 'babylonjs';
 import * as keyPicking from './keyPicking.js'
 import {snapCamera} from './gfx.js'
 import {Button, Rectangle, Control, TextBlock, InputText, StackPanel, RadioButton, Checkbox, 
@@ -74,6 +75,19 @@ function downloadGBRs() {
         .then(function(content) {
             download(content, `${bd.meta.name}_gerbers.zip`, 'text/plain');
         });
+}
+
+export function exportKeyboard() {
+    let options = {
+        shouldExportNode: function (node) {
+            console.log(node);
+            return true;
+        },
+    };
+    
+    GLTF2Export.GLBAsync(globals.scene, "fileName", options).then((glb) => {
+        glb.downloadFiles();
+    });
 }
 
 function addButton(txt, action, style) {
@@ -587,6 +601,34 @@ export const kbgbGUI = {
                 kbgbGUI.mData.stabCheckbox = null;
             }
         },
+        "view":{
+            cameraMode:"front",
+            add: function() {
+                //let ctrlBar = Control.AddHeader(control, text, size, options { isHorizontal, controlFirst }):
+                let ctrlBar = new StackPanel();  
+                ctrlBar.height = ".2";
+                ctrlBar.isPointerBlocker = true;
+                ctrlBar.isVertical = false;
+                ctrlBar.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
+
+                ctrlBar.addControl(addButton("prev", () => {
+                    base.loadPrevKeyboard();
+                }, {height:"60px",width:"120px"}));
+
+                ctrlBar.addControl(addButton("next", () => {
+                    base.loadNextKeyboard();
+                }, {height:"60px",width:"120px"}));
+
+                globals.screengui.addControl(ctrlBar);
+                kbgbGUI.activeModeCtrl = ctrlBar;
+
+                boardOps.setNaturalRotations();
+            },
+            refresh: () => {},
+            remove: () => {
+                globals.screengui.removeControl(kbgbGUI.activeModeCtrl);
+            }
+        },
         "case":{
             cameraMode:"front",
             add: function() {
@@ -797,10 +839,11 @@ export const kbgbGUI = {
 
 
                 ctrlBar.addControl(addButton("DEBUG", () => {
-                            for(const [cID,cRD] of Object.entries(globals.renderData.cases)) {
-                                pcbOps.routePCB(cID);
-                            }
-                            globals.debugCanvas.hidden = false;
+                            // for(const [cID,cRD] of Object.entries(globals.renderData.cases)) {
+                            //     pcbOps.routePCB(cID);
+                            // }
+                            // globals.debugCanvas.hidden = false;
+                            exportKeyboard();
                         }, {height:"60px",width:"120px"}));
 
                 ctrlBar.addControl(addButton("export SVGs", () => {
@@ -894,9 +937,36 @@ export const kbgbGUI = {
         }
     },
     addModeGUI: function() {
-        globals.screengui = AdvancedDynamicTexture.CreateFullscreenUI("screenUI");
-        globals.screengui.renderScale = 1.0;
+        if(kbgbGUI.modeCtrl) {
+            globals.screengui.removeControl(kbgbGUI.modeCtrl);
+            kbgbGUI.modeCtrl = null;
+        }
+        else {
+            globals.screengui = AdvancedDynamicTexture.CreateFullscreenUI("screenUI");
+            globals.screengui.renderScale = 1.0;
+        }
 
+        let ctrlBar = new StackPanel();  
+        ctrlBar.height = "40px";
+        ctrlBar.isPointerBlocker = true;
+        ctrlBar.isVertical = false;
+        //ctrlBar.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
+        ctrlBar.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
+
+        ctrlBar.addControl(addButton("edit", () => {kbgbGUI.addEditModeGUI()}, {height:"1",width:"120px"}));
+        // ctrlBar.addControl(addButton("case", () => {kbgbGUI.setGUIMode("case")}, {height:"1",width:"120px"}));
+        // ctrlBar.addControl(addButton("parts", () => {kbgbGUI.setGUIMode("pcb")}, {height:"1",width:"120px"}));
+        // ctrlBar.addControl(addButton("layers", () => {kbgbGUI.setGUIMode("details")}, {height:"1",width:"120px"}));
+
+        kbgbGUI.modeCtrl = ctrlBar;
+        globals.screengui.addControl(ctrlBar);
+        kbgbGUI.setGUIMode("view");
+    },
+    addEditModeGUI: function() {
+        if(kbgbGUI.modeCtrl) {
+            globals.screengui.removeControl(kbgbGUI.modeCtrl);
+            kbgbGUI.modeCtrl = null;
+        }
         let ctrlBar = new StackPanel();  
         ctrlBar.height = "40px";
         ctrlBar.isPointerBlocker = true;
