@@ -265,7 +265,7 @@ export function refreshLayout() {
             //     gfx.removeMesh(rd.keycap);
             // }
     
-            if (tuning.keyShape && (!rd.keycap || rd.keycap.width != k.width || rd.keycap.row != k.row)) {
+            if (tuning.keyShape && (!rd.keycap || rd.keycap.isProceduralCap || rd.keycap.width != k.width || rd.keycap.row != k.row)) {
                 if (rd.keycap) {
                     gfx.removeMesh(rd.keycap);
                 }
@@ -295,6 +295,7 @@ export function refreshLayout() {
                 }
                 else {
                     rd.keycap = MeshBuilder.CreatePolygon(id, { shape: coremath.genArrayFromOutline(rd.outline,0,0.25), depth: 7, smoothingThreshold: 0.1, updatable: false }, scene);
+                    rd.keycap.isProceduralCap = true;
                     rd.keycap.parent = root;
                     rd.keycap.preXform = null;
                     rd.keycap.heightOffset = 10.5;
