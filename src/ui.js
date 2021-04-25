@@ -1,4 +1,5 @@
 import {globals} from './globals.js'
+import * as boardData from './boardData.js';
 import {tuning} from './tuning.js'
 import * as base from './base.js'
 import * as coremath from './coremath.js'
@@ -33,10 +34,10 @@ function format_float(a) { return formatter.format(a)}
 function downloadSVGs() {
     Analytics.record({ name: 'SVG export' });
     var zip = new JSZip();
-    const bd = globals.boardData;
+    const bd = boardData.getData();
     let layerInfoCSV = `Layer Name,Material,Thickness(mm),Part Width(mm),PartHeight(mm)\n`
     for(const [cID,cRD] of Object.entries(globals.renderData.cases)) {
-        for(const [layerName, layerDef] of Object.entries(boardOps.layerDefs)) {
+        for(const [layerName, layerDef] of Object.entries(boardData.layerDefs)) {
             let layerData = cRD.layers[layerName];
             zip.file(`${layerName}_${cID}.svg`, svg.exportLayerString(layerData, bd.meta.name, cID));
             layerInfoCSV += `${layerName}_${cID},${layerDef.physicalMat},${layerDef.height},`;
@@ -54,7 +55,7 @@ function downloadSVGs() {
 function downloadGBRs() {
     Analytics.record({ name: 'GBR export' });
     var zip = new JSZip();
-    const bd = globals.boardData;
+    const bd = boardData.getData();
     for(const [cID,cRD] of Object.entries(globals.renderData.cases)) {
         pcbOps.routePCB(cID);
         const pcb = globals.pcbData[cID];
@@ -260,7 +261,7 @@ let pointerController = {
             keyInfo: {},
             enter: function(pointerInfo) {
                 for (let kId of keyPicking.pickedKeys) {
-                    let bd = globals.boardData;
+                    let bd = boardData.getData();
                     let k = bd.layout.keys[kId];
                     pointerController.modes.keyMove.keyInfo[kId] = {x: k.x, y: k.y};
                 }
@@ -389,7 +390,7 @@ export const kbgbGUI = {
     },
     keyAction: function(action) {
         for (let kId of keyPicking.pickedKeys) {
-            let bd = globals.boardData;
+            let bd = boardData.getData();
             let k = bd.layout.keys[kId];
             action(k);
         }
@@ -404,7 +405,7 @@ export const kbgbGUI = {
     },
     addCaseSelection: function(holder) {
         let caseOptions = []
-        for(const [k,cBD] of Object.entries(globals.boardData.cases)) {
+        for(const [k,cBD] of Object.entries(boardData.getData().cases)) {
             if(!kbgbGUI.activeCase) {
                 kbgbGUI.activeCase = k;
             }
@@ -435,7 +436,7 @@ export const kbgbGUI = {
                     if (pickResult && pickResult.pickedMesh) {
                         const parent = pickResult.pickedMesh.parent;
                         let name = pickResult.pickedMesh.name;
-                        if (parent && globals.boardData.layout.keys[parent.name]) {
+                        if (parent && boardData.getData().layout.keys[parent.name]) {
                             name = parent.name;
                         }
                         if (keyPicking.pickedKeys.indexOf(name) >= 0) {
@@ -461,10 +462,10 @@ export const kbgbGUI = {
                     if (pickResult && pickResult.pickedMesh) {
                         const parent = pickResult.pickedMesh.parent;
                         let name = pickResult.pickedMesh.name;
-                        if (parent && globals.boardData.layout.keys[parent.name]) {
+                        if (parent && boardData.getData().layout.keys[parent.name]) {
                             name = parent.name;
                         }
-                        if (globals.boardData.layout.keys[name]) {
+                        if (boardData.getData().layout.keys[name]) {
                             if (!(e.metaKey || e.ctrlKey)) {
                                 keyPicking.clearPickedKeys();
                             }
@@ -504,7 +505,7 @@ export const kbgbGUI = {
                 ctrlBar.addControl(kbgbGUI.addLabel("  "));
                 let kAction = (keyAction) => {
                         for (let kId of keyPicking.pickedKeys) {
-                            let bd = globals.boardData;
+                            let bd = boardData.getData();
                             let k = bd.layout.keys[kId];
                             keyAction(k);
                         }
@@ -578,7 +579,7 @@ export const kbgbGUI = {
             },
             refresh: () => {
                 for (let kId of keyPicking.pickedKeys) {
-                    let bd = globals.boardData;
+                    let bd = boardData.getData();
                     let k = bd.layout.keys[kId];
                     for(const o of keySizeOptions) {
                         if(o.type === k.type && o.width === k.width && o.rad === k.rad) {
@@ -653,7 +654,7 @@ export const kbgbGUI = {
             
                     button.onIsCheckedChangedObservable.add(function(state) {
                         if(state) {
-                            globals.boardData.cases[kbgbGUI.activeCase].caseType = text;
+                            boardData.getData().cases[kbgbGUI.activeCase].caseType = text;
                             boardOps.refreshCase()
                         }
                     }); 
@@ -672,19 +673,15 @@ export const kbgbGUI = {
                 addRadio("concave", radioCtrl);
                 ctrlBar.addControl(radioCtrl);
 
-                createSlider(ctrlBar, "Fit: ", globals.boardData.cases[kbgbGUI.activeCase].bezelConcavity, 0, 1, (v) => {
-                    globals.boardData.cases[kbgbGUI.activeCase].bezelConcavity = v; boardOps.refreshCase();
-                });
-
                 var checkbox = new Checkbox();
                 checkbox.width = "10px";
                 checkbox.height = "10px";
                 console.log(`case: ${kbgbGUI.activeCase}`)
-                console.log(globals.boardData.cases);
-                checkbox.isChecked = globals.boardData.cases[kbgbGUI.activeCase].forceSymmetrical;
+                console.log(boardData.getData().cases);
+                checkbox.isChecked = boardData.getData().cases[kbgbGUI.activeCase].forceSymmetrical;
                 checkbox.color = "green";
                 checkbox.onIsCheckedChangedObservable.add(function(value) {
-                    globals.boardData.cases[kbgbGUI.activeCase].forceSymmetrical = value;
+                    boardData.getData().cases[kbgbGUI.activeCase].forceSymmetrical = value;
                     boardOps.refreshCase();
                 });
 
@@ -694,22 +691,143 @@ export const kbgbGUI = {
                 var ftbx = new Checkbox();
                 ftbx.width = "10px";
                 ftbx.height = "10px";
-                ftbx.isChecked = globals.boardData.cases[kbgbGUI.activeCase].hasFeet;
+                ftbx.isChecked = boardData.getData().cases[kbgbGUI.activeCase].hasFeet;
                 ftbx.color = "green";
                 ftbx.onIsCheckedChangedObservable.add(function(value) {
-                    globals.boardData.cases[kbgbGUI.activeCase].hasFeet = value;
+                    boardData.getData().cases[kbgbGUI.activeCase].hasFeet = value;
                     boardOps.refreshCase();
                 });
 
                 ctrlBar.addControl(kbgbGUI.addLabel("FEET: "));
                 ctrlBar.addControl(ftbx);
 
-                createSlider(ctrlBar, "Thickness: ", globals.boardData.cases[kbgbGUI.activeCase].bezelThickness, 5.5, 50, (v) => {
-                    globals.boardData.cases[kbgbGUI.activeCase].bezelThickness = v; boardOps.refreshCase();
-                });
-                createSlider(ctrlBar, "Fillet: ", globals.boardData.cases[kbgbGUI.activeCase].caseCornerFillet, 0.5, 30, (v) => {
-                    globals.boardData.cases[kbgbGUI.activeCase].caseCornerFillet = v; boardOps.refreshCase();
-                }); 
+                let isRefreshingTuning = false;
+
+                let addRTBar = function(propName) {
+                    if(kbgbGUI.rtBar) {
+                        globals.screengui.removeControl(kbgbGUI.rtBar);
+                    }
+
+                    let rtBar = new StackPanel();  
+                    rtBar.width = ".2";
+                    rtBar.isPointerBlocker = true;
+                    rtBar.isVertical = true;
+                    rtBar.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
+    
+                    let refreshTuningValues = function(k) {
+                        const cBD = boardData.getData().cases[kbgbGUI.activeCase];
+                        const kPin = k+"Pin";
+                        let pendingList = [];
+                        let lastVal = null;
+                        for(const [layerName, layerDef] of Object.entries(boardData.layerDefs)) {
+                            if(layerDef.tuneable !== null) {
+                                let pinned = boardData.layerGetValue(cBD, layerName, kPin);
+                                let thisVal = boardData.layerGetValue(cBD, layerName, k);
+                                if(!pinned) {
+                                    pendingList.push(layerName);
+                                } else {
+                                    if(lastVal === null) {
+                                        for(const lName of pendingList) {
+                                            boardData.layerSetValue(cBD,lName,k,thisVal);
+                                        }
+                                    } else {
+                                        const nLerps = pendingList.length;
+                                        const t = (thisVal - lastVal)/(nLerps+1);
+                                        for(let i = 0; i < nLerps; i++) {
+                                            boardData.layerSetValue(cBD,pendingList[i],k,lastVal+(t*(i+1)));
+                                        }
+                                    }
+                                    lastVal = thisVal;
+                                    pendingList = [];
+                                }
+                            }
+                        }
+                        if(lastVal !== null) {
+                            for(const lName of pendingList) {
+                                boardData.layerSetValue(cBD,lName,k,lastVal);
+                            }
+                        }
+    
+                        for(const [layerName, layerDef] of Object.entries(boardData.layerDefs)) {
+                            if(layerDef.tuneable !== null) {
+                                rtBar[layerName].slider.value = boardData.layerGetValue(cBD, layerName, k);
+                            }
+                        }
+                        boardOps.refreshCase();
+                    }
+
+                    let addTuningButton = function(layerName) {
+                        const cBD = boardData.getData().cases[kbgbGUI.activeCase];
+                        let buttonBar = new StackPanel();  
+                        buttonBar.height = "40px";
+                        buttonBar.isPointerBlocker = true;
+                        buttonBar.isVertical = false;
+                        buttonBar.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
+                        
+                        let label = kbgbGUI.addLabel(layerName)
+                        var slider = new Slider();
+                        var lock = new Checkbox();
+    
+                        label.height = "40px"
+    
+                        slider.minimum = 0;
+                        slider.maximum = 1;
+                        slider.value = boardData.layerGetValue(cBD, layerName, propName);
+                        slider.height = "15px";
+                        slider.width = "100px";
+                        slider.onValueChangedObservable.add(function(value) {
+                            if(!isRefreshingTuning) {
+                                isRefreshingTuning = true;
+                                lock.isChecked = true;
+                                boardData.layerSetValue(cBD, layerName, propName+"Pin", true);
+                                boardData.layerSetValue(cBD, layerName, propName, value);
+                                refreshTuningValues(propName);
+                                isRefreshingTuning = false;
+                            }
+                        });
+    
+    
+                        lock.width = "10px";
+                        lock.height = "10px";
+                        lock.isChecked = boardData.layerGetValue(cBD, layerName, propName+"Pin");
+                        lock.color = "red";
+                        lock.onIsCheckedChangedObservable.add(function(value) {
+                            if(!isRefreshingTuning) {
+                                isRefreshingTuning = true;
+                                boardData.layerSetValue(cBD, layerName, propName+"Pin", value);
+                                refreshTuningValues(propName);
+                                isRefreshingTuning = false;
+                            }
+                        });
+    
+                        rtBar[layerName] = {lock:lock, slider:slider};
+    
+                        buttonBar.addControl(label);   
+                        buttonBar.addControl(slider);  
+                        buttonBar.addControl(lock); 
+                        rtBar.addControl(buttonBar);
+                    }
+    
+                    for(const [layerName, layerDef] of Object.entries(boardData.layerDefs)) {
+                        if(layerDef.tuneable !== null) {
+                            addTuningButton(layerName);
+                        }
+                    }
+    
+                    globals.screengui.addControl(rtBar);
+    
+                    kbgbGUI.rtBar = rtBar;
+                }
+
+                ctrlBar.addControl(addButton("Shape", () => {
+                    addRTBar("bezelConcavity");
+                }, {height:"60px",width:"120px"}));
+                ctrlBar.addControl(addButton("Thickness", () => {
+                    addRTBar("bezelThickness");
+                }, {height:"60px",width:"120px"}));
+                ctrlBar.addControl(addButton("Corners", () => {
+                    addRTBar("caseCornerFillet");
+                }, {height:"60px",width:"120px"}));
                 
                 globals.screengui.addControl(ctrlBar);
                 kbgbGUI.activeModeCtrl = ctrlBar;
@@ -719,6 +837,9 @@ export const kbgbGUI = {
             refresh: () => {},
             remove: () => {
                 globals.screengui.removeControl(kbgbGUI.activeModeCtrl);
+                if(kbgbGUI.rtBar) {
+                    globals.screengui.removeControl(kbgbGUI.rtBar);
+                }
             }
         },
         "pcb":{
@@ -737,10 +858,10 @@ export const kbgbGUI = {
                     var checkbox = new Checkbox()
                     checkbox.width = "20px";
                     checkbox.height = "20px";
-                    checkbox.isChecked = globals.boardData.cases[kbgbGUI.activeCase][prop];
+                    checkbox.isChecked = boardData.getData().cases[kbgbGUI.activeCase][prop];
                     checkbox.color = "orange";
                     checkbox.onIsCheckedChangedObservable.add(function(value) {
-                        globals.boardData.cases[kbgbGUI.activeCase][prop] = value;
+                        boardData.getData().cases[kbgbGUI.activeCase][prop] = value;
                         boardOps.refreshCase();
                     });
                     return checkbox;
@@ -751,16 +872,16 @@ export const kbgbGUI = {
                     input.width = "80px";
                     input.maxWidth = "80px";
                     input.height = "40px";
-                    input.text = ""+globals.boardData.cases[kbgbGUI.activeCase][prop];
+                    input.text = ""+boardData.getData().cases[kbgbGUI.activeCase][prop];
                     input.color = "white";
                     input.background = "green";
                     input.onBlurObservable.add((v) => {
                         console.log(`usb port moving to ${v.text}`);
                         let f = parseFloat(v.text);
                         if(f) {
-                            globals.boardData.cases[kbgbGUI.activeCase][prop] = f;
+                            boardData.getData().cases[kbgbGUI.activeCase][prop] = f;
                         }
-                        input.text = ""+globals.boardData.cases[kbgbGUI.activeCase][prop];
+                        input.text = ""+boardData.getData().cases[kbgbGUI.activeCase][prop];
                         boardOps.refreshCase();
                     });
                     return input;
@@ -775,11 +896,11 @@ export const kbgbGUI = {
                 ctrlBar.addControl(kbgbGUI.addLabel("Center? "));
                 ctrlBar.addControl(createCheckbox("usbPortCentered"));
 
-                createSlider(ctrlBar, "Screw span: ", globals.boardData.cases[kbgbGUI.activeCase].maxScrewSpan, 40, 300, (v) => {
-                    globals.boardData.cases[kbgbGUI.activeCase].maxScrewSpan = v; boardOps.refreshCase();
+                createSlider(ctrlBar, "Screw span: ", boardData.getData().cases[kbgbGUI.activeCase].maxScrewSpan, 40, 300, (v) => {
+                    boardData.getData().cases[kbgbGUI.activeCase].maxScrewSpan = v; boardOps.refreshCase();
                 }); 
-                createSlider(ctrlBar, "Screw offset: ", globals.boardData.cases[kbgbGUI.activeCase].screwBezelBias, 0.0, 1.0, (v) => {
-                    globals.boardData.cases[kbgbGUI.activeCase].screwBezelBias = v; boardOps.refreshCase();
+                createSlider(ctrlBar, "Screw offset: ", boardData.getData().cases[kbgbGUI.activeCase].screwBezelBias, 0.0, 1.0, (v) => {
+                    boardData.getData().cases[kbgbGUI.activeCase].screwBezelBias = v; boardOps.refreshCase();
                 }); 
 
                 globals.screengui.addControl(ctrlBar);
@@ -853,7 +974,7 @@ export const kbgbGUI = {
                             downloadGBRs();
                         }, {height:"60px",width:"120px"}));
                 ctrlBar.addControl(addButton("save layout", () => {
-                            download(boardOps.saveKeyboard(), `${globals.boardData.meta.name}.kbd`, 'text/plain');
+                            download(boardOps.saveKeyboard(), `${boardData.getData().meta.name}.kbd`, 'text/plain');
                         }, {height:"60px",width:"120px"}));
                 ctrlBar.addControl(addButton("load layout", () => {
                             document.getElementById("loadKBD").click();
@@ -871,37 +992,6 @@ export const kbgbGUI = {
 
                 globals.screengui.addControl(ctrlBar);
                 
-                let rtBar = new StackPanel();  
-                rtBar.width = ".2";
-                rtBar.isPointerBlocker = true;
-                rtBar.isVertical = true;
-                rtBar.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
-                let addSVGButton = function(layerName) {
-                    let label = kbgbGUI.addLabel(layerName)
-                    label.height = "40px"
-                    var slider = new Slider();
-                    slider.minimum = 0;
-                    slider.maximum = 1;
-                    slider.value = 1;
-                    slider.height = "15px";
-                    slider.width = "100px";
-                    slider.onValueChangedObservable.add(function(value) {
-                        tuning.layerOffsets[layerName] = value;
-                    });
-                    rtBar.addControl(label);   
-                    rtBar.addControl(slider); 
-                }
-
-                addSVGButton("bezel");
-                addSVGButton("plate");
-                addSVGButton("edge");
-                addSVGButton("bottom");
-                addSVGButton("feet");
-                // addSVGButton("pcb");
-
-                globals.screengui.addControl(rtBar);
-
-                kbgbGUI.rtBar = rtBar;
                 kbgbGUI.activeModeCtrl = ctrlBar;
                 boardOps.expandLayers();
             },
@@ -909,7 +999,6 @@ export const kbgbGUI = {
             remove: () => {
                 boardOps.collapseLayers();
                 globals.screengui.removeControl(kbgbGUI.activeModeCtrl);
-                globals.screengui.removeControl(kbgbGUI.rtBar);
             }
         },
     },

@@ -1,4 +1,5 @@
 import {globals} from './globals.js'
+import * as boardData from './boardData.js';
 import * as coremath from './coremath.js'
 import * as pcb from './pcbOps.js'
 
@@ -53,7 +54,7 @@ function exportGBRHeader(gbr, opts) {
     }
     append(`G04 #@! TF.GenerationSoftware,${orgName},${progName},(${versionString})*`);
     append(`G04 #@! TF.CreationDate,${new Date().toISOString()}*`);
-    append(`G04 #@! TF.ProjectId,${globals.boardData.meta.name},${setUuid},rev?*`);
+    append(`G04 #@! TF.ProjectId,${boardData.getData().meta.name},${setUuid},rev?*`);
     append(`G04 #@! TF.SameCoordinates,${setUuid}*`);
     append(`G04 #@! TF.FileFunction,${opts.fileFunction}*`);  // file function: "Profile" <aka edge cuts> 
     if(opts.polarity) {
@@ -259,7 +260,7 @@ export function exportEdgeCutsLayer(pcb) {
 }
 
 export function exportDrillFile(pcb) {
-    const bd = globals.boardData;
+    const bd = boardData.getData();
 
     const gbr = [];
     function append(...values) {

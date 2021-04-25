@@ -722,7 +722,7 @@ export function copyWithoutColinear(outline,offset,fillets) {
         let prevDir = prev.normalizeFromLength(prevLen);
 
         let dot = Vector3.Dot(prevDir,nextDir);
-        if (dot > 0.999 || dot < -0.9)
+        if (dot > 0.9999 || dot < -0.9)
         {
             // console.log(`Skipping colinearish point ${dot} ${i}`);
             outline.splice(i,1);
@@ -936,7 +936,7 @@ export function filletOutline(outline, fillets, close) {
 
         const nDotP = Vector3.Dot(nextDir,prevDir);
 
-        if (!fillets || Math.abs(nDotP) > 0.9) {
+        if (!fillets || Math.abs(nDotP) > 0.99) {
             vectorOutline.push(new Point(point));
         }
         else {

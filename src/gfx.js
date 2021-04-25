@@ -1,4 +1,5 @@
 import {globals} from './globals.js'
+import * as boardData from './boardData.js';
 import {tuning} from './tuning.js'
 import {Engine, ArcRotateCamera, CubeTexture, Scene, Vector3, VertexBuffer,  DirectionalLight, ShadowGenerator,
         VertexData, Color3, DefaultRenderingPipeline, StandardMaterial, PBRMaterial, PBRMetallicRoughnessMaterial,
@@ -114,7 +115,7 @@ export function snapCamera(mode) {
         }
     }
 
-    const bd = globals.boardData;
+    const bd = boardData.getData();
     // TODO: fix this to work with multiple cases
     const bezelAdd = 30;
     const w = maxs[0] - mins[0] + bezelAdd * 2;

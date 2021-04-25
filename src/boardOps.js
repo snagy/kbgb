@@ -4,8 +4,9 @@ import * as coremath from './coremath.js';
 import * as gfx from './gfx.js';
 import * as pcb from './pcbOps.js';
 import * as keyPicking from './keyPicking.js';
+import * as boardData from './boardData.js';
 import {Vector3, Vector4, MeshBuilder, Matrix, Epsilon, Color3, Color4,
-        Animation, EasingFunction, QuinticEase, TransformNode, DynamicTexture} from 'babylonjs'
+        Animation, EasingFunction, QuinticEase, TransformNode, DynamicTexture, Scalar} from 'babylonjs'
 
 function getPlateCutsWithStabs(id,width,height,kXform,flipStab,plateCuts,caseIdx) {
     let switchCutDims = [tuning.switchCutout[0]*0.5, tuning.switchCutout[1]*0.5];
@@ -87,7 +88,7 @@ function getPlateCutsWithStabs(id,width,height,kXform,flipStab,plateCuts,caseIdx
 
 export function refreshLayout() {
     const scene = globals.scene;
-    const bd = globals.boardData;
+    const bd = boardData.getData();
 
     pcb.clearPCBs();
 
@@ -691,7 +692,7 @@ function findOverlappingGroups(kRD, groupName, caseIdx) {
 }
 
 function getScrewRadius(screw,layerName) {
-    const bd = globals.boardData;
+    const bd = boardData.getData();
     let screwTypeName = screw.screwType?screw.screwType:"m2_simple";
     let screwType = tuning.screwTypes[screwTypeName];
     let radius = screwType.screwHoleRadius;
@@ -704,20 +705,21 @@ function getScrewRadius(screw,layerName) {
 }
 
 function getScrewStandoff() {
-    const bd = globals.boardData;
+    const bd = boardData.getData();
     const screwType = bd.screwType?bd.screwType:"m2_simple";
 
     return tuning.screwTypes[screwType].screwHoleRadius;
 }
 
 function getScrewBoss() {
-    const bd = globals.boardData;
+    const bd = boardData.getData();
     const screwType = bd.screwType?bd.screwType:"m2_simple";
 
     return tuning.screwTypes[screwType].minBoss;
 }
 
 function screwAddLayer(screw, layerName) {
+    const layerDefs = boardData.layerDefs;
     if(!screw.topLayer || (layerDefs[layerName].stackOrder && layerDefs[layerName].stackOrder > layerDefs[screw.topLayer].stackOrder)) {
         screw.topLayer = layerName;
     }
@@ -726,13 +728,13 @@ function screwAddLayer(screw, layerName) {
     }
 }
 
-export function addScrewHoles(cRD, cBD, outline, minBezelOffset, primaryLayerName, layerOutlines) {
+export function addScrewHoles(cRD, cBD, bezelThickness, outline, primaryLayerName, layerOutlines) {
     const defaultScrew = {};
     const screwBoss = getScrewBoss();
     const screwRadius = getScrewRadius(defaultScrew);
     const totalRad = screwRadius + screwBoss;
-    const bezelOffset =  ((cBD.bezelThickness + minBezelOffset - totalRad * 2.0) * cBD.screwBezelBias + totalRad + minBezelOffset) - cBD.bezelThickness;
-    // console.log(`screw offset: ${bezelOffset} thickness ${cBD.bezelThickness} boss ${totalRad} bias ${cBD.screwBezelBias}`)
+    const bezelOffset =  ((bezelThickness - totalRad * 2.0) * cBD.screwBezelBias + totalRad) - bezelThickness;
+    // console.log(`screw offset: ${bezelOffset} thickness ${bezelThickness} boss ${totalRad} bias ${cBD.screwBezelBias}`)
     let screwLocs = coremath.offsetOutlinePoints(outline,bezelOffset);
     cBD.screws = [];
 
@@ -805,7 +807,7 @@ export function addScrewHoles(cRD, cBD, outline, minBezelOffset, primaryLayerNam
 
     // find all the layers that are a 'shape'
     let shapeLayers = {};
-    for(const [layerName, layerDef] of Object.entries(layerDefs)) {
+    for(const [layerName, layerDef] of Object.entries(boardData.layerDefs)) {
         if(layerDef.shape) {
             if(!shapeLayers[layerDef.shape]) {
                 shapeLayers[layerDef.shape] = [];
@@ -821,20 +823,31 @@ export function addScrewHoles(cRD, cBD, outline, minBezelOffset, primaryLayerNam
         let layers = [];
         let screw = {location:loc, shapes:[], topLayer:null, bottomLayer:null}
         
-        const int = coremath.segmentToPoly(loc, externalPoint, layerOutlines[primaryLayerName]);
-        if(int.numIntersections === 0 || int.numIntersections % 2 === 0 || int.nearestDistSq < minEdgeDistSq) {
-            // not in the primary layer
-            screwLocs.splice(i,1);
-        } else {
-            for(const [lId,lList] of Object.entries(shapeLayers)) {
-                if(lId !== primaryLayerName) {
-                    const layerOutline = layerOutlines[lId];
+        // const int = coremath.segmentToPoly(loc, externalPoint, layerOutlines[primaryLayerName]);
+        // if(int.numIntersections === 0 || int.numIntersections % 2 === 0 || int.nearestDistSq < minEdgeDistSq) {
+        //     // not in the primary layer
+        //     screwLocs.splice(i,1);
+        // } else {
+        //     for(const [lId,lList] of Object.entries(shapeLayers)) {
+        //         if(lId !== primaryLayerName) {
+        //             const layerOutline = layerOutlines[lId];
 
-                    const int = coremath.segmentToPoly(loc, externalPoint, layerOutline);
-                    if(int.numIntersections === 0 || int.numIntersections % 2 === 0 || int.nearestDistSq < minEdgeDistSq) {
-                        continue;
-                    }
-                }
+        //             const int = coremath.segmentToPoly(loc, externalPoint, layerOutline);
+        //             if(int.numIntersections === 0 || int.numIntersections % 2 === 0 || int.nearestDistSq < minEdgeDistSq) {
+        //                 continue;
+        //             }
+        //         }
+        //         screw.shapes.push(lId);
+
+        //         for(const l of lList) {
+        //             screwAddLayer(screw,l);
+        //         }
+        //     }
+
+        //     cBD.screws.push(screw);
+        // }
+        {
+            for(const [lId,lList] of Object.entries(shapeLayers)) {
                 screw.shapes.push(lId);
 
                 for(const l of lList) {
@@ -848,7 +861,7 @@ export function addScrewHoles(cRD, cBD, outline, minBezelOffset, primaryLayerNam
     // screwLocs.length = 0;
 }
 
-function getFootShape(layerName, layerDef, cRD, cBD, bd) {
+export function getFootShape(layerName, layerDef, cRD, cBD, bd) {
     const scene = globals.scene;
     const root = cRD.rootXform;
     const mats = globals.renderData.mats;
@@ -860,13 +873,13 @@ function getFootShape(layerName, layerDef, cRD, cBD, bd) {
         const p0 = (s0.location.x>=s1.location.x)?s0.location:s1.location;
         const p1 = (s0.location.x>=s1.location.x)?s1.location:s0.location;
 
-        const offset = cBD.bezelThickness/2;
+        const offset = bezelThickness/2;
         const z_line = Math.min(p0.z, p1.z)-offset*layerDef.chin;
         const points = coremath.offsetAndFilletOutline([new Vector3(p0.x+offset,0,z_line-offset),
                                                         new Vector3(p0.x+offset,0,p0.z+offset),
                                                         new Vector3(p1.x-offset,0,p1.z+offset),
                                                         new Vector3(p1.x-offset,0,z_line-offset)],
-                                            0, Math.min(cBD.caseCornerFillet,cBD.bezelThickness/2), false);
+                                            0, Math.min(cBD.caseCornerFillet,bezelThickness/2), false);
         cRD.layers[layerName].outlines.push(points)
         let polyHoles = [];
         for(const screw of foot.screws) {
@@ -889,28 +902,10 @@ function getFootShape(layerName, layerDef, cRD, cBD, bd) {
     }
 }
 
-export const layerDefs = {
-    "pcbMesh":{height:1.6,offset:-5.1,stackOrder:null,visFilter:"drawPCB",shape:"pcbOutline",holes:[],mat:"fr4",physicalMat:"FR4"},
-    "plateFoam":{height:3.5,offset:-1.5,stackOrder:null,visFilter:"drawPlateFoam",shape:"pcbOutline",holes:["switchCuts"],mat:"foam",physicalMat:"FOAM"},
-    "caseFoam":{height:3.5,offset:-7.5,stackOrder:null,visFilter:"drawCaseFoam",shape:"cavityInner",holes:[],mat:"foam",physicalMat:"FOAM"},
-    "bezel":{height:3,offset:6,stackOrder:2,visFilter:"drawBezel",shape:"caseFrameTaper",holes:["bezel","screwHoles"],mat:"case",physicalMat:"acrylic"},
-    "bezelmid":{height:3,offset:3,stackOrder:1,visFilter:"drawBezel",shape:"caseFrame",holes:["bezel","screwHoles"],mat:"case",physicalMat:"acrylic"},
-    "plate":{height:1.5,offset:0,stackOrder:0,visFilter:"drawPlate",shape:"caseFrame",holes:["screwHoles","switchCuts"],mat:"plate",physicalMat:"alu"},
-    "edge":{height:3,offset:-1.5,stackOrder:-1,visFilter:"drawCase",shape:"caseFrameWithPortCut",holes:["screwHoles", "cavityInnerEdge"],mat:"case",physicalMat:"acrylic"},
-    "edge2":{height:3,offset:-4.5,stackOrder:-2,visFilter:"drawCase",shape:"caseFrameWithPortCut",holes:["screwHoles", "cavityInnerEdge"],mat:"case",physicalMat:"acrylic"},
-    "edge3":{height:3,offset:-7.5,stackOrder:-3,visFilter:"drawCase",shape:"caseFrameWithPortCut",holes:["screwHoles", "cavityInnerEdge"],mat:"case",physicalMat:"acrylic"},
-    "bottom":{height:3,offset:-10.5,stackOrder:-4,visFilter:"drawCase",shape:"caseFrame",holes:["screwHoles"],mat:"case",physicalMat:"acrylic"},
-    "feet4":{height:3,offset:-13.5,stackOrder:-5,visFilter:"drawCase",mat:"case",customShape:getFootShape,chin:4.0,physicalMat:"acrylic"},
-    "feet3":{height:3,offset:-16.5,stackOrder:-6,visFilter:"drawCase",mat:"case",customShape:getFootShape,chin:3.0,physicalMat:"acrylic"},
-    "feet2":{height:3,offset:-19.5,stackOrder:-7,visFilter:"drawCase",mat:"case",customShape:getFootShape,chin:2.0,physicalMat:"acrylic"},
-    "feet1":{height:3,offset:-22.5,stackOrder:-8,visFilter:"drawCase",mat:"case",customShape:getFootShape,chin:1.0,physicalMat:"acrylic"},
-    "feet":{height:3,offset:-25.5,stackOrder:-9,visFilter:"drawCase",mat:"case",customShape:getFootShape,chin:0.0,physicalMat:"acrylic"}
-};
-
-function addUSBPort(cRD, cBD) {
+function addUSBPort(cRD, cBD, bezelThickness) {
     const boardBounds = cRD.bounds;
     let portDim = [15 / 2,
-                   cBD.bezelThickness*2];
+                   bezelThickness*2];
 
     let portPos = cBD.usbPortPos * tuning.base1U[0];
 
@@ -920,7 +915,7 @@ function addUSBPort(cRD, cBD) {
     }
     
     let kPos = [portPos,
-                boardBounds.maxs[1]+cBD.bezelThickness/2]
+                boardBounds.maxs[1]+bezelThickness/2]
     let kXform = Matrix.Translation(kPos[0], 0, kPos[1]);
     // if (k.rotation_angle != 0) {
     //     kXform = kXform.multiply(Matrix.Translation(-k.rotation_x * tuning.base1U[0], 0, k.rotation_y * tuning.base1U[1]));
@@ -970,7 +965,7 @@ function getFeet(bd, cRD, cBD) {
         feet.push(foot);
 
 
-        for(const [layerName, layerDef] of Object.entries(layerDefs)) {
+        for(const [layerName, layerDef] of Object.entries(boardData.layerDefs)) {
             if(layerDef.customShape === getFootShape) {
                 screwAddLayer(p0,layerName);
                 screwAddLayer(p1,layerName);
@@ -981,7 +976,7 @@ function getFeet(bd, cRD, cBD) {
 }
 
 function finalizeLayout() {
-    const bd = globals.boardData;
+    const bd = boardData.getData();
     const kRD = globals.renderData.keys;
     globals.renderData.layoutData = {};
     for(const [caseIdx,cBD] of Object.entries(bd.cases)) {
@@ -1363,7 +1358,7 @@ function finalizeLayout() {
 }
 
 export function refreshPCBs() {
-    const bd = globals.boardData;
+    const bd = boardData.getData();
     for(const [caseIdx,cBD] of Object.entries(bd.cases)) {
         const cRD = globals.renderData.cases[caseIdx];
         const layoutData = globals.renderData.layoutData[caseIdx];
@@ -1388,7 +1383,7 @@ function addScrewModels(cRD, cBD) {
 
 export function removeCaseData() {
     const scene = globals.scene;
-    const bd = globals.boardData;
+    const bd = boardData.getData();
     for(const [caseIdx,cBD] of Object.entries(bd.cases)) {
         if(!globals.renderData.cases[caseIdx]) {
             globals.renderData.cases.push({layers:{}});
@@ -1412,7 +1407,7 @@ export function removeCaseData() {
 
 export function refreshCase() {
     const scene = globals.scene;
-    const bd = globals.boardData;
+    const bd = boardData.getData();
     const kRD = globals.renderData.keys;
     const mats = globals.renderData.mats;
 
@@ -1451,9 +1446,32 @@ export function refreshCase() {
             vectorGeo["bezel"].push(bezelOutlineVec);
             tesselatedGeo["bezel"].push(coremath.genPointsFromVectorPath(bezelOutlineVec));
         }
+
+        let plateGroups = findOverlappingGroups(kRD, "switchCut", caseIdx);
+        vectorGeo["switchCuts"] = [];
+        tesselatedGeo["switchCuts"] = [];
+        for(const [gId, G] of Object.entries(plateGroups)) {
+            let outline = getCombinedOutlineFromPolyGroup(G);
+            let switchOutlineVec = coremath.offsetAndFilletOutline(outline, 0.0, 0.5, false);
+            vectorGeo["switchCuts"].push(switchOutlineVec);
+            const genPoints = coremath.genPointsFromVectorPath(switchOutlineVec);
+            tesselatedGeo["switchCuts"].push(genPoints);
+        }
+
+        if(cBD.hasUSBPort) {
+            let maxThickness = 0.0;
+            for(const [layerName, layerDef] of Object.entries(boardData.layerDefs)) {
+                if(layerDef.portCut) {
+                    const bezelThickness = Scalar.Lerp(tuning.bezelThickness.min, tuning.bezelThickness.max, boardData.layerGetValue(cBD, layerName, "bezelThickness"));
+                    maxThickness = Math.max(maxThickness,bezelThickness);
+                }
+            }
+
+            addUSBPort(cRD, cBD, maxThickness);
+        }
     
         if(cBD.caseType === "concave") {
-            cRD.outline = layoutData.minOutline;
+            // cRD.outline = layoutData.minOutline;
             // gfx.drawDbgOutline("badOutline", cRD.outline);
         }
         else
@@ -1518,76 +1536,90 @@ export function refreshCase() {
                 targets[iThis] = pThis;
             }
 
-            cRD.outline = [...convexHull];
+            cRD.convexHull = [...convexHull];
 
-            for(let iP = 0; iP < convexHull.length; iP++) {
-                cRD.outline[iP] = convexHull[iP].scale(cBD.bezelConcavity).add(targets[iP].scale(1.0-cBD.bezelConcavity));
+            cRD.outlineTargets = targets;
+        }
+
+        let minBezelThickness = 100000.0;
+        let maxConcavity = -1.0;
+        let maxConcaveLayer = null;
+        for(const [layerName, layerDef] of Object.entries(boardData.layerDefs)) {
+            const lRD = {name:layerName,outlines:[vectorGeo[layerDef.shape]],meshes:[]};
+            cRD.layers[layerName] = lRD;
+
+            if(cBD.caseType === "concave") {
+                lRD.outline = layoutData.minOutline;
+                maxConcaveLayer = lRD;
+                // gfx.drawDbgOutline("badOutline", cRD.outline);
             }
-            // gfx.drawDbgOutline("badOutline", cRD.outline);
+            else {
+                lRD.outline = [...cRD.convexHull];
+                const concavity = boardData.layerGetValue(cBD, layerName, "bezelConcavity");
+                const convexity = 1.0-concavity;
+                for(let iP = 0; iP < lRD.outline.length; iP++) {
+                    lRD.outline[iP] = lRD.outline[iP].scale(concavity).add(cRD.outlineTargets[iP].scale(convexity));
+                }
+
+                if(layerDef.tuneable !== null && concavity > maxConcavity) {
+                    maxConcavity = concavity;
+                    maxConcaveLayer = lRD;
+                }
+            }
+
+            const bezelThickness = Scalar.Lerp(tuning.bezelThickness.min, tuning.bezelThickness.max, boardData.layerGetValue(cBD, layerName, "bezelThickness"));
+            if(layerDef.tuneable !== null) {
+                minBezelThickness = Math.min(minBezelThickness,bezelThickness);
+            }
+            lRD.outline = coremath.offsetAndFixOutlinePoints(lRD.outline, tuning.bezelGap + bezelThickness,null).outline;
         }
 
-        cRD.outline = coremath.offsetAndFixOutlinePoints(cRD.outline, tuning.bezelGap + cBD.bezelThickness,null).outline;
-
-        vectorGeo["cavityInner"] = coremath.offsetAndFilletOutline(cRD.outline, -cBD.bezelThickness, tuning.bezelCornerFillet, false);
-        tesselatedGeo["cavityInner"] = coremath.genPointsFromVectorPath(vectorGeo["cavityInner"],8);
-
-        vectorGeo["cavityInnerEdge"] = [vectorGeo["cavityInner"]];
-        tesselatedGeo["cavityInnerEdge"] = [tesselatedGeo["cavityInner"]];
-        vectorGeo["caseFrame"] = coremath.offsetAndFilletOutline(cRD.outline, 0, cBD.caseCornerFillet, false);
-        tesselatedGeo["caseFrame"] = coremath.genPointsFromVectorPath(vectorGeo["caseFrame"],8);
-        vectorGeo["caseFrameTaper"] = coremath.offsetAndFilletOutline(cRD.outline, -cBD.bezelThickness*.1, cBD.caseCornerFillet, false);
-        tesselatedGeo["caseFrameTaper"] = coremath.genPointsFromVectorPath(vectorGeo["caseFrameTaper"],8);
-    
-        const taperOffsetMax = -cBD.bezelThickness*.1;
-    
-        if(cBD.hasUSBPort) {
-            addUSBPort(cRD, cBD);
-            let portCut = cRD.portCut;
-            let portOutline = getCombinedOutlineFromPolyGroup(portCut);
-            let portFillets = (new Array(portOutline.length)).fill(0);
-            let interiorShape = coremath.offsetOutlinePoints(cRD.outline,-cBD.bezelThickness);
-            let interiorFillets = (new Array(interiorShape.length)).fill(tuning.bezelCornerFillet);
-            let intersectionFillet = 1.0;
-            let combined = coremath.combineOutlines(interiorShape,interiorFillets, portOutline, portFillets, intersectionFillet);
-            let combo = combined.outline;
-            let comboFillets = combined.fillets;
-            combo.reverse();
-            comboFillets.reverse();
-            let outlineFillets = (new Array(cRD.outline.length)).fill(cBD.caseCornerFillet);
-            let exteriorShape = coremath.offsetOutlinePoints(cRD.outline,0.0);
-
-            combined = coremath.combineOutlines(exteriorShape,outlineFillets,combo,comboFillets, intersectionFillet, true);
-            combo = combined.outline;
-            let finFillets = combined.fillets;
-    
-            vectorGeo["caseFrameWithPortCut"] = coremath.offsetAndFilletOutline(combo, 0, finFillets, false);
-            tesselatedGeo["caseFrameWithPortCut"] = coremath.genPointsFromVectorPath(vectorGeo["caseFrameWithPortCut"],8);
-            vectorGeo["cavityInnerEdge"].length = 0;
-            tesselatedGeo["cavityInnerEdge"].length = 0;
-        } else {
-            vectorGeo["caseFrameWithPortCut"] = vectorGeo["caseFrame"];
-            tesselatedGeo["caseFrameWithPortCut"] = tesselatedGeo["caseFrame"];
-        }
-    
-        vectorGeo["pcbOutline"] = coremath.offsetAndFilletOutline(globals.pcbData[caseIdx].outline, 0.0, 2.0, false);
-        tesselatedGeo["pcbOutline"] = coremath.genPointsFromVectorPath(vectorGeo["pcbOutline"]);
-
-        addScrewHoles(cRD, cBD, cRD.outline, taperOffsetMax, "caseFrameWithPortCut", tesselatedGeo);
+        addScrewHoles(cRD, cBD, minBezelThickness, maxConcaveLayer.outline, "caseFrame", tesselatedGeo);
         getFeet(bd, cRD, cBD);
 
-        let plateGroups = findOverlappingGroups(kRD, "switchCut", caseIdx);
-        vectorGeo["switchCuts"] = [];
-        tesselatedGeo["switchCuts"] = [];
-        for(const [gId, G] of Object.entries(plateGroups)) {
-            let outline = getCombinedOutlineFromPolyGroup(G);
-            let switchOutlineVec = coremath.offsetAndFilletOutline(outline, 0.0, 0.5, false);
-            vectorGeo["switchCuts"].push(switchOutlineVec);
-            const genPoints = coremath.genPointsFromVectorPath(switchOutlineVec);
-            tesselatedGeo["switchCuts"].push(genPoints);
-        }
+        for(const [layerName, layerDef] of Object.entries(boardData.layerDefs)) {
+            const lRD = cRD.layers[layerName];
+            const bezelThickness = Scalar.Lerp(tuning.bezelThickness.min, tuning.bezelThickness.max, boardData.layerGetValue(cBD, layerName, "bezelThickness"));
+            const caseCornerFillet = Scalar.Lerp(tuning.caseCornerFillet.min, tuning.caseCornerFillet.max, boardData.layerGetValue(cBD, layerName, "caseCornerFillet"));
+            vectorGeo["cavityInner"] = coremath.offsetAndFilletOutline(lRD.outline, -bezelThickness, tuning.bezelCornerFillet, false);
+            tesselatedGeo["cavityInner"] = coremath.genPointsFromVectorPath(vectorGeo["cavityInner"],8);
+
+            vectorGeo["cavityInnerEdge"] = [vectorGeo["cavityInner"]];
+            tesselatedGeo["cavityInnerEdge"] = [tesselatedGeo["cavityInner"]];
+        
+            const taperOffsetMax = -bezelThickness*.1;
     
-        for(const [layerName, layerDef] of Object.entries(layerDefs)) {
-            // console.log(`generating layer ${layerName}`);
+            if(cBD.hasUSBPort && layerDef.portCut) {
+                let portCut = cRD.portCut;
+                let portOutline = getCombinedOutlineFromPolyGroup(portCut);
+                let portFillets = (new Array(portOutline.length)).fill(0);
+                let interiorShape = coremath.offsetOutlinePoints(lRD.outline,-bezelThickness);
+                let interiorFillets = (new Array(interiorShape.length)).fill(tuning.bezelCornerFillet);
+                let intersectionFillet = 1.0;
+                let combined = coremath.combineOutlines(interiorShape,interiorFillets, portOutline, portFillets, intersectionFillet);
+                let combo = combined.outline;
+                let comboFillets = combined.fillets;
+                combo.reverse();
+                comboFillets.reverse();
+                let outlineFillets = (new Array(lRD.outline.length)).fill(caseCornerFillet);
+                let exteriorShape = coremath.offsetOutlinePoints(lRD.outline,0.0);
+
+                combined = coremath.combineOutlines(exteriorShape,outlineFillets,combo,comboFillets, intersectionFillet, true);
+                combo = combined.outline;
+                let finFillets = combined.fillets;
+        
+                vectorGeo["caseFrame"] = coremath.offsetAndFilletOutline(combo, 0, finFillets, false);
+                tesselatedGeo["caseFrame"] = coremath.genPointsFromVectorPath(vectorGeo["caseFrame"],8);
+                vectorGeo["cavityInnerEdge"].length = 0;
+                tesselatedGeo["cavityInnerEdge"].length = 0;
+            } else {
+                vectorGeo["caseFrame"] = coremath.offsetAndFilletOutline(lRD.outline, 0, caseCornerFillet, false);
+                tesselatedGeo["caseFrame"] = coremath.genPointsFromVectorPath(vectorGeo["caseFrame"],8);
+            }
+    
+            vectorGeo["pcbOutline"] = coremath.offsetAndFilletOutline(globals.pcbData[caseIdx].outline, 0.0, 2.0, false);
+            tesselatedGeo["pcbOutline"] = coremath.genPointsFromVectorPath(vectorGeo["pcbOutline"]);
+
 
             if( tuning[layerDef.visFilter] ) {
                 if(layerDef.customShape) {
@@ -1604,7 +1636,6 @@ export function refreshCase() {
                         tesselatedGeo["screwHoles"] = vectorGeo["screwHoles"].map((a) => coremath.genArrayForCircle(a,0,19));
                     }
 
-                    cRD.layers[layerName] = {name:layerName,outlines:[vectorGeo[layerDef.shape]],meshes:[]};
                     const polyShape = tesselatedGeo[layerDef.shape];
                     let polyHoles = [];
                     for(const holeLayer of layerDef.holes) {
@@ -1688,7 +1719,7 @@ export function setFlatRotation(cRD, cBD) {
 
 export function setFlatRotations(cRD) {
     for(const [k,cRD] of Object.entries(globals.renderData.cases)) {
-        setFlatRotation(cRD, globals.boardData.cases[k]);
+        setFlatRotation(cRD, boardData.getData().cases[k]);
     }
 }
 
@@ -1699,7 +1730,7 @@ export function setNaturalRotation(cRD, cBD) {
 
 export function setNaturalRotations() {
     for(const [k,cRD] of Object.entries(globals.renderData.cases)) {
-        setNaturalRotation(cRD, globals.boardData.cases[k]);
+        setNaturalRotation(cRD, boardData.getData().cases[k]);
     }
 }
 
@@ -1710,7 +1741,7 @@ export function expandLayers() {
 
     for(const [k,cRD] of Object.entries(globals.renderData.cases)) {
         let cRDL = cRD.layers;
-        for(const [layerName, layerDef] of Object.entries(layerDefs)) {
+        for(const [layerName, layerDef] of Object.entries(boardData.layerDefs)) {
             if (cRDL[layerName]) {
                 for(const mesh of cRDL[layerName].meshes) {
                     Animation.CreateAndStartAnimation("expand", mesh, "position.y", 30, 20,
@@ -1719,7 +1750,7 @@ export function expandLayers() {
                 }
             }
         }
-        setFlatRotation(cRD, globals.boardData.cases[k]);
+        setFlatRotation(cRD, boardData.getData().cases[k]);
     }
     let kRD = globals.renderData.keys;
     for(const [id, rd] of Object.entries(kRD)) {
@@ -1744,7 +1775,7 @@ export function collapseLayers() {
 
     for(const [cID,cRD] of Object.entries(globals.renderData.cases) ) {
         let cRDL = cRD.layers;
-        for(const [layerName, layerDef] of Object.entries(layerDefs)) {
+        for(const [layerName, layerDef] of Object.entries(boardData.layerDefs)) {
             if (cRDL[layerName]) {
                 for(const mesh of cRDL[layerName].meshes) {
                     Animation.CreateAndStartAnimation("collapse", mesh, "position.y", 30, 20,
@@ -1774,7 +1805,7 @@ export function collapseLayers() {
 }
 
 export function addKey() {
-    const bd = globals.boardData;
+    const bd = boardData.getData();
     let kIdx = Object.keys(bd.layout.keys).length;
     while(bd.layout.keys[`key${kIdx}`]) {
         kIdx += 1;
@@ -1819,7 +1850,7 @@ export function removeKeyRD(kId) {
 
 export function removeKey(kId) {
     removeKeyRD(kId);
-    const bd = globals.boardData;
+    const bd = boardData.getData();
     delete bd.layout.keys[kId];
 }
 
@@ -1942,20 +1973,20 @@ export function loadKeyboard(data) {
             }
         }
         bd.kbdVersion = "0.0.2";
-        globals.boardData = bd;
+        boardData.setData(bd);
     }
     else if(data.kbdVersion) {
-        globals.boardData = data;
+        boardData.setData(data);
     }
 
-    for(const k of Object.values(globals.boardData.layout.keys)) {
+    for(const k of Object.values(boardData.getData().layout.keys)) {
         if(!mats[k.matName]) {
             gfx.createKeyMaterial(k.matName,Color3.FromHexString(k.matName));
         }
     }
 
     globals.renderData.cases = {};
-    for(const [k,c] of Object.entries(globals.boardData.cases)) {
+    for(const [k,c] of Object.entries(boardData.getData().cases)) {
         const cRD = {layers:{}, rootXform: new TransformNode(`case${k}Root`)};
         globals.renderData.cases[k] = cRD;
         setNaturalRotation(cRD, c);
@@ -1967,7 +1998,7 @@ export function loadKeyboard(data) {
 }
 
 export function addCase(newId) {
-    const bd = globals.boardData;
+    const bd = boardData.getData();
     if(!bd.cases[newId]) {
         bd.cases[newId]  = Object.assign({}, tuning.defaultCase);
         const cRD = {layers:{}, rootXform: new TransformNode(`case${newId}Root`)};
@@ -1977,6 +2008,6 @@ export function addCase(newId) {
 }
 
 export function saveKeyboard() {
-    const blah = globals.boardData;
+    const blah = boardData.getData();
     return JSON.stringify(blah);
 }

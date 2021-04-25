@@ -1,4 +1,5 @@
 import {globals} from './globals.js';
+import * as boardData from './boardData.js';
 import {tuning} from './tuning.js';
 import * as coremath from './coremath.js';
 import {Matrix, Vector3, Epsilon, TmpVectors} from 'babylonjs'
@@ -119,7 +120,7 @@ const footprintDefs = {
 
 export function clearPCBs() {
     globals.pcbData = {};
-    const bd = globals.boardData;
+    const bd = boardData.getData();
     for(const [k,cBD] of Object.entries(bd.cases)) {
         globals.pcbData[k] = {outline:[], devices:{}, nets:{}, caseIdx:k};
     }

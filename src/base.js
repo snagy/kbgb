@@ -110,7 +110,7 @@ function initKBGB() {
     const urlParams = new URLSearchParams(location.search);
     let paramIdx = urlParams.get("kbIdx");
 
-    if(paramIdx!==null && keyboards[paramIdx]) {
+    if(paramIdx!==null && getKBPathFromIdx(paramIdx)) {
         kbdIdx = paramIdx;
     }
 
