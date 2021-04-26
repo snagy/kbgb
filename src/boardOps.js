@@ -866,6 +866,9 @@ export function getFootShape(layerName, layerDef, cRD, cBD, bd) {
     const root = cRD.rootXform;
     const mats = globals.renderData.mats;
     let feet = cRD.feet;
+    const bezelThickness = Scalar.Lerp(tuning.bezelThickness.min, tuning.bezelThickness.max, boardData.layerGetValue(cBD, layerName, "bezelThickness"));
+    const caseCornerFillet = Scalar.Lerp(tuning.caseCornerFillet.min, tuning.caseCornerFillet.max, boardData.layerGetValue(cBD, layerName, "caseCornerFillet"));
+                    
     cRD.layers[layerName] = {name:layerName,outlines:[],meshes:[],outlineBounds:{mins:(new Vector3(10000000.0,1000000.0,1000000.0)), maxs:(new Vector3(-10000000,-1000000,-1000000))}};
     for(const foot of feet) {
         const s0 = foot.screws[0];
@@ -879,7 +882,7 @@ export function getFootShape(layerName, layerDef, cRD, cBD, bd) {
                                                         new Vector3(p0.x+offset,0,p0.z+offset),
                                                         new Vector3(p1.x-offset,0,p1.z+offset),
                                                         new Vector3(p1.x-offset,0,z_line-offset)],
-                                            0, Math.min(cBD.caseCornerFillet,bezelThickness/2), false);
+                                            0, Math.min(caseCornerFillet,bezelThickness/2), false);
         cRD.layers[layerName].outlines.push(points)
         let polyHoles = [];
         for(const screw of foot.screws) {
