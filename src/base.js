@@ -102,11 +102,6 @@ function initKBGB() {
 
     kbgbGUI.addModeGUI();
 
-    // run the render loop
-    globals.engine.runRenderLoop(function () {
-        globals.scene.render();
-    });
-
     const urlParams = new URLSearchParams(location.search);
     let paramIdx = urlParams.get("kbIdx");
 

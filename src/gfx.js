@@ -212,6 +212,22 @@ export function setEnvironmentLight(path) {
     // }
 }
 
+const bgColors = [
+    Color3.FromHexString("#bef4ff"),
+    Color3.FromHexString("#ffdcbe"),
+    Color3.FromHexString("#f6ef7c"),
+    Color3.FromHexString("#879171"),
+    Color3.FromHexString("#c98a68"),
+    Color3.FromHexString("#d3a8b2"),
+
+    Color3.FromHexString("#73a8b2"),
+    Color3.FromHexString("#e4d4cd"),
+    Color3.FromHexString("#eabc68"),
+    Color3.FromHexString("#739484"),
+    Color3.FromHexString("#a08a8c"),
+    Color3.FromHexString("#a79070")
+];
+
 function createScene() {
     const engine = globals.engine;
 
@@ -241,7 +257,7 @@ function createScene() {
     // ssao.area = 0.003;
     // ssao.falloff = 0.00001;
 
-    scene.clearColor = new Color3(0.7, 0.8, 0.8).toLinearSpace();
+    scene.clearColor = bgColors[7];
 
     // var pipeline = new DefaultRenderingPipeline(
     //     "defaultPipeline", // The name of the pipeline
@@ -251,6 +267,22 @@ function createScene() {
     // );
 
     scene.getOutlineRenderer().zOffset = 10;
+
+    let colorTick = 0.0;
+    let curColor = Math.floor(Math.random() * bgColors.length);
+    scene.registerBeforeRender(function () {
+        scene.clearColor = Color3.Lerp(bgColors[curColor], bgColors[(curColor+1) % bgColors.length], colorTick);
+        colorTick += 0.00025;
+        if(colorTick >= 1.0) {
+            colorTick = 0.0;
+            curColor = (curColor+1) % bgColors.length;
+        }
+    });
+
+    // run the render loop
+    globals.engine.runRenderLoop(function () {
+        scene.render();
+    });
 
     // return the created scene
     return scene;
@@ -374,9 +406,10 @@ export function init(loadCB) {
     globals.scene = createScene();
     let loading = [];
 
-    globals.scene.environmentIntensity = 0.5;
+    globals.scene.environmentIntensity = 0.7;
     let light = new DirectionalLight("DirectionalLight", new Vector3(-0.5, -0.3, 0.28), globals.scene);
     light.autoCalcShadowZBounds = true;
+    light.intensity = 2;
     gfxLocals.dirLight = light;
 
     const shadowGenerator = new ShadowGenerator(2048, light);
