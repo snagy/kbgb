@@ -894,8 +894,8 @@ export function getFootShape(layerName, layerDef, cRD, cBD, bd) {
         let shape = coremath.genPointsFromVectorPath(points,8);
         const mesh = MeshBuilder.CreatePolygon(layerName, { shape: shape, depth:layerDef.height, smoothingThreshold: 0.1, holes:polyHoles }, scene);
         mesh.parent = root;
-        mesh.position.y = layerDef.offset;
-        mesh.material = mats["case"];
+        mesh.position.y = lastLayerOffset[layerName]||layerDef.offset;
+        mesh.material = mats[boardData.layerGetValue(cBD,layerName,"material")];
         gfx.addShadows(mesh);
         const meshBounds = mesh.getBoundingInfo();
         cRD.layers[layerName].meshes.push(mesh);
@@ -1384,6 +1384,8 @@ function addScrewModels(cRD, cBD) {
     }
 }
 
+const lastLayerOffset = {};
+
 export function removeCaseData() {
     const scene = globals.scene;
     const bd = boardData.getData();
@@ -1395,10 +1397,12 @@ export function removeCaseData() {
 
         for(const [layerName, layer] of Object.entries(cRD.layers)) {
             if(layer.mesh) {
+                lastLayerOffset[layerName] = mesh.position.y;
                 gfx.removeMesh(layer.mesh);
             }
             if(layer.meshes) {
                 for(const m of layer.meshes) {
+                    lastLayerOffset[layerName] = m.position.y;
                     gfx.removeMesh(m);
                 }
                 layer.meshes.length = 0;
@@ -1652,8 +1656,8 @@ export function refreshCase() {
                     // console.log("adding layer "+layerName);
                     const mesh = MeshBuilder.CreatePolygon(layerName, { shape: polyShape, depth:layerDef.height, smoothingThreshold: 0.1, holes:polyHoles }, scene);
                     mesh.parent = root;
-                    mesh.position.y = layerDef.offset;
-                    mesh.material = mats[layerDef.mat];
+                    mesh.position.y = lastLayerOffset[layerName]||layerDef.offset;
+                    mesh.material = mats[boardData.layerGetValue(cBD,layerName,"material")];
                     gfx.addShadows(mesh);
                     cRD.layers[layerName].meshes.push(mesh);
                     cRD.layers[layerName].outlineBounds = coremath.getVectorPathBounds(vectorGeo[layerDef.shape]);
@@ -1686,14 +1690,6 @@ export function refreshCase() {
         updateRotation(cRD, cBD);
         console.log(`typing angle: ${cBD.typingAngle * 180 / Math.PI}`)
     }
-}
-
-export function setPlateMat(iBD, matName) {
-    gfx.setMatFromTuning("plate",matName);
-}
-
-export function setCaseMat(iBD, matName) {
-    gfx.setMatFromTuning("case",matName);
 }
 
 export function refreshKeyboard() {
@@ -1978,6 +1974,12 @@ export function loadKeyboard(data) {
         bd.kbdVersion = "0.0.2";
         boardData.setData(bd);
     }
+    else if(data.kbdVersion === "0.0.2") {
+        boardData.setData(data);
+        for(const [k,c] of Object.entries(boardData.getData().cases)) {
+            c.material = "pom_white";
+        }
+    }
     else if(data.kbdVersion) {
         boardData.setData(data);
     }
@@ -1995,7 +1997,6 @@ export function loadKeyboard(data) {
         setNaturalRotation(cRD, c);
     }
     
-    gfx.createMaterials();
     refreshKeyboard();
     gfx.snapCamera("angle");
 }

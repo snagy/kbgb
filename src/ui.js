@@ -926,38 +926,158 @@ export const kbgbGUI = {
 
                 kbgbGUI.addCaseSelection(ctrlBar);
 
-                let plateMatSelection = (o,a,b) => {
-                    boardOps.setPlateMat(kbgbGUI.activeCase, o.val);
-                }
-                ctrlBar.addControl(
-                    createDropdown(globals.screengui,0, [
-                        {txt:"alu",val:"aluminium"},
-                        {txt:"pom",val:"pom_white"},
-                        {txt:"pom(b)",val:"pom_black"},
-                        {txt:"steel",val:"steel"},
-                        {txt:"fr4",val:"fr4"},
-                        {txt:"brass",val:"brass"},
-                        {txt:"pc",val:"pc_cl"}
-                    ], plateMatSelection));
+                const caseOptions = [
+                    {txt:"smoke",val:"ac_smoke"},
+                    {txt:"clear",val:"ac_clear"},
+                    {txt:"blue",val:"ac_blue"},
+                    {txt:"purp",val:"ac_purple"},
+                    {txt:"yello",val:"ac_yellow"},
+                    {txt:"alu",val:"aluminium"},
+                    {txt:"pom",val:"pom_white"},
+                    {txt:"pom(b)",val:"pom_black"},
+                    {txt:"stl",val:"steel"},
+                    {txt:"pc",val:"pc_cl"}
+                ];
 
+                const plateOptions = [
+                    {txt:"alu",val:"aluminium"},
+                    {txt:"pom",val:"pom_white"},
+                    {txt:"pom(b)",val:"pom_black"},
+                    {txt:"steel",val:"steel"},
+                    {txt:"fr4",val:"fr4"},
+                    {txt:"brass",val:"brass"},
+                    {txt:"pc",val:"pc_cl"}
+                ];
 
                 let caseMatSelection = (o,a,b) => {
-                    boardOps.setCaseMat(kbgbGUI.activeCase, o.val);
-                }
-                ctrlBar.addControl(
-                    createDropdown(globals.screengui,0, [
-                        {txt:"smoke",val:"ac_smoke"},
-                        {txt:"clear",val:"ac_clear"},
-                        {txt:"blue",val:"ac_blue"},
-                        {txt:"purp",val:"ac_purple"},
-                        {txt:"yello",val:"ac_yellow"},
-                        {txt:"alu",val:"aluminium"},
-                        {txt:"pom",val:"pom_white"},
-                        {txt:"pom(b)",val:"pom_black"},
-                        {txt:"stl",val:"steel"},
-                        {txt:"pc",val:"pc_cl"}
-                    ], caseMatSelection));
+                    const cBD = boardData.getData().cases[kbgbGUI.activeCase];
+                    cBD.material = o.val;
 
+                    if(plateOptions.findIndex((opt) => opt.val===o.val) >= 0) {
+                        boardData.layerSetValue(cBD, "plate", "material", o.val);
+                    } else if(!cBD.layers["plate"] || !cBD.layers["plate"]["material"]) {
+                        boardData.layerSetValue(cBD, "plate", "material", "pom_white");
+                    }
+                    boardOps.refreshCase();
+                }
+                const cBD = boardData.getData().cases[kbgbGUI.activeCase];
+                ctrlBar.addControl(
+                    createDropdown(globals.screengui, caseOptions.findIndex((o) => o.val===cBD.material), caseOptions, caseMatSelection));
+
+                let getMaterialDropdown = (layerName) => {
+                    let caseMatSelection = (o,a,b) => {
+                        const cBD = boardData.getData().cases[kbgbGUI.activeCase];
+                        boardData.layerSetValue(cBD, layerName, "material", o.val);
+                        boardOps.refreshCase();
+                    };
+                    let dd = null;
+                    const cBD = boardData.getData().cases[kbgbGUI.activeCase];
+                    let existingValue = boardData.layerGetValue(cBD, layerName, "material");
+                    switch(boardData.layerDefs[layerName].mat) {
+                        case "case":
+                            dd = createDropdown(globals.screengui, caseOptions.findIndex((o) => o.val===existingValue), caseOptions, caseMatSelection);
+                            break;
+                        case "plate":
+                            const plateOptions = [
+                                {txt:"smoke",val:"ac_smoke"},
+                                {txt:"clear",val:"ac_clear"},
+                                {txt:"blue",val:"ac_blue"},
+                                {txt:"purp",val:"ac_purple"},
+                                {txt:"yello",val:"ac_yellow"},
+                                {txt:"alu",val:"aluminium"},
+                                {txt:"pom",val:"pom_white"},
+                                {txt:"pom(b)",val:"pom_black"},
+                                {txt:"stl",val:"steel"},
+                                {txt:"pc",val:"pc_cl"}
+                            ];
+                            dd = createDropdown(globals.screengui, plateOptions.findIndex((o) => o.val===existingValue), plateOptions, caseMatSelection);
+    
+                            break;
+                        case "foam":
+                            break;
+                    }
+                    return dd;
+                }
+                // ctrlBar.addControl(
+                //     createDropdown(globals.screengui,0, [
+                //         {txt:"smoke",val:"ac_smoke"},
+                //         {txt:"clear",val:"ac_clear"},
+                //         {txt:"blue",val:"ac_blue"},
+                //         {txt:"purp",val:"ac_purple"},
+                //         {txt:"yello",val:"ac_yellow"},
+                //         {txt:"alu",val:"aluminium"},
+                //         {txt:"pom",val:"pom_white"},
+                //         {txt:"pom(b)",val:"pom_black"},
+                //         {txt:"stl",val:"steel"},
+                //         {txt:"pc",val:"pc_cl"}
+                //     ], caseMatSelection));
+
+                let addRTBar = function(propName) {
+                    if(kbgbGUI.rtBar) {
+                        globals.screengui.removeControl(kbgbGUI.rtBar);
+                    }
+
+                    let rtBar = new StackPanel();  
+                    rtBar.width = ".2";
+                    rtBar.isPointerBlocker = true;
+                    rtBar.isVertical = true;
+                    rtBar.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
+
+                    let addTuningButton = function(layerName) {
+                        const cBD = boardData.getData().cases[kbgbGUI.activeCase];
+                        let buttonBar = new StackPanel();  
+                        buttonBar.height = "40px";
+                        buttonBar.isPointerBlocker = true;
+                        buttonBar.isVertical = false;
+                        buttonBar.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
+                        
+                        let label = kbgbGUI.addLabel(layerName)
+                        let dd = getMaterialDropdown(layerName);
+    
+                        if(dd === null) return;
+
+                        label.height = "40px"
+    
+                        rtBar[layerName] = {dropdown:dd};
+    
+                        buttonBar.addControl(label);   
+                        buttonBar.addControl(dd);
+                        rtBar.addControl(buttonBar);
+                    }
+    
+                    for(const [layerName, layerDef] of Object.entries(boardData.layerDefs)) {
+                        addTuningButton(layerName);
+                    }
+    
+                    globals.screengui.addControl(rtBar);
+    
+                    kbgbGUI.rtBar = rtBar;
+                }
+
+                addRTBar();
+
+                globals.screengui.addControl(ctrlBar);
+                
+                kbgbGUI.activeModeCtrl = ctrlBar;
+                boardOps.expandLayers();
+            },
+            refresh: () => {},
+            remove: () => {
+                boardOps.collapseLayers();
+                globals.screengui.removeControl(kbgbGUI.activeModeCtrl);
+                globals.screengui.removeControl(kbgbGUI.rtBar);
+            }
+        },
+        "files":{
+            cameraMode:"front",
+            add: function() {
+                //let ctrlBar = Control.AddHeader(control, text, size, options { isHorizontal, controlFirst }):
+                let ctrlBar = new StackPanel();  
+                ctrlBar.height = ".2";
+                ctrlBar.isPointerBlocker = true;
+                ctrlBar.isVertical = false;
+                //ctrlBar.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
+                ctrlBar.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
 
                 ctrlBar.addControl(addButton("DEBUG", () => {
                             // for(const [cID,cRD] of Object.entries(globals.renderData.cases)) {
@@ -993,11 +1113,9 @@ export const kbgbGUI = {
                 globals.screengui.addControl(ctrlBar);
                 
                 kbgbGUI.activeModeCtrl = ctrlBar;
-                boardOps.expandLayers();
             },
             refresh: () => {},
             remove: () => {
-                boardOps.collapseLayers();
                 globals.screengui.removeControl(kbgbGUI.activeModeCtrl);
             }
         },
@@ -1043,9 +1161,6 @@ export const kbgbGUI = {
         ctrlBar.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
 
         ctrlBar.addControl(addButton("edit", () => {kbgbGUI.addEditModeGUI()}, {height:"1",width:"120px"}));
-        // ctrlBar.addControl(addButton("case", () => {kbgbGUI.setGUIMode("case")}, {height:"1",width:"120px"}));
-        // ctrlBar.addControl(addButton("parts", () => {kbgbGUI.setGUIMode("pcb")}, {height:"1",width:"120px"}));
-        // ctrlBar.addControl(addButton("layers", () => {kbgbGUI.setGUIMode("details")}, {height:"1",width:"120px"}));
 
         kbgbGUI.modeCtrl = ctrlBar;
         globals.screengui.addControl(ctrlBar);
@@ -1064,9 +1179,11 @@ export const kbgbGUI = {
         ctrlBar.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
 
         ctrlBar.addControl(addButton("layout", () => {kbgbGUI.setGUIMode("key")}, {height:"1",width:"120px"}));
+        ctrlBar.addControl(addButton("layers", () => {kbgbGUI.setGUIMode("details")}, {height:"1",width:"120px"}));
         ctrlBar.addControl(addButton("case", () => {kbgbGUI.setGUIMode("case")}, {height:"1",width:"120px"}));
         ctrlBar.addControl(addButton("parts", () => {kbgbGUI.setGUIMode("pcb")}, {height:"1",width:"120px"}));
-        ctrlBar.addControl(addButton("layers", () => {kbgbGUI.setGUIMode("details")}, {height:"1",width:"120px"}));
+        ctrlBar.addControl(addButton("files", () => {kbgbGUI.setGUIMode("files")}, {height:"1",width:"120px"}));
+
 
         kbgbGUI.modeCtrl = ctrlBar;
         globals.screengui.addControl(ctrlBar);

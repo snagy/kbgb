@@ -68,9 +68,9 @@ export function createMaterials() {
         mats[name].specularColor = new Color3(0, 0, 0);
     }
 
-    setMatFromTuning("case", "pom_white");
-
-    setMatFromTuning("plate", "aluminium");
+    for(const [k,v] of Object.entries(tuning.caseMats)) {
+        setMatFromTuning(k, k);
+    }
 
     let switchMatName = "switch";
     if(!mats[switchMatName])
@@ -411,6 +411,8 @@ export function init(loadCB) {
     light.autoCalcShadowZBounds = true;
     light.intensity = 2;
     gfxLocals.dirLight = light;
+
+    createMaterials();
 
     const shadowGenerator = new ShadowGenerator(2048, light);
     shadowGenerator.useContactHardeningShadow = true;
