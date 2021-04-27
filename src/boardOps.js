@@ -2012,6 +2012,7 @@ export function addCase(newId) {
 }
 
 export function saveKeyboard() {
-    const blah = boardData.getData();
-    return JSON.stringify(blah);
+    const bd = boardData.getData();
+    bd.kbdVersion = "0.0.3";
+    return JSON.stringify(bd);
 }
