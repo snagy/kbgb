@@ -420,7 +420,7 @@ export function init(loadCB) {
     shadowGenerator.contactHardeningLightSizeUVRatio = 0.075;
     gfxLocals.shadowGenerator = shadowGenerator;
 
-    const switchAssetName = "MX_SWITCH_opt_2.glb";
+    const switchAssetName = "MX_SWITCH_box.glb";
     loading.push(switchAssetName)
     SceneLoader.LoadAssetContainer("assets/", switchAssetName, globals.scene, function (container) {
         switchAsset.container = container;
