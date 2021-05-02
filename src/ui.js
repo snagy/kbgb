@@ -11,7 +11,7 @@ import * as interactions from './interactions.js'
 import {PointerEventTypes, Vector3, Space, MeshBuilder, Epsilon, GLTF2Export} from 'babylonjs';
 import * as keyPicking from './keyPicking.js'
 import {snapCamera} from './gfx.js'
-import {Button, Rectangle, Control, TextBlock, InputText, StackPanel, RadioButton, Checkbox, 
+import {Button, ToggleButton, Rectangle, Control, TextBlock, InputText, StackPanel, RadioButton, Checkbox, 
         Slider, ScrollViewer, AdvancedDynamicTexture} from 'babylonjsGUI'
 import JSZip from 'jszip/dist/jszip';
 import Analytics from '@aws-amplify/analytics';
@@ -23,6 +23,9 @@ function download(content, fileName, contentType) {
     a.download = fileName;
     a.click();
 }
+
+const buttonHeight = "50px";
+const ctrlBarHeight = "50px";
 
 const formatter = new Intl.NumberFormat('en-US', {
     minimumFractionDigits: 0,      
@@ -96,14 +99,40 @@ function addButton(txt, action, style) {
     var button = Button.CreateSimpleButton("button", txt);
     button.top = "0px";
     button.left = "0px";
-    button.width = style.width?style.width:"50px";
-    button.height = style.height?style.height:"50px";
-    button.cornerRadius = 0;
+    button.width = style.width?style.width:buttonHeight;
+    button.height = style.height?style.height:buttonHeight;
+    button.cornerRadius = 2;
     button.thickness = 2;
     button.children[0].color = "#FFFFFF";
     button.children[0].fontSize = 24;
-    button.color = "#101010";
-    button.background = "#909090";
+    button.color = "#607060";
+    button.background = "#739484";
+    //button.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
+
+    button.onPointerClickObservable.add( (a,b) => {
+        if(action) {
+            action(a,b);
+         }
+        b.skipNextObservers = true;
+    });
+
+    return button;
+}
+
+function addToggleButton(txt, action, style) {
+    style = style?style:{};
+    const button = new ToggleButton();
+    button.textBlock.text = txt;
+    button.top = "0px";
+    button.left = "0px";
+    button.width = style.width?style.width:buttonHeight;
+    button.height = style.height?style.height:buttonHeight;
+    button.cornerRadius = 2;
+    button.thickness = 2;
+    button.children[0].color = "#FFFFFF";
+    button.children[0].fontSize = 24;
+    button.color = "#607060";
+    button.background = "#739484";
     //button.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
 
     button.onPointerClickObservable.add( (a,b) => {
@@ -174,13 +203,14 @@ function modalSelection(container, options, selectionAction, escape, parentButto
     let scroller = new ScrollViewer("dropdown");
     scroller.zIndex = background.zIndex + 1;
     scroller.width = `${width+barSize}px`;
-    scroller.height = "400px";
+    const scrollerHeight = Math.min(400,options.length * 50); // 50 = BUTTON HEIGHT
+    scroller.height = scrollerHeight+"px";
     scroller.barSize = barSize;
     scroller.thickness = 0;
     scroller.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
     scroller.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
     scroller.leftInPixels = parentButton.centerX-parentButton.widthInPixels*0.5;
-    scroller.topInPixels = parentButton.centerY-parentButton.heightInPixels*0.5 - 400;
+    scroller.topInPixels = Math.max(0,parentButton.centerY-parentButton.heightInPixels*0.5 - scrollerHeight);
 
     let panel = new StackPanel();
     // panel.height = "400px";
@@ -480,16 +510,31 @@ export const kbgbGUI = {
                 // boardOps.removeCaseData();
                 //let ctrlBar = Control.AddHeader(control, text, size, options { isHorizontal, controlFirst }):
                 let ctrlBar = new StackPanel();  
-                ctrlBar.height = ".2";
+                ctrlBar.height = ctrlBarHeight;
                 ctrlBar.isPointerBlocker = true;
                 ctrlBar.isVertical = false;
                 //ctrlBar.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
                 ctrlBar.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
-            
+                const capProfile = [
+                    {txt:"KAM",val:"KAM"},
+                    {txt:"KAT",val:"KAT"},
+                    {txt:"SA",val:"SA"},
+                    {txt:"DSA",val:"DSA"},
+                    {txt:"DCS",val:"DCS"},
+                    {txt:"Cherry",val:"CHE"}
+                ];
+
+                let capProfileChange = (o,a,b) => {
+                    boardOps.updateKeycapMorphTargets(o.val);
+                }
+                ctrlBar.addControl(
+                    createDropdown(globals.screengui, 0, capProfile, capProfileChange));
+
+
                 ctrlBar.addControl(addButton("add key", (e) => {
                     boardOps.addKey();
                     boardOps.refreshLayout();
-                }, {height:"60px", width:"120px"}));
+                }, {height:buttonHeight, width:"120px"}));
 
                 // ctrlBar.addControl(kbgbGUI.addLabel("Pos: "));
                 // ctrlBar.addControl(kbgbGUI.addKeyActionButton(`◄`, (k) => k.x -= 0.25*tuning.base1U[0], "ArrowLeft"));
@@ -570,7 +615,7 @@ export const kbgbGUI = {
 
                 ctrlBar.addControl(kbgbGUI.addKeyActionButton("del", (k) => {
                     boardOps.removeKey(k.id);
-                }, {height:"60px", width:"120px"}));
+                }, {height:buttonHeight, width:"120px"}));
 
                 
                 globals.screengui.addControl(ctrlBar);
@@ -607,18 +652,18 @@ export const kbgbGUI = {
             add: function() {
                 //let ctrlBar = Control.AddHeader(control, text, size, options { isHorizontal, controlFirst }):
                 let ctrlBar = new StackPanel();  
-                ctrlBar.height = ".2";
+                ctrlBar.height = ctrlBarHeight;
                 ctrlBar.isPointerBlocker = true;
                 ctrlBar.isVertical = false;
                 ctrlBar.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
 
                 ctrlBar.addControl(addButton("prev", () => {
                     base.loadPrevKeyboard();
-                }, {height:"60px",width:"120px"}));
+                }, {height:buttonHeight,width:"120px"}));
 
                 ctrlBar.addControl(addButton("next", () => {
                     base.loadNextKeyboard();
-                }, {height:"60px",width:"120px"}));
+                }, {height:buttonHeight,width:"120px"}));
 
                 globals.screengui.addControl(ctrlBar);
                 kbgbGUI.activeModeCtrl = ctrlBar;
@@ -635,7 +680,7 @@ export const kbgbGUI = {
             add: function() {
                 //let ctrlBar = Control.AddHeader(control, text, size, options { isHorizontal, controlFirst }):
                 let ctrlBar = new StackPanel();  
-                ctrlBar.height = ".2";
+                ctrlBar.height = ctrlBarHeight;
                 ctrlBar.isPointerBlocker = true;
                 ctrlBar.isVertical = false;
                 ctrlBar.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
@@ -821,13 +866,13 @@ export const kbgbGUI = {
 
                 ctrlBar.addControl(addButton("Shape", () => {
                     addRTBar("bezelConcavity");
-                }, {height:"60px",width:"120px"}));
+                }, {height:buttonHeight,width:"120px"}));
                 ctrlBar.addControl(addButton("Thickness", () => {
                     addRTBar("bezelThickness");
-                }, {height:"60px",width:"120px"}));
+                }, {height:buttonHeight,width:"120px"}));
                 ctrlBar.addControl(addButton("Corners", () => {
                     addRTBar("caseCornerFillet");
-                }, {height:"60px",width:"120px"}));
+                }, {height:buttonHeight,width:"120px"}));
                 
                 globals.screengui.addControl(ctrlBar);
                 kbgbGUI.activeModeCtrl = ctrlBar;
@@ -847,7 +892,7 @@ export const kbgbGUI = {
             add: function() {
                 //let ctrlBar = Control.AddHeader(control, text, size, options { isHorizontal, controlFirst }):
                 let ctrlBar = new StackPanel();  
-                ctrlBar.height = ".2";
+                ctrlBar.height = ctrlBarHeight;
                 ctrlBar.isPointerBlocker = true;
                 ctrlBar.isVertical = false;
                 ctrlBar.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
@@ -893,7 +938,11 @@ export const kbgbGUI = {
                 // ctrlBar.addControl(createCheckbox("forcePCBSymmetrical"));
                 ctrlBar.addControl(kbgbGUI.addLabel("LOC: "));
                 ctrlBar.addControl(createTextInput("usbPortPos"))
-                ctrlBar.addControl(kbgbGUI.addLabel("Center? "));
+                // ctrlBar.addControl(addToggleButton("Center",(value) => {
+                //     boardData.getData().cases[kbgbGUI.activeCase]["usbPortCentered"] = value;
+                //     boardOps.refreshCase();
+                // }));
+                ctrlBar.addControl(kbgbGUI.addLabel("Center "));
                 ctrlBar.addControl(createCheckbox("usbPortCentered"));
 
                 createSlider(ctrlBar, "Screw span: ", boardData.getData().cases[kbgbGUI.activeCase].maxScrewSpan, 40, 300, (v) => {
@@ -918,7 +967,7 @@ export const kbgbGUI = {
             add: function() {
                 //let ctrlBar = Control.AddHeader(control, text, size, options { isHorizontal, controlFirst }):
                 let ctrlBar = new StackPanel();  
-                ctrlBar.height = ".2";
+                ctrlBar.height = ctrlBarHeight;
                 ctrlBar.isPointerBlocker = true;
                 ctrlBar.isVertical = false;
                 //ctrlBar.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
@@ -978,18 +1027,6 @@ export const kbgbGUI = {
                             dd = createDropdown(globals.screengui, caseOptions.findIndex((o) => o.val===existingValue), caseOptions, caseMatSelection);
                             break;
                         case "plate":
-                            const plateOptions = [
-                                {txt:"smoke",val:"ac_smoke"},
-                                {txt:"clear",val:"ac_clear"},
-                                {txt:"blue",val:"ac_blue"},
-                                {txt:"purp",val:"ac_purple"},
-                                {txt:"yello",val:"ac_yellow"},
-                                {txt:"alu",val:"aluminium"},
-                                {txt:"pom",val:"pom_white"},
-                                {txt:"pom(b)",val:"pom_black"},
-                                {txt:"stl",val:"steel"},
-                                {txt:"pc",val:"pc_cl"}
-                            ];
                             dd = createDropdown(globals.screengui, plateOptions.findIndex((o) => o.val===existingValue), plateOptions, caseMatSelection);
     
                             break;
@@ -1026,7 +1063,7 @@ export const kbgbGUI = {
                     let addTuningButton = function(layerName) {
                         const cBD = boardData.getData().cases[kbgbGUI.activeCase];
                         let buttonBar = new StackPanel();  
-                        buttonBar.height = "40px";
+                        buttonBar.height = buttonHeight;
                         buttonBar.isPointerBlocker = true;
                         buttonBar.isVertical = false;
                         buttonBar.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
@@ -1073,7 +1110,7 @@ export const kbgbGUI = {
             add: function() {
                 //let ctrlBar = Control.AddHeader(control, text, size, options { isHorizontal, controlFirst }):
                 let ctrlBar = new StackPanel();  
-                ctrlBar.height = ".2";
+                ctrlBar.height = ctrlBarHeight;
                 ctrlBar.isPointerBlocker = true;
                 ctrlBar.isVertical = false;
                 //ctrlBar.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
@@ -1085,24 +1122,24 @@ export const kbgbGUI = {
                             // }
                             // globals.debugCanvas.hidden = false;
                             exportKeyboard();
-                        }, {height:"60px",width:"120px"}));
+                        }, {height:buttonHeight,width:"120px"}));
 
                 ctrlBar.addControl(addButton("export SVGs", () => {
                             downloadSVGs();
-                        }, {height:"60px",width:"120px"}));
+                        }, {height:buttonHeight,width:"120px"}));
                 ctrlBar.addControl(addButton("export GBRs", () => {
                             downloadGBRs();
-                        }, {height:"60px",width:"120px"}));
+                        }, {height:buttonHeight,width:"120px"}));
                 ctrlBar.addControl(addButton("save layout", () => {
                             download(boardOps.saveKeyboard(), `${boardData.getData().meta.name}.kbd`, 'text/plain');
-                        }, {height:"60px",width:"120px"}));
+                        }, {height:buttonHeight,width:"120px"}));
                 ctrlBar.addControl(addButton("load layout", () => {
                             document.getElementById("loadKBD").click();
-                        }, {height:"60px",width:"120px"}));
+                        }, {height:buttonHeight,width:"120px"}));
                 
                 ctrlBar.addControl(addButton("import kle", (e) => {
                             document.getElementById("loadKLE").click();
-                        }, {height:"60px", width:"120px"}));
+                        }, {height:buttonHeight, width:"120px"}));
 
                 let txt = kbgbGUI.addLabel("WORK IN PROGRESS");
 
@@ -1154,7 +1191,7 @@ export const kbgbGUI = {
         }
 
         let ctrlBar = new StackPanel();  
-        ctrlBar.height = "40px";
+        ctrlBar.height = ctrlBarHeight;
         ctrlBar.isPointerBlocker = true;
         ctrlBar.isVertical = false;
         //ctrlBar.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
@@ -1172,7 +1209,7 @@ export const kbgbGUI = {
             kbgbGUI.modeCtrl = null;
         }
         let ctrlBar = new StackPanel();  
-        ctrlBar.height = "40px";
+        ctrlBar.height = ctrlBarHeight;
         ctrlBar.isPointerBlocker = true;
         ctrlBar.isVertical = false;
         //ctrlBar.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;

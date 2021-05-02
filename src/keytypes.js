@@ -1,4 +1,59 @@
 export const labelsInfo = {
+    "esc": {usage:"func", row:0},
+    "escape": {usage:"func", row:0},
+
+    "f1": {usage:"func", row:0},
+    "f2": {usage:"func", row:0},
+    "f3": {usage:"func", row:0},
+    "f4": {usage:"func", row:0},
+    "f5": {usage:"func", row:0},
+    "f6": {usage:"func", row:0},
+    "f7": {usage:"func", row:0},
+    "f8": {usage:"func", row:0},
+    "f9": {usage:"func", row:0},
+    "f10": {usage:"func", row:0},
+    "f11": {usage:"func", row:0},
+    "f12": {usage:"func", row:0},
+
+    "print": {usage:"func", row:0},
+    "printscr": {usage:"func", row:0},
+    "prtsc": {usage:"func", row:0},
+    "scr": {usage:"func", row:0},
+    "scroll lock": {usage:"func", row:0},
+    "scroll": {usage:"func", row:0},
+    "pause": {usage:"func", row:0},
+    "break": {usage:"func", row:0},
+
+
+    "ins": {usage:"func", row:1},
+    "insert": {usage:"func", row:1},
+    "hom": {usage:"func", row:1},
+    "home": {usage:"func", row:1},
+    "pgup": {usage:"func", row:1},
+    "page up": {usage:"func", row:1},
+
+    "del": {usage:"func", row:2},
+    "delete": {usage:"func", row:2},
+    "end": {usage:"func", row:2},
+    "pgdn": {usage:"func", row:2},
+    "page down": {usage:"func", row:2},
+
+    "`": {usage:"punc", row:1},
+    "~": {usage:"punc", row:1},
+    "1": {usage:"num_row", row:1},
+    "2": {usage:"num_row", row:1},
+    "3": {usage:"num_row", row:1},
+    "4": {usage:"num_row", row:1},
+    "5": {usage:"num_row", row:1},
+    "6": {usage:"num_row", row:1},
+    "7": {usage:"num_row", row:1},
+    "8": {usage:"num_row", row:1},
+    "9": {usage:"num_row", row:1},
+    "0": {usage:"num_row", row:1},
+    "-": {usage:"punc", row:1},
+    "+": {usage:"punc", row:1},
+
+    "tab": {usage:"mod", row:2},
     "q": {usage:"alph", row:2},
     "w": {usage:"alph", row:2},
     "e": {usage:"alph", row:2},
@@ -23,6 +78,17 @@ export const labelsInfo = {
     "k": {usage:"alph", row:3},
     "l": {usage:"alph", row:3},
     ";": {usage:"punc", row:3},
-    "'": {usage:"punc", row:3}
+    "'": {usage:"punc", row:3},
+
+    "z": {usage:"alph", row:4},
+    "x": {usage:"alph", row:4},
+    "c": {usage:"alph", row:4},
+    "v": {usage:"alph", row:4},
+    "b": {usage:"alph", row:4},
+    "n": {usage:"alph", row:4},
+    "m": {usage:"alph", row:4},
+    ",": {usage:"punc", row:4},
+    ".": {usage:"punc", row:4},
+    "/": {usage:"punc", row:4}
 
 }

@@ -180,18 +180,22 @@ export function drawDbgOutline(groupName, points, startColor, endColor, close) {
 }
 
 export function addShadows(mesh) {
-    gfxLocals.shadowGenerator.addShadowCaster(mesh);
+    if(gfxLocals.shadowGenerator) {
+        gfxLocals.shadowGenerator.addShadowCaster(mesh);
     
-    mesh.receiveShadows = true;
-    for(const m of mesh.getChildMeshes()) {
-        m.receiveShadows = true;
+        mesh.receiveShadows = true;
+        for(const m of mesh.getChildMeshes()) {
+            m.receiveShadows = true;
+        }
     }
 }
 
 export function removeMesh(mesh) {
     mesh.parent = null;
     globals.scene.removeMesh(mesh);
-    gfxLocals.shadowGenerator.removeShadowCaster(mesh);
+    if(gfxLocals.shadowGenerator) {
+        gfxLocals.shadowGenerator.removeShadowCaster(mesh);
+    }
     mesh.dispose();
 }
 
@@ -311,34 +315,79 @@ export function getKeycap(profile, width, height, opts) {
         xForm = Matrix.RotationY(Math.PI);
     }
     else if(profile == "KRK") {
-        xForm = Matrix.Scaling(-1,1,1);
+        if(opts.vertical) {
+            opts.h = height;
+        }
     }
 
     const sized = prof[width];
     if(!sized) return null;
 
     let best = null;
-    let bestScore = -1;
+    let bestScore = -100;
+    let bestName = null;
 
     for(const [r,m] of Object.entries(sized)) {
         const container = m.container;
         const d = m.details;
-        let score = 0;
+        let score = 5;
+        // find any matching options
         for(const [k,v] of Object.entries(opts)) {
             if( d[k] == v) {
                 score += 1;
             }
         }
+        // penalize unmatched key characteristics
+        for(const [k,v] of Object.entries(d)) {
+            if( !opts[k] ) {
+                score -= 2;
+            }
+        }
         if(score > bestScore) {
             best = container;
             bestScore = score;
+            bestName = d;
         }
     }
+    console.log(`returning ${bestName.r}`);
     return {container:best,preXform:xForm};
 }
 
 const krkList = {
-    "1r_1u.glb": {r:"1", w:"1"},
+    "0r_1u.glb": {r:0, w:1},
+    "1r_1u.glb": {r:1, w:1},
+    "1r_2u.glb": {r:1, w:2},
+    "2r_1u.glb": {r:2, w:1},
+    "2r_2u_VERTICAL.glb": {r:2, h:2, w:1, vertical:true},
+    "2r_1_5u.glb": {r:2, w:1.5},
+    "2r_1_75u.glb": {r:2, w:1.75},
+    "3r_1u.glb": {r:3, w:1},
+    "3r_1u_nub.glb": {r:3, w:1, nub:true},
+    "3r_1u_scooped.glb": {r:3, w:1, scooped:true},
+    "3r_1_25u.glb": {r:3, w:1.25},
+    "3r_1_5u.glb": {r:3, w:1.5},
+    "3r_1_75u.glb": {r:3, w:1.75},
+    "3r_1_5u_STEPPED.glb": {r:3, w:1.5, stepped:true},
+    "3r_2_25u.glb": {r:3, w:2.25},
+    "4r_1u.glb": {r:4, w:1},
+    "4r_1_75u.glb": {r:4, w:1.75},
+    "4r_2u_VERTICAL.glb": {r:4, h:2, w:1, vertical:true},
+    "4r_2_25u.glb": {r:4, w:2.25},
+    "4r_2_75u.glb": {r:4, w:2.75},
+    "5r_1u.glb": {r:5, w:1},
+    "5r_1_5u.glb": {r:5, w:1.5},
+    "5r_1_25u.glb": {r:5, w:1.25},
+    "5r_1u_c.glb": {r:5, w:1, convex:true},
+    "5r_1_25u_c.glb": {r:5, w:1.25, convex:true},
+    "5r_1_5u_c.glb": {r:5, w:1.5, convex:true},
+    "5r_1_75u_c.glb": {r:5, w:1.75, convex:true},
+    "5r_2u_c.glb": {r:5, w:2, convex:true},
+    "5r_2_25u_c.glb": {r:5, w:2.25, convex:true},
+    "5r_2_75u_c.glb": {r:5, w:2.75, convex:true},
+    "5r_3u_c.glb": {r:5, w:3, convex:true},
+    "5r_6u_c.glb": {r:5, w:6, convex:true},
+    "5r_6_25u_c.glb": {r:5, w:6.25, convex:true},
+    "5r_7u_c.glb": {r:5, w:7, convex:true},
     "ISO_enter.glb": {r:"special", w:"ISO", type:"ISO ENTER", nub:false, stepped:false}
 }
 
@@ -412,13 +461,13 @@ export function init(loadCB) {
     light.intensity = 2;
     gfxLocals.dirLight = light;
 
-    createMaterials();
+    // const shadowGenerator = new ShadowGenerator(2048, light);
+    // shadowGenerator.useContactHardeningShadow = true;
+    // shadowGenerator.bias = 0.009;
+    // shadowGenerator.contactHardeningLightSizeUVRatio = 0.075;
+    // gfxLocals.shadowGenerator = shadowGenerator;
 
-    const shadowGenerator = new ShadowGenerator(2048, light);
-    shadowGenerator.useContactHardeningShadow = true;
-    shadowGenerator.bias = 0.009;
-    shadowGenerator.contactHardeningLightSizeUVRatio = 0.075;
-    gfxLocals.shadowGenerator = shadowGenerator;
+    createMaterials();
 
     const switchAssetName = "MX_SWITCH_box.glb";
     loading.push(switchAssetName)
@@ -453,23 +502,23 @@ export function init(loadCB) {
         });
     }
 
-    for(const [n,d] of Object.entries(krkList)) {
-        loading.push(n);
-        SceneLoader.LoadAssetContainer("assets/KRK/", n, globals.scene, function (container) {
-            if(!keyAssets.KRK[d.w]) {
-                keyAssets.KRK[d.w] = [];
-            }
-            keyAssets.KRK[d.w].push({container:container, details:d});
-            let i = loading.indexOf(n);
-            if (i >= 0) {
-                loading.splice(i, 1 );
-            }
+    // for(const [n,d] of Object.entries(krkList)) {
+    //     loading.push(n);
+    //     SceneLoader.LoadAssetContainer("assets/KRK/", n, globals.scene, function (container) {
+    //         if(!keyAssets.KRK[d.w]) {
+    //             keyAssets.KRK[d.w] = [];
+    //         }
+    //         keyAssets.KRK[d.w].push({container:container, details:d});
+    //         let i = loading.indexOf(n);
+    //         if (i >= 0) {
+    //             loading.splice(i, 1 );
+    //         }
 
-            if(loading.length === 0) {
-                loadCB();
-            }
-        });
-    }
+    //         if(loading.length === 0) {
+    //             loadCB();
+    //         }
+    //     });
+    // }
 
     // for(const [n,d] of Object.entries(katList)) {
     //     SceneLoader.LoadAssetContainer("assets/KAT/", n, globals.scene, function (container) {

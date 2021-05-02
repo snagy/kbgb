@@ -4,6 +4,7 @@ import * as coremath from './coremath.js';
 import * as gfx from './gfx.js';
 import * as pcb from './pcbOps.js';
 import * as keyPicking from './keyPicking.js';
+import * as keyTypes from './keytypes.js';
 import * as boardData from './boardData.js';
 import {Vector3, Vector4, MeshBuilder, Matrix, Epsilon, Color3, Color4,
         Animation, EasingFunction, QuinticEase, TransformNode, DynamicTexture, Scalar} from 'babylonjs'
@@ -82,6 +83,26 @@ function getPlateCutsWithStabs(id,width,height,kXform,flipStab,plateCuts,caseIdx
         for(let j = 0; j < stabXforms.length; j++) {
             plateCuts.push(coremath.createRectPoly(stabCutDims[0], stabCutDims[1], stabXforms[j]));
             pcb.addDevice(id, "stab", stabPCBXforms[j], caseIdx);
+        }
+    }
+}
+
+export function updateKeycapMorphTargets(newProfileName) {
+    globals.keycapProfile = newProfileName;
+    let kRD = globals.renderData.keys;
+    for(const [id,rd] of Object.entries(kRD)) {
+        if(rd.keycap) {
+            for (const child of rd.keycap.getChildMeshes()) {
+                for(let targIdx = 0; targIdx < child.morphTargetManager.numTargets; targIdx++) {
+    
+                    let mt = child.morphTargetManager.getTarget(targIdx);	
+                    if(mt.name == globals.keycapProfile) {
+                        mt.influence = 1;
+                    } else {
+                        mt.influence = 0;
+                    }
+                }
+            }
         }
     }
 }
@@ -276,22 +297,33 @@ export function refreshLayout() {
                     primeSearch = k.special;
                 }
                 let searchOpts = {vertical:k.vertical, stepped: k.stepped, nub: k.nub, r:k.row};
-                const keyCapGLTF = gfx.getKeycap("KAM", primeSearch, k.height, searchOpts);
+                const keyModel = "KAM"; // wish it was KRK
+                const keyCapGLTF = gfx.getKeycap(keyModel, primeSearch, k.height, searchOpts);
                 if( keyCapGLTF ) {
                     rd.keycap = keyCapGLTF.container.instantiateModelsToScene(name => id, false).rootNodes[0];
 
                     // if we ever switch to KRK keycaps
-                    // console.log(rd.keycap.morphTargetManager);
-                    // for (const child of rd.keycap.getChildMeshes()) {
-                    //     console.log(child.morphTargetManager);
-                    //     let mt = child.morphTargetManager.getTarget(1);	
-                    //     mt.influence = 1;
-                    // }
-                    
+                    if(keyModel === "KRK") {
+                        for (const child of rd.keycap.getChildMeshes()) {
+                            for(let targIdx = 0; targIdx < child.morphTargetManager.numTargets; targIdx++) {
+    
+                                let mt = child.morphTargetManager.getTarget(targIdx);	
+                                if(mt.name == globals.keycapProfile) {
+                                    mt.influence = 1;
+                                } else {
+                                    mt.influence = 0;
+                                }
+                            }
+                        }
+                        //KRK height offset
+                        rd.keycap.heightOffset = 5.9;
+                    }
+                    else {
+                        rd.keycap.heightOffset = 3.5;
+                    }
                     rd.keycap.parent = root;
                     rd.keycap.preXform = keyCapGLTF.preXform;
                     rd.keycap.postXform = Matrix.Scaling(-1,1,1);
-                    rd.keycap.heightOffset = 3.5;
                     gfx.addShadows(rd.keycap);
                 }
                 else {
@@ -308,14 +340,20 @@ export function refreshLayout() {
 
         
                 if(k.matName && globals.renderData.mats[k.matName]) {
-                    let mat = globals.renderData.mats[k.matName];
-                    // let mat = globals.renderData.mats[k.matName].clone()
+                    // let mat = globals.renderData.mats[k.matName];
+                    let mat = globals.renderData.mats[k.matName].clone()
                                        
-                    // let myDynamicTexture = new DynamicTexture(k.id, {width:256, height:256}, scene);
-                    // var font = "bold 44px monospace";
-                    // myDynamicTexture.drawText("Z", 128, 128, font, "white", "green", true, true);
-                    // //myDynamicTexture.drawText("Z", x, y, font, color, canvas, color, invertY, update);
-                    // mat.baseTexture = myDynamicTexture;
+                    // var effect = mat.getEffect();
+                    // //Attempting to set custom uniform data
+                    // effect.setMatrix('albedoMatrix',Matrix.Scale(0.75,1,1))//pickInfo.pickedPoint);
+                    if(k.txt && keyModel === "KRK") {
+                        let textureDim = 256;
+                        let myDynamicTexture = new DynamicTexture(k.id, {width:textureDim, height:textureDim}, scene, true);
+                        var font = `bold ${textureDim/4}px Helvetica`;
+                        myDynamicTexture.drawText(k.txt, textureDim*0.25, textureDim*0.4, font, "black", "white", true, true);
+                        // myDynamicTexture.drawText(""+k.row, 64, 128, font, "white", "green", true, true);
+                        mat.baseTexture = myDynamicTexture;
+                    }
                     for (const child of rd.keycap.getChildMeshes()){			
                         child.material = mat; 
                     }
@@ -956,6 +994,7 @@ function getFeet(bd, cRD, cBD) {
         }
     }
 
+    candidates.sort((a,b) => a.location.x - b.location.x);
     if(candidates.length % 2) {
         candidates.splice(Math.floor(candidates.length / 2),1)
     }
@@ -1552,7 +1591,7 @@ export function refreshCase() {
         let maxConcavity = -1.0;
         let maxConcaveLayer = null;
         for(const [layerName, layerDef] of Object.entries(boardData.layerDefs)) {
-            const lRD = {name:layerName,outlines:[vectorGeo[layerDef.shape]],meshes:[]};
+            const lRD = {name:layerName,outlines:[],meshes:[]};
             cRD.layers[layerName] = lRD;
 
             if(cBD.caseType === "concave") {
@@ -1578,7 +1617,7 @@ export function refreshCase() {
             if(layerDef.tuneable !== null) {
                 minBezelThickness = Math.min(minBezelThickness,bezelThickness);
             }
-            lRD.outline = coremath.offsetAndFixOutlinePoints(lRD.outline, tuning.bezelGap + bezelThickness,null).outline;
+            lRD.outline = coremath.offsetAndFixOutlinePoints(lRD.outline, bezelThickness,null).outline;
         }
 
         addScrewHoles(cRD, cBD, minBezelThickness, maxConcaveLayer.outline, "caseFrame", tesselatedGeo);
@@ -1627,6 +1666,9 @@ export function refreshCase() {
             vectorGeo["pcbOutline"] = coremath.offsetAndFilletOutline(globals.pcbData[caseIdx].outline, 0.0, 2.0, false);
             tesselatedGeo["pcbOutline"] = coremath.genPointsFromVectorPath(vectorGeo["pcbOutline"]);
 
+            if(vectorGeo[layerDef.shape]) {
+                lRD.outlines.push(vectorGeo[layerDef.shape]);
+            }
 
             if( tuning[layerDef.visFilter] ) {
                 if(layerDef.customShape) {
@@ -1706,7 +1748,7 @@ export function updateRotation(cRD, cBD) {
     let easingFunction = new QuinticEase();
     // For each easing function, you can choose between EASEIN (default), EASEOUT, EASEINOUT
     easingFunction.setEasingMode(EasingFunction.EASINGMODE_EASEINOUT);
-    Animation.CreateAndStartAnimation("expand", root, "rotation.x", 30, 20,
+    Animation.CreateMergeAndStartAnimation("expand", root, "rotation.x", 30, 20,
                         root.rotation.x, targetRot,
                         Animation.ANIMATIONLOOPMODE_CONSTANT, easingFunction); 
 }
@@ -1743,7 +1785,7 @@ export function expandLayers() {
         for(const [layerName, layerDef] of Object.entries(boardData.layerDefs)) {
             if (cRDL[layerName]) {
                 for(const mesh of cRDL[layerName].meshes) {
-                    Animation.CreateAndStartAnimation("expand", mesh, "position.y", 30, 20,
+                    Animation.CreateMergeAndStartAnimation("expand", mesh, "position.y", 30, 20,
                     mesh.position.y, (layerDef.offset + layerDef.stackOrder * 15),
                     Animation.ANIMATIONLOOPMODE_CONSTANT, easingFunction); 
                 }
@@ -1754,13 +1796,13 @@ export function expandLayers() {
     let kRD = globals.renderData.keys;
     for(const [id, rd] of Object.entries(kRD)) {
         if (rd.keycap) {
-            Animation.CreateAndStartAnimation("expand", rd.keycap, "position.y", 30, 20+Math.random()*10,
+            Animation.CreateMergeAndStartAnimation("expand", rd.keycap, "position.y", 30, 20+Math.random()*10,
             rd.keycap.position.y, 203.5,
             Animation.ANIMATIONLOOPMODE_CONSTANT, easingFunction, () => {rd.keycap.setEnabled(false)}); 
         }
 
         if (rd.switch) {
-            Animation.CreateAndStartAnimation("expand", rd.switch, "position.y", 30, 30+Math.random()*10,
+            Animation.CreateMergeAndStartAnimation("expand", rd.switch, "position.y", 30, 30+Math.random()*10,
             rd.switch.position.y, 200.0,
             Animation.ANIMATIONLOOPMODE_CONSTANT, easingFunction, () => {rd.switch.setEnabled(false)}); 
         }
@@ -1777,7 +1819,7 @@ export function collapseLayers() {
         for(const [layerName, layerDef] of Object.entries(boardData.layerDefs)) {
             if (cRDL[layerName]) {
                 for(const mesh of cRDL[layerName].meshes) {
-                    Animation.CreateAndStartAnimation("collapse", mesh, "position.y", 30, 20,
+                    Animation.CreateMergeAndStartAnimation("collapse", mesh, "position.y", 30, 20,
                                                     mesh.position.y, layerDef.offset,
                                                     Animation.ANIMATIONLOOPMODE_CONSTANT, easingFunction); 
                 }
@@ -1789,16 +1831,16 @@ export function collapseLayers() {
     // clear the renderdata (cache this later?)
     for(const [id, rd] of Object.entries(kRD)) {
         if (rd.keycap) {
-            rd.keycap.setEnabled(true);
-            Animation.CreateAndStartAnimation("expand", rd.keycap, "position.y", 30, 30+Math.random()*10,
+            Animation.CreateMergeAndStartAnimation("expand", rd.keycap, "position.y", 30, 30+Math.random()*10,
             rd.keycap.position.y, rd.keycap.heightOffset,
             Animation.ANIMATIONLOOPMODE_CONSTANT, easingFunction); 
+            rd.keycap.setEnabled(true);
         }
         if (rd.switch) {
-            rd.switch.setEnabled(true);
-            Animation.CreateAndStartAnimation("expand", rd.switch, "position.y", 30, 20+Math.random()*10,
+            Animation.CreateMergeAndStartAnimation("expand", rd.switch, "position.y", 30, 20+Math.random()*10,
             rd.switch.position.y, 0.0,
             Animation.ANIMATIONLOOPMODE_CONSTANT, easingFunction); 
+            rd.switch.setEnabled(true);
         }
     }
 }
@@ -1906,6 +1948,26 @@ export function loadKeyboard(data) {
                             type:k.type,
                             encoder_knob_size:k.encoder_knob_size
                             };
+
+            let rowGuess = 3;
+
+            if(k.labels) {
+                for(const label of k.labels) {
+                    if(label) {
+                        console.log(`checking label ${label}`)
+                        let info = keyTypes.labelsInfo[label.toLowerCase()];
+                        if(info) {
+                            console.log(`row guess ${info.row}`)
+                            rowGuess = info.row;
+                            keyInfo.txt = label;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            keyInfo.row = rowGuess;
+
 
             const getCenterOffset = (t) => {
                 switch(t) {
