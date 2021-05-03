@@ -297,7 +297,7 @@ export function refreshLayout() {
                     primeSearch = k.special;
                 }
                 let searchOpts = {vertical:k.vertical, stepped: k.stepped, nub: k.nub, r:k.row};
-                const keyModel = "KAM"; // wish it was KRK
+                const keyModel = "KRK"; // wish it was KRK
                 const keyCapGLTF = gfx.getKeycap(keyModel, primeSearch, k.height, searchOpts);
                 if( keyCapGLTF ) {
                     rd.keycap = keyCapGLTF.container.instantiateModelsToScene(name => id, false).rootNodes[0];
@@ -340,13 +340,13 @@ export function refreshLayout() {
 
         
                 if(k.matName && globals.renderData.mats[k.matName]) {
-                    // let mat = globals.renderData.mats[k.matName];
-                    let mat = globals.renderData.mats[k.matName].clone()
+                    let mat = globals.renderData.mats[k.matName];
                                        
                     // var effect = mat.getEffect();
                     // //Attempting to set custom uniform data
                     // effect.setMatrix('albedoMatrix',Matrix.Scale(0.75,1,1))//pickInfo.pickedPoint);
-                    if(k.txt && keyModel === "KRK") {
+                    if(k.txt && keyModel === "KRK" && FALSE) {
+                        mat = globals.renderData.mats[k.matName].clone()
                         let textureDim = 256;
                         let myDynamicTexture = new DynamicTexture(k.id, {width:textureDim, height:textureDim}, scene, true);
                         var font = `bold ${textureDim/4}px Helvetica`;

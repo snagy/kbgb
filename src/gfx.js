@@ -484,31 +484,13 @@ export function init(loadCB) {
         }
     });
 
-    for(const [n,d] of Object.entries(kamList)) {
-        loading.push(n);
-        SceneLoader.LoadAssetContainer("assets/KAM/", n, globals.scene, function (container) {
-            if(!keyAssets.KAM[d.w]) {
-                keyAssets.KAM[d.w] = [];
-            }
-            keyAssets.KAM[d.w].push({container:container, details:d});
-            let i = loading.indexOf(n);
-            if (i >= 0) {
-                loading.splice(i, 1 );
-            }
-
-            if(loading.length === 0) {
-                loadCB();
-            }
-        });
-    }
-
-    // for(const [n,d] of Object.entries(krkList)) {
+    // for(const [n,d] of Object.entries(kamList)) {
     //     loading.push(n);
-    //     SceneLoader.LoadAssetContainer("assets/KRK/", n, globals.scene, function (container) {
-    //         if(!keyAssets.KRK[d.w]) {
-    //             keyAssets.KRK[d.w] = [];
+    //     SceneLoader.LoadAssetContainer("assets/KAM/", n, globals.scene, function (container) {
+    //         if(!keyAssets.KAM[d.w]) {
+    //             keyAssets.KAM[d.w] = [];
     //         }
-    //         keyAssets.KRK[d.w].push({container:container, details:d});
+    //         keyAssets.KAM[d.w].push({container:container, details:d});
     //         let i = loading.indexOf(n);
     //         if (i >= 0) {
     //             loading.splice(i, 1 );
@@ -519,6 +501,24 @@ export function init(loadCB) {
     //         }
     //     });
     // }
+
+    for(const [n,d] of Object.entries(krkList)) {
+        loading.push(n);
+        SceneLoader.LoadAssetContainer("assets/KRK/", n, globals.scene, function (container) {
+            if(!keyAssets.KRK[d.w]) {
+                keyAssets.KRK[d.w] = [];
+            }
+            keyAssets.KRK[d.w].push({container:container, details:d});
+            let i = loading.indexOf(n);
+            if (i >= 0) {
+                loading.splice(i, 1 );
+            }
+
+            if(loading.length === 0) {
+                loadCB();
+            }
+        });
+    }
 
     // for(const [n,d] of Object.entries(katList)) {
     //     SceneLoader.LoadAssetContainer("assets/KAT/", n, globals.scene, function (container) {
