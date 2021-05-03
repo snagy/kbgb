@@ -345,7 +345,7 @@ export function refreshLayout() {
                     // var effect = mat.getEffect();
                     // //Attempting to set custom uniform data
                     // effect.setMatrix('albedoMatrix',Matrix.Scale(0.75,1,1))//pickInfo.pickedPoint);
-                    if(k.txt && keyModel === "KRK" && FALSE) {
+                    if(k.txt && keyModel === "KRK" && false) {
                         mat = globals.renderData.mats[k.matName].clone()
                         let textureDim = 256;
                         let myDynamicTexture = new DynamicTexture(k.id, {width:textureDim, height:textureDim}, scene, true);
