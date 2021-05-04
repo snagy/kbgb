@@ -88,7 +88,7 @@ function getPlateCutsWithStabs(id,width,height,kXform,flipStab,plateCuts,caseIdx
 }
 
 export function updateKeycapMorphTargets(newProfileName) {
-    globals.keycapProfile = newProfileName;
+    boardData.getKeycapDefaults().profile = newProfileName;
     let kRD = globals.renderData.keys;
     for(const [id,rd] of Object.entries(kRD)) {
         if(rd.keycap) {
@@ -96,7 +96,7 @@ export function updateKeycapMorphTargets(newProfileName) {
                 for(let targIdx = 0; targIdx < child.morphTargetManager.numTargets; targIdx++) {
     
                     let mt = child.morphTargetManager.getTarget(targIdx);	
-                    if(mt.name == globals.keycapProfile) {
+                    if(mt.name == newProfileName) {
                         mt.influence = 1;
                     } else {
                         mt.influence = 0;
@@ -308,7 +308,7 @@ export function refreshLayout() {
                             for(let targIdx = 0; targIdx < child.morphTargetManager.numTargets; targIdx++) {
     
                                 let mt = child.morphTargetManager.getTarget(targIdx);	
-                                if(mt.name == globals.keycapProfile) {
+                                if(mt.name == boardData.getKeycapDefaults().profile) {
                                     mt.influence = 1;
                                 } else {
                                     mt.influence = 0;
@@ -2044,6 +2044,10 @@ export function loadKeyboard(data) {
     }
     else if(data.kbdVersion) {
         boardData.setData(data);
+    }
+
+    if(!boardData.getKeycapDefaults()) {
+        boardData.genKeycapDefaults();
     }
 
     for(const k of Object.values(boardData.getData().layout.keys)) {

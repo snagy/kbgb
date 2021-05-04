@@ -4,6 +4,9 @@ let data = {};
 
 export function getData() { return data; }
 
+export function genKeycapDefaults() { data.keycapDefaults = {profile:"KAM"}; }
+export function getKeycapDefaults() { return data.keycapDefaults; }
+
 export function setData(newData) { data = newData; };
 
 export const layerDefs = {

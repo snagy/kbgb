@@ -232,7 +232,11 @@ function modalSelection(container, options, selectionAction, escape, parentButto
 }
 
 function createDropdown(container, initialOption, options, selectionAction) {
-    return addButton(options[initialOption].txt, (e,f) => {
+    let optionIdx = options.findIndex((o) => o.val===initialOption);
+
+    if(optionIdx < 0) { optionIdx = 0; }
+
+    return addButton(options[optionIdx].txt, (e,f) => {
         // modalPop(globals.screengui,"YOOO", () => {console.log("ACK");});
         modalSelection(container, options, selectionAction, () => {}, f.target)
     },
@@ -444,7 +448,7 @@ export const kbgbGUI = {
         let caseSelectionAction = (o,a,b) => {
             kbgbGUI.activeCase = o.val;
         }
-        const dropdown = createDropdown(globals.screengui,0, caseOptions, caseSelectionAction);
+        const dropdown = createDropdown(globals.screengui, kbgbGUI.activeCase, caseOptions, caseSelectionAction);
         holder.addControl(dropdown);
         if(caseOptions.length <= 1) {
             dropdown.isVisible = false;
@@ -484,27 +488,10 @@ export const kbgbGUI = {
                 });
                 interactions.addPointerBinding(PointerEventTypes.POINTERUP, (pointerInfo) => {
                     pointerController.processUp(pointerInfo);
+                    kbgbGUI.refresh();
                 });
                 interactions.addPointerBinding(PointerEventTypes.POINTERTAP, (pointerInfo) => {
-                    const pickResult = pointerInfo.pickInfo;
-                    const e = pointerInfo.event;
-                    console.log(`pointer ${e.x} ${e.y}`)
-                    if (pickResult && pickResult.pickedMesh) {
-                        const parent = pickResult.pickedMesh.parent;
-                        let name = pickResult.pickedMesh.name;
-                        if (parent && boardData.getData().layout.keys[parent.name]) {
-                            name = parent.name;
-                        }
-                        if (boardData.getData().layout.keys[name]) {
-                            if (!(e.metaKey || e.ctrlKey)) {
-                                keyPicking.clearPickedKeys();
-                            }
-                            keyPicking.togglePickedKey(name);
-            
-                            console.log("picked key " + name)
-                            // boardOps.refreshOutlines();
-                        }
-                    }
+                    pointerController.processUp(pointerInfo);
                     kbgbGUI.refresh();
                 });
                 // boardOps.removeCaseData();
@@ -515,6 +502,13 @@ export const kbgbGUI = {
                 ctrlBar.isVertical = false;
                 //ctrlBar.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
                 ctrlBar.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
+
+
+                let setCtrls = new StackPanel();  
+                setCtrls.height = ctrlBarHeight;
+                setCtrls.isPointerBlocker = true;
+                setCtrls.isVertical = false;
+                setCtrls.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
                 const capProfile = [
                     {txt:"KAM",val:"KAM"},
                     {txt:"KAT",val:"KAT"},
@@ -527,11 +521,11 @@ export const kbgbGUI = {
                 let capProfileChange = (o,a,b) => {
                     boardOps.updateKeycapMorphTargets(o.val);
                 }
-                ctrlBar.addControl(
-                    createDropdown(globals.screengui, 0, capProfile, capProfileChange));
+                setCtrls.addControl(
+                    createDropdown(globals.screengui, boardData.getData().keycapProfile, capProfile, capProfileChange));
 
 
-                ctrlBar.addControl(addButton("add key", (e) => {
+                    setCtrls.addControl(addButton("add key", (e) => {
                     boardOps.addKey();
                     boardOps.refreshLayout();
                 }, {height:buttonHeight, width:"120px"}));
@@ -542,12 +536,16 @@ export const kbgbGUI = {
                 // ctrlBar.addControl(kbgbGUI.addKeyActionButton(`▼`, (k) => k.y += 0.25*tuning.base1U[1], "ArrowDown"));
                 // ctrlBar.addControl(kbgbGUI.addKeyActionButton(`►`, (k) => k.x += 0.25*tuning.base1U[0], "ArrowRight"));
             
+                let keyCtrls = new StackPanel();  
+                keyCtrls.height = ctrlBarHeight;
+                keyCtrls.isPointerBlocker = true;
+                keyCtrls.isVertical = false;
+                keyCtrls.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
+                keyCtrls.addControl(kbgbGUI.addLabel("Rot: "));
+                keyCtrls.addControl(kbgbGUI.addKeyActionButton(`⤹`, (k) => k.rotation_angle -= 2, "q" ));
+                keyCtrls.addControl(kbgbGUI.addKeyActionButton(`⤸`, (k) => k.rotation_angle += 2, "e" ));
             
-                ctrlBar.addControl(kbgbGUI.addLabel("Rot: "));
-                ctrlBar.addControl(kbgbGUI.addKeyActionButton(`⤹`, (k) => k.rotation_angle -= 2, "q" ));
-                ctrlBar.addControl(kbgbGUI.addKeyActionButton(`⤸`, (k) => k.rotation_angle += 2, "e" ));
-            
-                ctrlBar.addControl(kbgbGUI.addLabel("  "));
+                keyCtrls.addControl(kbgbGUI.addLabel("  "));
                 let kAction = (keyAction) => {
                         for (let kId of keyPicking.pickedKeys) {
                             let bd = boardData.getData();
@@ -558,17 +556,36 @@ export const kbgbGUI = {
                 let setKeyAction = (key,v) => kAction((k) => {
                     k[key] = v;
                 });
-                let keyWidths = [1,1.25,1.5,1.75,2,2.25,2.5,2.75,3,4,4.5,5.5,6,6.25,6.5,7,8,9,10];
-                // modalPop(globals.screengui,"YOOO", () => {console.log("ACK");});
+
                 let keySelectionAction = (o,a,b) => {
                     setKeyAction("type", o.type);
                     setKeyAction("width", o.width);
                     setKeyAction("encoder_knob_size", o.rad);
                     boardOps.refreshLayout();
                 }
+
                 kbgbGUI.mData.keySizeDropdown = createDropdown(globals.screengui, 0, keySizeOptions, keySelectionAction);
 
-                ctrlBar.addControl( kbgbGUI.mData.keySizeDropdown );
+                keyCtrls.addControl( kbgbGUI.mData.keySizeDropdown );
+
+
+                const rowOptions = [
+                    {txt:"r0",val:0},
+                    {txt:"r1",val:1},
+                    {txt:"r2",val:2},
+                    {txt:"r3",val:3},
+                    {txt:"r4",val:4},
+                    {txt:"r5",val:5}
+                ];
+
+                let rowSelectionAction = (o,a,b) => {
+                    setKeyAction("row", o.val);
+                    boardOps.refreshLayout();
+                }
+
+                kbgbGUI.mData.rowDropdown = createDropdown(globals.screengui, 0, rowOptions, rowSelectionAction);
+
+                keyCtrls.addControl( kbgbGUI.mData.rowDropdown );
 
                 let flipStabAction = (v) => kAction((k) => {
                     k.flipStab = v;
@@ -584,9 +601,10 @@ export const kbgbGUI = {
                     boardOps.refreshLayout();
                 });
 
-                ctrlBar.addControl(kbgbGUI.addLabel("STAB: "));
+                kbgbGUI.mData.stabLabel = kbgbGUI.addLabel("STAB: ")
+                keyCtrls.addControl(kbgbGUI.mData.stabLabel);
                 kbgbGUI.mData.stabCheckbox = checkbox;
-                ctrlBar.addControl(checkbox);
+                keyCtrls.addControl(checkbox);
 
 
                 let caseIdxSwap = (v) => kAction((k) => {
@@ -608,30 +626,66 @@ export const kbgbGUI = {
                     caseIdxSwap(value);
                     boardOps.refreshLayout();
                 });
-                ctrlBar.addControl(kbgbGUI.addLabel("split"));
-                ctrlBar.addControl(cb);
+                keyCtrls.addControl(kbgbGUI.addLabel("split"));
+                keyCtrls.addControl(cb);
 
-                ctrlBar.addControl(kbgbGUI.addLabel("  "));
+                keyCtrls.addControl(kbgbGUI.addLabel("  "));
 
-                ctrlBar.addControl(kbgbGUI.addKeyActionButton("del", (k) => {
+                keyCtrls.addControl(kbgbGUI.addKeyActionButton("del", (k) => {
                     boardOps.removeKey(k.id);
                 }, {height:buttonHeight, width:"120px"}));
 
                 
+                kbgbGUI.mData.setCtrls = setCtrls;
+                ctrlBar.addControl(setCtrls);
+                kbgbGUI.mData.keyCtrls = keyCtrls;
+                ctrlBar.addControl(keyCtrls);
                 globals.screengui.addControl(ctrlBar);
                 kbgbGUI.activeModeCtrl = ctrlBar;
+                kbgbGUI.refresh();
                 boardOps.setFlatRotations();
             },
             refresh: () => {
-                for (let kId of keyPicking.pickedKeys) {
-                    let bd = boardData.getData();
-                    let k = bd.layout.keys[kId];
-                    for(const o of keySizeOptions) {
-                        if(o.type === k.type && o.width === k.width && o.rad === k.rad) {
-                            kbgbGUI.mData.keySizeDropdown.textBlock.text = o.txt;
+                if(keyPicking.pickedKeys.length === 0) {
+                    kbgbGUI.mData.keyCtrls.isVisible = false;
+                    kbgbGUI.mData.setCtrls.isVisible = true;
+                }
+                else {
+                    kbgbGUI.mData.setCtrls.isVisible = false;
+                    kbgbGUI.mData.keyCtrls.isVisible = true;
+                    // kbgbGUI.mData.stabLabel.isVisible = false;
+                    // kbgbGUI.mData.stabCheckbox.isVisible = false;
+                    let optionMatches = [];
+                    let rowOptions = [];
+                    for (let kId of keyPicking.pickedKeys) {
+                        let bd = boardData.getData();
+                        let k = bd.layout.keys[kId];
+                        if(rowOptions.indexOf(k.row) === -1) {
+                            rowOptions.push(k.row);
                         }
+                        for(const o of keySizeOptions) {
+                            if(o.type === k.type && o.width === k.width && o.rad === k.rad) {
+                                if(optionMatches.indexOf(o) === -1) {
+                                    optionMatches.push(o);
+                                }
+                            }
+                        }
+                        // todo fix this for multiselection
+                        kbgbGUI.mData.stabCheckbox = k.flipStab;
                     }
-                    kbgbGUI.mData.stabCheckbox = k.flipStab;
+                    if(optionMatches.length === 1) {
+                        kbgbGUI.mData.keySizeDropdown.textBlock.text = optionMatches[0].txt;
+                    }
+                    else if(optionMatches.length > 1) {
+                        kbgbGUI.mData.keySizeDropdown.textBlock.text = `**`;
+                    }
+
+                    if(rowOptions.length === 1) {
+                        kbgbGUI.mData.rowDropdown.textBlock.text = `r${rowOptions[0]}`;
+                    }
+                    else if(rowOptions.length > 1) {
+                        kbgbGUI.mData.rowDropdown.textBlock.text = `**`;
+                    }
                 }
             },
             remove: () => {
@@ -1011,10 +1065,10 @@ export const kbgbGUI = {
                 }
                 const cBD = boardData.getData().cases[kbgbGUI.activeCase];
                 ctrlBar.addControl(
-                    createDropdown(globals.screengui, caseOptions.findIndex((o) => o.val===cBD.material), caseOptions, caseMatSelection));
+                    createDropdown(globals.screengui, cBD.material, caseOptions, caseMatSelection));
 
                 let getMaterialDropdown = (layerName) => {
-                    let caseMatSelection = (o,a,b) => {
+                    let layerMatSelection = (o,a,b) => {
                         const cBD = boardData.getData().cases[kbgbGUI.activeCase];
                         boardData.layerSetValue(cBD, layerName, "material", o.val);
                         boardOps.refreshCase();
@@ -1024,10 +1078,10 @@ export const kbgbGUI = {
                     let existingValue = boardData.layerGetValue(cBD, layerName, "material");
                     switch(boardData.layerDefs[layerName].mat) {
                         case "case":
-                            dd = createDropdown(globals.screengui, caseOptions.findIndex((o) => o.val===existingValue), caseOptions, caseMatSelection);
+                            dd = createDropdown(globals.screengui, existingValue, caseOptions, layerMatSelection);
                             break;
                         case "plate":
-                            dd = createDropdown(globals.screengui, plateOptions.findIndex((o) => o.val===existingValue), plateOptions, caseMatSelection);
+                            dd = createDropdown(globals.screengui, existingValue, plateOptions, layerMatSelection);
     
                             break;
                         case "foam":
