@@ -344,12 +344,20 @@ export function refreshLayout() {
                     // var effect = mat.getEffect();
                     // //Attempting to set custom uniform data
                     // effect.setMatrix('albedoMatrix',Matrix.Scale(0.75,1,1))//pickInfo.pickedPoint);
-                    if(k.txt && keyModel === "KRK" && false) {
+                    if(k.txt && keyModel === "KRK") {
+                        let text = k.txt.split(" ").join("\n");
                         mat = globals.renderData.mats[k.matName].clone()
                         let textureDim = 256;
                         let myDynamicTexture = new DynamicTexture(k.id, {width:textureDim, height:textureDim}, scene, true);
-                        var font = `bold ${textureDim/4}px Helvetica`;
-                        myDynamicTexture.drawText(k.txt, textureDim*0.25, textureDim*0.4, font, "black", "white", true, true);
+                        let fontSize = textureDim/4;
+                        let font = `bold ${fontSize}px Helvetica`;
+                        myDynamicTexture.getContext().font = font;
+                        let textWidth = myDynamicTexture.getContext().measureText(text).width;
+                        if(textWidth >= 128) {
+                            fontSize /= 2;
+                            font = `bold ${fontSize}px Helvetica`;
+                        }
+                        myDynamicTexture.drawText(text, textureDim*0.25, textureDim*0.4, font, "black", "white", true, true);
                         // myDynamicTexture.drawText(""+k.row, 64, 128, font, "white", "green", true, true);
                         mat.baseTexture = myDynamicTexture;
                     }
@@ -2079,6 +2087,9 @@ export function loadKeyboard(data) {
     else if(data.kbdVersion === "0.0.2") {
         boardData.setData(data);
         for(const [k,c] of Object.entries(boardData.getData().cases)) {
+            c.bezelThickness /= tuning.bezelThickness.max;
+            c.caseCornerFillet /= tuning.caseCornerFillet.max;
+            
             c.material = "pom_white";
         }
     }
@@ -2091,6 +2102,9 @@ export function loadKeyboard(data) {
     }
 
     for(const k of Object.values(boardData.getData().layout.keys)) {
+        if(!k.matName) {
+            k.matName = k.color;
+        }
         if(!mats[k.matName]) {
             gfx.createKeyMaterial(k.matName,Color3.FromHexString(k.matName));
         }
