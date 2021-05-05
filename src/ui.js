@@ -2,6 +2,7 @@ import {globals} from './globals.js'
 import * as boardData from './boardData.js';
 import {tuning} from './tuning.js'
 import * as base from './base.js'
+import * as gfx from './gfx.js'
 import * as coremath from './coremath.js'
 import * as boardOps from './boardOps.js'
 import * as svg from './svg_export.js'
@@ -430,6 +431,10 @@ export const kbgbGUI = {
         }
         boardOps.refreshLayout();
     },
+    addKeyActionKeycode: function(action, keyCode) {
+        const appliedKeyAction = () => {this.keyAction(action)}
+        interactions.addBinding("keydown", keyCode, appliedKeyAction)
+    },
     addKeyActionButton: function(txt, action, keyCode) {
         const appliedKeyAction = () => {this.keyAction(action)}
         if(keyCode) {
@@ -530,11 +535,10 @@ export const kbgbGUI = {
                     boardOps.refreshLayout();
                 }, {height:buttonHeight, width:"120px"}));
 
-                // ctrlBar.addControl(kbgbGUI.addLabel("Pos: "));
-                // ctrlBar.addControl(kbgbGUI.addKeyActionButton(`◄`, (k) => k.x -= 0.25*tuning.base1U[0], "ArrowLeft"));
-                // ctrlBar.addControl(kbgbGUI.addKeyActionButton(`▲`, (k) => k.y -= 0.25*tuning.base1U[1], "ArrowUp"));
-                // ctrlBar.addControl(kbgbGUI.addKeyActionButton(`▼`, (k) => k.y += 0.25*tuning.base1U[1], "ArrowDown"));
-                // ctrlBar.addControl(kbgbGUI.addKeyActionButton(`►`, (k) => k.x += 0.25*tuning.base1U[0], "ArrowRight"));
+                kbgbGUI.addKeyActionKeycode((k) => k.x -= 0.25*tuning.base1U[0], "ArrowLeft");
+                kbgbGUI.addKeyActionKeycode((k) => k.y -= 0.25*tuning.base1U[1], "ArrowUp");
+                kbgbGUI.addKeyActionKeycode((k) => k.y += 0.25*tuning.base1U[1], "ArrowDown");
+                kbgbGUI.addKeyActionKeycode((k) => k.x += 0.25*tuning.base1U[0], "ArrowRight");
             
                 let keyCtrls = new StackPanel();  
                 keyCtrls.height = ctrlBarHeight;
@@ -633,7 +637,7 @@ export const kbgbGUI = {
 
                 keyCtrls.addControl(kbgbGUI.addKeyActionButton("del", (k) => {
                     boardOps.removeKey(k.id);
-                }, {height:buttonHeight, width:"120px"}));
+                }, "Backspace"));
 
                 
                 kbgbGUI.mData.setCtrls = setCtrls;
@@ -644,6 +648,8 @@ export const kbgbGUI = {
                 kbgbGUI.activeModeCtrl = ctrlBar;
                 kbgbGUI.refresh();
                 boardOps.setFlatRotations();
+                gfx.showGrid();
+                boardOps.fadeCase();
             },
             refresh: () => {
                 if(keyPicking.pickedKeys.length === 0) {
@@ -695,10 +701,12 @@ export const kbgbGUI = {
                 interactions.removePointerBinding(PointerEventTypes.POINTERTAP);
                 globals.screengui.removeControl(kbgbGUI.activeModeCtrl);
                 keyPicking.clearPickedKeys();
+                boardOps.unfadeCase();
                 boardOps.refreshPCBs();
                 boardOps.refreshCase();
                 kbgbGUI.mData.keySizeDropdown = null;
                 kbgbGUI.mData.stabCheckbox = null;
+                gfx.hideGrid();
             }
         },
         "view":{

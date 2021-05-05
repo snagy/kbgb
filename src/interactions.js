@@ -28,7 +28,7 @@ function keydownEvent(event) {
         keyBindings["keydown"][event.key](event);
     }
     else {
-        // console.log(`unbound key ${event.key}`)
+        console.log(`unbound key ${event.key}`)
     }
 }
 

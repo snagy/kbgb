@@ -179,10 +179,9 @@ export function refreshLayout() {
 
                     let mat = globals.renderData.mats[k.matName].clone()
                                        
-                    let myDynamicTexture = new DynamicTexture(k.id, {width:128, height:32}, scene);
+                    let myDynamicTexture = new DynamicTexture(k.id, {width:128, height:32}, scene, true);
                     var font = "bold 24px monospace";
                     myDynamicTexture.drawText("kbgb", 32, 24, font, "white", "black", true, true);
-                    //myDynamicTexture.drawText("Z", x, y, font, color, canvas, color, invertY, update);
                     mat.baseTexture = myDynamicTexture;
                     mat.roughness = 0.1;
                     mat.baseColor = new Color3(1, 1, 1);
@@ -384,10 +383,6 @@ export function refreshLayout() {
     }
     
     finalizeLayout();
-    refreshPCBs();
-
-    // refreshOutlines();
-    refreshCase();
 }
 
 function getCombinedOutlineFromPolyGroup(group, ignoreOverlapping) {
@@ -1395,6 +1390,9 @@ function finalizeLayout() {
             bounds.maxs[1] = Math.max(bounds.maxs[1],oP.z);
         }
 
+        //todo:  map convexhull onto minoutline, start looking at edges between the convex points and repeat until we get to min
+
+        // gfx.drawDbgOutline("realOutline", realOutline);
         globals.renderData.layoutData[caseIdx] = {bounds:bounds, keyGroups:keyGroups,convexHull:convexHull,kgOutlines:kgOutlines,minOutline:realOutline,kPs:kPs,thetaValues:thetaValues};
     }
 }
@@ -1736,12 +1734,16 @@ export function refreshCase() {
 
 export function refreshKeyboard() {
     refreshLayout();
+    refreshPCBs();
+
+    // refreshOutlines();
+    refreshCase();
 }
 
 export function updateRotation(cRD, cBD) {
     let root = cRD.rootXform;
     let targetRot = cBD.typingAngle || 0;
-    if(globals.renderData.viewRotation === "flat") {
+    if(cRD.viewRotation === "flat") {
         targetRot = 0;
     }
 
@@ -1772,6 +1774,44 @@ export function setNaturalRotation(cRD, cBD) {
 export function setNaturalRotations() {
     for(const [k,cRD] of Object.entries(globals.renderData.cases)) {
         setNaturalRotation(cRD, boardData.getData().cases[k]);
+    }
+}
+
+export function fadeCase() {
+    let easingFunction = new QuinticEase();
+    // For each easing function, you can choose between EASEIN (default), EASEOUT, EASEINOUT
+    easingFunction.setEasingMode(EasingFunction.EASINGMODE_EASEINOUT);
+
+    for(const [k,cRD] of Object.entries(globals.renderData.cases)) {
+        let cRDL = cRD.layers;
+        for(const [layerName, layerDef] of Object.entries(boardData.layerDefs)) {
+            if (cRDL[layerName]) {
+                for(const mesh of cRDL[layerName].meshes) {
+                    Animation.CreateMergeAndStartAnimation("expand", mesh, "visibility", 30, 20,
+                    mesh.visibility, 0.0,
+                    Animation.ANIMATIONLOOPMODE_CONSTANT, easingFunction); 
+                }
+            }
+        }
+    }
+}
+
+export function unfadeCase() {
+    let easingFunction = new QuinticEase();
+    // For each easing function, you can choose between EASEIN (default), EASEOUT, EASEINOUT
+    easingFunction.setEasingMode(EasingFunction.EASINGMODE_EASEINOUT);
+
+    for(const [k,cRD] of Object.entries(globals.renderData.cases)) {
+        let cRDL = cRD.layers;
+        for(const [layerName, layerDef] of Object.entries(boardData.layerDefs)) {
+            if (cRDL[layerName]) {
+                for(const mesh of cRDL[layerName].meshes) {
+                    Animation.CreateMergeAndStartAnimation("expand", mesh, "visibility", 30, 20,
+                    mesh.visibility, 1.0,
+                    Animation.ANIMATIONLOOPMODE_CONSTANT, easingFunction); 
+                }
+            }
+        }
     }
 }
 

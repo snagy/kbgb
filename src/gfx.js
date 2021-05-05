@@ -3,7 +3,8 @@ import * as boardData from './boardData.js';
 import {tuning} from './tuning.js'
 import {Engine, ArcRotateCamera, CubeTexture, Scene, Vector3, VertexBuffer,  DirectionalLight, ShadowGenerator,
         VertexData, Color3, DefaultRenderingPipeline, StandardMaterial, PBRMaterial, PBRMetallicRoughnessMaterial,
-        Animation, QuinticEase, EasingFunction, Texture, SceneLoader, Matrix, MeshBuilder, Color4, GLTF2Export} from 'babylonjs'
+        Animation, QuinticEase, EasingFunction, Texture, SceneLoader, Matrix, MeshBuilder, Color4, GLTF2Export,
+        GridMaterial } from 'babylonjs'
 import {GLTFFileLoader} from "babylonjs";
 
 const gfxLocals = {};
@@ -153,8 +154,9 @@ export function snapCamera(mode) {
     let easingFunction = new QuinticEase();
     // For each easing function, you can choose between EASEIN (default), EASEOUT, EASEINOUT
     easingFunction.setEasingMode(EasingFunction.EASINGMODE_EASEOUT);
-    Animation.CreateAndStartAnimation("camAlpha", cam, "alpha", 30, 12, cam.alpha, nextAlpha, Animation.ANIMATIONLOOPMODE_CONSTANT,easingFunction);
-    Animation.CreateAndStartAnimation("camBeta", cam, "beta", 30, 12, cam.beta, nextBeta, Animation.ANIMATIONLOOPMODE_CONSTANT,easingFunction);
+    
+    Animation.CreateMergeAndStartAnimation("camAlpha", cam, "alpha", 30, 12, cam.alpha, nextAlpha, Animation.ANIMATIONLOOPMODE_CONSTANT,easingFunction);
+    Animation.CreateMergeAndStartAnimation("camBeta", cam, "beta", 30, 12, cam.beta, nextBeta, Animation.ANIMATIONLOOPMODE_CONSTANT,easingFunction);
 
 }
 
@@ -197,6 +199,34 @@ export function removeMesh(mesh) {
         gfxLocals.shadowGenerator.removeShadowCaster(mesh);
     }
     mesh.dispose();
+}
+
+export function showGrid() {
+    gfxLocals.ground.isVisible = true;
+
+    let easingFunction = new QuinticEase();
+    easingFunction.setEasingMode(EasingFunction.EASINGMODE_EASEINOUT);
+    const animationTime = 15;
+    Animation.CreateMergeAndStartAnimation("showGrid", gfxLocals.ground, "material.opacity", 30, animationTime,
+        gfxLocals.ground.material.opacity, 0.75,
+        Animation.ANIMATIONLOOPMODE_CONSTANT, easingFunction, () => {}); 
+
+    Animation.CreateMergeAndStartAnimation("showMinorGrid", gfxLocals.ground, "material.minorUnitVisibility", 30, animationTime,
+        gfxLocals.ground.material.minorUnitVisibility, 0.45,
+        Animation.ANIMATIONLOOPMODE_CONSTANT, easingFunction, () => {});
+}
+
+export function hideGrid() {
+    let easingFunction = new QuinticEase();
+    easingFunction.setEasingMode(EasingFunction.EASINGMODE_EASEINOUT);
+    const animationTime = 15;
+    Animation.CreateMergeAndStartAnimation("hideGrid", gfxLocals.ground, "material.opacity", 30, animationTime,
+        gfxLocals.ground.material.opacity, 0.0,
+        Animation.ANIMATIONLOOPMODE_CONSTANT, easingFunction, () => {}); 
+
+    Animation.CreateMergeAndStartAnimation("hideMinorGrid", gfxLocals.ground, "material.minorUnitVisibility", 30, animationTime,
+        gfxLocals.ground.material.minorUnitVisibility, 0.0,
+        Animation.ANIMATIONLOOPMODE_CONSTANT, easingFunction, () => {gfxLocals.ground.isVisible = false});
 }
 
 export function setEnvironmentLight(path) {
@@ -363,11 +393,11 @@ const krkList = {
     "2r_1_75u.glb": {r:2, w:1.75},
     "3r_1u.glb": {r:3, w:1},
     "3r_1u_nub.glb": {r:3, w:1, nub:true},
-    "3r_1u_scooped.glb": {r:3, w:1, scooped:true},
+    "3r_1u_scoop.glb": {r:3, w:1, scooped:true},
     "3r_1_25u.glb": {r:3, w:1.25},
     "3r_1_5u.glb": {r:3, w:1.5},
     "3r_1_75u.glb": {r:3, w:1.75},
-    "3r_1_5u_STEPPED.glb": {r:3, w:1.5, stepped:true},
+    "3r_1_75u_STEPPED.glb": {r:3, w:1.5, stepped:true},
     "3r_2_25u.glb": {r:3, w:2.25},
     "4r_1u.glb": {r:4, w:1},
     "4r_1_75u.glb": {r:4, w:1.75},
@@ -467,7 +497,6 @@ export function init(loadCB) {
     // shadowGenerator.contactHardeningLightSizeUVRatio = 0.075;
     // gfxLocals.shadowGenerator = shadowGenerator;
 
-    createMaterials();
 
     const switchAssetName = "MX_SWITCH_box.glb";
     loading.push(switchAssetName)
@@ -538,5 +567,19 @@ export function init(loadCB) {
     //     });
     // }
 
+    createMaterials();
+
+    const groundMaterial = new GridMaterial("gridMaterial", globals.scene);
+	groundMaterial.majorUnitFrequency = 4;
+	groundMaterial.minorUnitVisibility = 0.0;
+	groundMaterial.gridRatio = 19.05/4;
+	groundMaterial.backFaceCulling = false;
+	groundMaterial.mainColor = new Color3(1, 1, 1);
+	groundMaterial.lineColor = new Color3(1.0, 1.0, 1.0);
+	groundMaterial.opacity = 0.0;
+	
+	gfxLocals.ground = MeshBuilder.CreateGround("ground1", {width:10000, height:10000}, globals.scene);
+	gfxLocals.ground.material = groundMaterial;
+    gfxLocals.ground.isVisible = false;
 }
 
