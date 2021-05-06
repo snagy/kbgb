@@ -1369,7 +1369,7 @@ function finalizeLayout() {
             let linked = false;
             // since this is a sorted array, pick the LAST one and nuke the rest (little unsure of this)
             if(thisP.linkingEdges) {
-                console.log(`n linked edges: ${thisP.linkingEdges.length}`)
+                // console.log(`n linked edges: ${thisP.linkingEdges.length}`)
                 for(const edge of thisP.linkingEdges) {
                     if(lastP.pointIdx === edge.p.pointIdx) {
                         foundLast = true;
@@ -1901,6 +1901,7 @@ export function addKey() {
     }
     const k = {
             "color": "#e8e7e3",
+            "matName": "#cccccc",
             "labels": [],
             "textColor": [],
             "textSize": [],
@@ -1910,6 +1911,7 @@ export function addKey() {
             },
             "x": 0,
             "y": -1,
+            "row": 0,
             "width": 1,
             "height": 1,
             "rotation_x": 0,
@@ -2089,7 +2091,7 @@ export function loadKeyboard(data) {
         for(const [k,c] of Object.entries(boardData.getData().cases)) {
             c.bezelThickness /= tuning.bezelThickness.max;
             c.caseCornerFillet /= tuning.caseCornerFillet.max;
-            
+
             c.material = "pom_white";
         }
     }

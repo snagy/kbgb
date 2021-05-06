@@ -202,7 +202,7 @@ export function polyIntersectionSlice(s0, s1, poly) {
     return intersections;
 }
 
-// only convex
+// only works on convex polygons
 export function isPointInPoly(p, poly) {
     for(let i = 0; i < poly.length; i++) {
         let point = poly[i];
@@ -218,6 +218,7 @@ export function isPointInPoly(p, poly) {
     return true;
 }
 
+// only works on convex polygons
 export function polyPolyOverlap(poly1, poly2) {
     // see if any of the lines bisect the other poly
     let checkIntersection = (polyA, polyB) => {
@@ -404,8 +405,8 @@ export function createVoronoi(points) {
     var voronoi = new Voronoi();
     const vRes = voronoi.compute(vSites, bbox);
 
-    console.log(`voronoi!`);
-    console.log(vRes);
+    // console.log(`voronoi!`);
+    // console.log(vRes);
 
     return vRes;
 }

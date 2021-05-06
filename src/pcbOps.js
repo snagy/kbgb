@@ -263,8 +263,8 @@ function genVoronoi(pcb) {
     const vRes = voronoi.compute(vSites, bbox);
     // render, further analyze, etc.
 
-    console.log(`voronoi!`);
-    console.log(vRes);
+    // console.log(`voronoi!`);
+    // console.log(vRes);
 }
 
 function genSDF(pcb) {

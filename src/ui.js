@@ -252,6 +252,7 @@ let createSlider = function(parent, txt, initialVal, min, max, onChangeFunc) {
     slider.value = initialVal;
     slider.height = "15px";
     slider.width = "100px";
+    slider.step = 0.1;
     slider.onValueChangedObservable.add(function(value) {
         label.text = txt + value;
         onChangeFunc(value, label);
@@ -300,27 +301,81 @@ let pointerController = {
                     let k = bd.layout.keys[kId];
                     pointerController.modes.keyMove.keyInfo[kId] = {x: k.x, y: k.y};
                 }
+                pointerController.alignHoverTimeoutId = null;
             },
             move: function(pointerInfo) {
                 let hitLoc = pointerController.getLocFromInfo(pointerInfo);
                 const e = pointerInfo.event;
                 console.log(`hitloc ${hitLoc}`)
+                let kRD = globals.renderData.keys;
+                let overKey = null;
+                console.log(`hover check`);
+                console.log(keyPicking.pickedKeys);
+                for (const [id, rd] of Object.entries(kRD)) {
+                    if(!keyPicking.pickedKeys.includes(id)) {
+                        for(const [ip, keyPoly] of Object.entries(rd["bezelHoles"])) {
+                            if(coremath.isPointInPoly(hitLoc,keyPoly.points)) {
+                                overKey = id;
+                                break;
+                            }
+                        }
+                        if(overKey!==null) {
+                            break;
+                        }
+                    } else {
+                        console.log(`discarding hover check for ${id}`);
+                    }
+                }
+
+                if(pointerController.alignHoverKeyId !== overKey) {
+                    if(pointerController.alignHoverTimeoutId) {
+                        clearTimeout(pointerController.alignHoverTimeoutId);
+                        pointerController.alignHoverTimeoutId = null;
+                    }
+                    if(overKey!==null) {
+                        pointerController.alignHoverKeyId = overKey;
+    
+                        const setGridAlignment = (id) => {
+                            let bd = boardData.getData();
+                            let k = bd.layout.keys[id];
+    
+                            for (let kId of keyPicking.pickedKeys) {
+                                let bd = boardData.getData();
+                                let ok = bd.layout.keys[kId];
+                                const savedKeyPos = pointerController.modes.keyMove.keyInfo[ok.id];
+                                const xDiff = 4*(k.x - savedKeyPos.x)/tuning.base1U[0];
+                                const yDiff = 4*(k.y - savedKeyPos.y)/tuning.base1U[0];
+                                savedKeyPos.x = savedKeyPos.x - (xDiff-Math.trunc(xDiff))*tuning.base1U[0]/4;
+                                savedKeyPos.y = savedKeyPos.y + (yDiff-Math.trunc(yDiff))*tuning.base1U[1]/4;
+                            }
+                        }
+    
+                        pointerController.alignHoverTimeoutId = setTimeout(() => setGridAlignment(overKey), 1000);
+                    }
+                }
+
                 kbgbGUI.keyAction((k) => {
-                    const savedInfo = pointerController.modes.keyMove.keyInfo[k.id];
-                    if(savedInfo) {
+                    const savedKeyPos = pointerController.modes.keyMove.keyInfo[k.id];
+                    if(savedKeyPos) {
                         if(e.shiftKey) {
                             // don't snap to grid
-                            k.x = savedInfo.x + (hitLoc.x - pointerController.enterModePosition.x);
-                            k.y = savedInfo.y - (hitLoc.z - pointerController.enterModePosition.z);
+                            k.x = savedKeyPos.x + (hitLoc.x - pointerController.enterModePosition.x);
+                            k.y = savedKeyPos.y - (hitLoc.z - pointerController.enterModePosition.z);
                         } else {
-                            k.x = savedInfo.x + Math.floor(4*(hitLoc.x - pointerController.enterModePosition.x)/tuning.base1U[0])*tuning.base1U[0]/4;
-                            k.y = savedInfo.y - Math.floor(4*(hitLoc.z - pointerController.enterModePosition.z)/tuning.base1U[1])*tuning.base1U[1]/4;
+                            k.x = savedKeyPos.x + Math.floor(4*(hitLoc.x - pointerController.enterModePosition.x)/tuning.base1U[0])*tuning.base1U[0]/4;
+                            k.y = savedKeyPos.y - Math.floor(4*(hitLoc.z - pointerController.enterModePosition.z)/tuning.base1U[1])*tuning.base1U[1]/4;
                         }
                     }
                 });
             },
             up: function(pointerInfo) {
+                if(pointerController.alignHoverTimeoutId) {
+                    clearTimeout(pointerController.alignHoverTimeoutId);
+                    pointerController.alignHoverTimeoutId = null;
+                }
+
                 pointerController.setMode(null,pointerInfo);
+                
                 console.log(`pointer up.... mode is ${pointerController.activeMode}`)
             }
         },
@@ -484,6 +539,7 @@ export const kbgbGUI = {
                         }
                     }
 
+                    // if we didn't hit a key that's already selected, start a selection box
                     if(!hitPickedKey) {
                         pointerController.setMode("selection",pointerInfo);
                     }
