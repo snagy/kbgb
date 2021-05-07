@@ -159,9 +159,14 @@ export function snapCamera(mode) {
         cam.inputs.attachInput(cam.inputs.attached.keyboard);
     }
     
+    cam.fov = 0.3;
+    cam.lowerRadiusLimit = 75;
+    cam.upperRadiusLimit = 1500;
     if(mode == "top") {
         nextAlpha = -Math.PI / 2;
         nextBeta = 0;
+        cam.fov = 0.1;
+        cam.upperRadiusLimit = 7500;
     } else if(mode == "front") {
         nextAlpha = -Math.PI / 2;
         nextBeta = Math.PI / 4;
