@@ -69,6 +69,29 @@ export function createMaterials() {
         mats[name].specularColor = new Color3(0, 0, 0);
     }
 
+    name = "layoutFrame";
+    if(!mats[name])
+    {
+        mats[name] = new StandardMaterial(name, globals.scene);
+        mats[name].diffuseColor = new Color3(0, 0, 0);
+        mats[name].emissiveColor = new Color3(0.8, 0.8, 0.8);
+        mats[name].alpha = 0.0;
+        mats[name].specularColor = new Color3(0, 0, 0);
+    }
+
+    name = "gridMaterial";
+    if(!mats[name]) {
+        const groundMaterial = new GridMaterial("gridMaterial", globals.scene);
+        groundMaterial.majorUnitFrequency = 4;
+        groundMaterial.minorUnitVisibility = 0.0;
+        groundMaterial.gridRatio = 19.05/4;
+        groundMaterial.backFaceCulling = false;
+        groundMaterial.mainColor = new Color3(1, 1, 1);
+        groundMaterial.lineColor = new Color3(1.0, 1.0, 1.0);
+        groundMaterial.opacity = 0.6;
+        mats[name] = groundMaterial;
+    }
+
     for(const [k,v] of Object.entries(tuning.caseMats)) {
         setMatFromTuning(k, k);
     }
@@ -202,11 +225,11 @@ export function removeMesh(mesh) {
 }
 
 export function showGrid() {
-    gfxLocals.ground.isVisible = true;
+    // gfxLocals.ground.isVisible = true;
 
     let easingFunction = new QuinticEase();
-    easingFunction.setEasingMode(EasingFunction.EASINGMODE_EASEINOUT);
-    const animationTime = 15;
+    easingFunction.setEasingMode(EasingFunction.EASINGMODE_EASEIN);
+    const animationTime = 40;
     Animation.CreateMergeAndStartAnimation("showGrid", gfxLocals.ground, "material.opacity", 30, animationTime,
         gfxLocals.ground.material.opacity, 0.75,
         Animation.ANIMATIONLOOPMODE_CONSTANT, easingFunction, () => {}); 
@@ -214,6 +237,10 @@ export function showGrid() {
     Animation.CreateMergeAndStartAnimation("showMinorGrid", gfxLocals.ground, "material.minorUnitVisibility", 30, animationTime,
         gfxLocals.ground.material.minorUnitVisibility, 0.45,
         Animation.ANIMATIONLOOPMODE_CONSTANT, easingFunction, () => {});
+
+    Animation.CreateMergeAndStartAnimation("showFrame", gfxLocals.frameHolder, "material.alpha", 30, animationTime / 3,
+        gfxLocals.frameHolder.material.alpha, 0.9,
+        Animation.ANIMATIONLOOPMODE_CONSTANT, easingFunction, () => {}); 
 }
 
 export function hideGrid() {
@@ -226,7 +253,11 @@ export function hideGrid() {
 
     Animation.CreateMergeAndStartAnimation("hideMinorGrid", gfxLocals.ground, "material.minorUnitVisibility", 30, animationTime,
         gfxLocals.ground.material.minorUnitVisibility, 0.0,
-        Animation.ANIMATIONLOOPMODE_CONSTANT, easingFunction, () => {gfxLocals.ground.isVisible = false});
+        Animation.ANIMATIONLOOPMODE_CONSTANT, easingFunction, () => {});
+
+    Animation.CreateMergeAndStartAnimation("hideFrame", gfxLocals.frameHolder, "material.alpha", 30, animationTime,
+        gfxLocals.frameHolder.material.alpha, 0.0,
+        Animation.ANIMATIONLOOPMODE_CONSTANT, easingFunction, () => {}); 
 }
 
 export function setEnvironmentLight(path) {
@@ -569,17 +600,13 @@ export function init(loadCB) {
 
     createMaterials();
 
-    const groundMaterial = new GridMaterial("gridMaterial", globals.scene);
-	groundMaterial.majorUnitFrequency = 4;
-	groundMaterial.minorUnitVisibility = 0.0;
-	groundMaterial.gridRatio = 19.05/4;
-	groundMaterial.backFaceCulling = false;
-	groundMaterial.mainColor = new Color3(1, 1, 1);
-	groundMaterial.lineColor = new Color3(1.0, 1.0, 1.0);
-	groundMaterial.opacity = 0.0;
 	
 	gfxLocals.ground = MeshBuilder.CreateGround("ground1", {width:10000, height:10000}, globals.scene);
-	gfxLocals.ground.material = groundMaterial;
+	gfxLocals.ground.material = globals.renderData.mats["gridMaterial"];
     gfxLocals.ground.isVisible = false;
+
+    gfxLocals.frameHolder = MeshBuilder.CreateBox("frameHolder", {}, globals.scene);
+    gfxLocals.frameHolder.material = globals.renderData.mats["layoutFrame"];
+    gfxLocals.frameHolder.isVisible = false;
 }
 

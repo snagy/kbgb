@@ -447,6 +447,50 @@ function updateSelectionBox(start,end) {
     }
 }
 
+let frameMeshes = [];
+let matCoverMeshes = [];
+function updateFrameBox(cID,start,end) {
+    let mats = globals.renderData.mats;
+    
+    for(const frameMesh of frameMeshes) {
+        globals.scene.removeMesh(frameMesh);
+        frameMesh.dispose();
+    }
+    for(const matCoverMesh of matCoverMeshes) {
+        globals.scene.removeMesh(matCoverMesh);
+        matCoverMesh.dispose();
+    }
+
+    if(start && end) {
+        const mins = {x: Math.min(start[0],end[0]),z:Math.min(start[1],end[1])};
+        const maxs = {x: Math.max(start[0],end[0]),z:Math.max(start[1],end[1])};
+        if(maxs.x - mins.x > Epsilon && maxs.z - mins.z > Epsilon) {
+            let selOutline = [new Vector3(mins.x, 0, mins.z),
+                              new Vector3(maxs.x, 0, mins.z),
+                              new Vector3(maxs.x, 0, maxs.z),
+                              new Vector3(mins.x, 0, maxs.z)
+            ];
+    
+            const frameMesh = MeshBuilder.CreateRibbon(`frameOutline${cID}`,
+            {
+                pathArray: [coremath.genArrayFromOutline(selOutline, 20.0, 1.0, true),
+                    coremath.genArrayFromOutline(selOutline, 25.5, 5.5, true)]
+            }, globals.scene);
+            frameMesh.material = mats["layoutFrame"];
+
+            const matCoverMesh = MeshBuilder.CreatePolygon(`gridMatCover${cID}`,
+            {
+                shape: coremath.genArrayFromOutline(selOutline, 20.0, 1.0, true)
+            }, globals.scene);
+            matCoverMesh.material = mats["gridMaterial"];
+            frameMesh.translate(new Vector3(0, 0.3, 0), 1, Space.LOCAL);
+            matCoverMesh.translate(new Vector3(0, 0.2, 0), 1, Space.LOCAL);
+            frameMeshes.push(frameMesh);
+            matCoverMeshes.push(matCoverMesh);
+        }
+    }
+}
+
 const keySizeOptions = [
     {txt:"1U", width:1 },
     {txt:"1.25U", width:1.25 },
@@ -467,6 +511,13 @@ const keySizeOptions = [
     {txt:"1.75U STEPPED"}
 ];
 
+function refreshLayout() {
+    boardOps.refreshLayout();
+    for(const [cID,cRD] of Object.entries(globals.renderData.layoutData)) {
+        updateFrameBox(cID,cRD.bounds.mins,cRD.bounds.maxs);
+    }
+}
+
 export const kbgbGUI = {
 
     addLabel: function(txt) {
@@ -484,7 +535,7 @@ export const kbgbGUI = {
             let k = bd.layout.keys[kId];
             action(k);
         }
-        boardOps.refreshLayout();
+        refreshLayout();
     },
     addKeyActionKeycode: function(action, keyCode) {
         const appliedKeyAction = () => {this.keyAction(action)}
@@ -588,7 +639,7 @@ export const kbgbGUI = {
 
                     setCtrls.addControl(addButton("add key", (e) => {
                     boardOps.addKey();
-                    boardOps.refreshLayout();
+                    refreshLayout();
                 }, {height:buttonHeight, width:"120px"}));
 
                 kbgbGUI.addKeyActionKeycode((k) => k.x -= 0.25*tuning.base1U[0], "ArrowLeft");
@@ -621,7 +672,7 @@ export const kbgbGUI = {
                     setKeyAction("type", o.type);
                     setKeyAction("width", o.width);
                     setKeyAction("encoder_knob_size", o.rad);
-                    boardOps.refreshLayout();
+                    refreshLayout();
                 }
 
                 kbgbGUI.mData.keySizeDropdown = createDropdown(globals.screengui, 0, keySizeOptions, keySelectionAction);
@@ -640,7 +691,7 @@ export const kbgbGUI = {
 
                 let rowSelectionAction = (o,a,b) => {
                     setKeyAction("row", o.val);
-                    boardOps.refreshLayout();
+                    refreshLayout();
                 }
 
                 kbgbGUI.mData.rowDropdown = createDropdown(globals.screengui, 0, rowOptions, rowSelectionAction);
@@ -658,7 +709,7 @@ export const kbgbGUI = {
                 checkbox.color = "green";
                 checkbox.onIsCheckedChangedObservable.add(function(value) {
                     flipStabAction(value);
-                    boardOps.refreshLayout();
+                    refreshLayout();
                 });
 
                 kbgbGUI.mData.stabLabel = kbgbGUI.addLabel("STAB: ")
@@ -684,7 +735,7 @@ export const kbgbGUI = {
                 cb.color = "blue";
                 cb.onIsCheckedChangedObservable.add(function(value) {
                     caseIdxSwap(value);
-                    boardOps.refreshLayout();
+                    refreshLayout();
                 });
                 keyCtrls.addControl(kbgbGUI.addLabel("split"));
                 keyCtrls.addControl(cb);
@@ -706,6 +757,9 @@ export const kbgbGUI = {
                 boardOps.setFlatRotations();
                 gfx.showGrid();
                 boardOps.fadeCase();
+                for(const [cID,cRD] of Object.entries(globals.renderData.layoutData)) {
+                    updateFrameBox(cID,cRD.bounds.mins,cRD.bounds.maxs);
+                }
             },
             refresh: () => {
                 if(keyPicking.pickedKeys.length === 0) {
@@ -749,6 +803,9 @@ export const kbgbGUI = {
                         kbgbGUI.mData.rowDropdown.textBlock.text = `**`;
                     }
                 }
+                for(const [cID,cRD] of Object.entries(globals.renderData.layoutData)) {
+                    updateFrameBox(cID,cRD.bounds.mins,cRD.bounds.maxs);
+                }
             },
             remove: () => {
                 interactions.removePointerBinding(PointerEventTypes.POINTERDOWN);
@@ -763,6 +820,9 @@ export const kbgbGUI = {
                 kbgbGUI.mData.keySizeDropdown = null;
                 kbgbGUI.mData.stabCheckbox = null;
                 gfx.hideGrid();
+                for(const [cID,cRD] of Object.entries(globals.renderData.layoutData)) {
+                    updateFrameBox(cID);
+                }
             }
         },
         "view":{
