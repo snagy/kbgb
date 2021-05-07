@@ -1,5 +1,6 @@
 const keyBindings = {"keydown": {}};
 const pointerBindings = {};
+let areKeyBindingsBlocked = false; 
 
 export function addBinding(eventName, keyName, action) {
     if(keyBindings[eventName][keyName]) {
@@ -12,6 +13,23 @@ export function removeBinding(eventName, keyName) {
     keyBindings[eventName][keyName] = null;
 }
 
+export function blockKeyBindings() {
+    areKeyBindingsBlocked = true;
+}
+
+export function unblockKeyBindings() {
+    areKeyBindingsBlocked = false;
+}
+
+function keydownEvent(event) {
+    if(!areKeyBindingsBlocked && keyBindings["keydown"][event.key]) {
+        keyBindings["keydown"][event.key](event);
+    }
+    else {
+        console.log(`unbound key ${event.key}`)
+    }
+}
+
 export function addPointerBinding(evName, action) {
     if(pointerBindings[evName]) {
         console.log(`rebinding pointer event ${evName}`)
@@ -21,15 +39,6 @@ export function addPointerBinding(evName, action) {
 
 export function removePointerBinding(evName) {
     pointerBindings[evName] = null;
-}
-
-function keydownEvent(event) {
-    if(keyBindings["keydown"][event.key]) {
-        keyBindings["keydown"][event.key](event);
-    }
-    else {
-        console.log(`unbound key ${event.key}`)
-    }
 }
 
 export function init(scene) {

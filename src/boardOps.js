@@ -286,7 +286,7 @@ export function refreshLayout() {
             //     gfx.removeMesh(rd.keycap);
             // }
     
-            if (tuning.keyShape && (!rd.keycap || rd.keycap.isProceduralCap || rd.keycap.width != k.width || rd.keycap.row != k.row)) {
+            if (tuning.keyShape && (!rd.keycap || rd.keycap.isProceduralCap || rd.keycap.text != k.txt || rd.keycap.width != k.width || rd.keycap.row != k.row)) {
                 if (rd.keycap) {
                     gfx.removeMesh(rd.keycap);
                 }
@@ -348,7 +348,8 @@ export function refreshLayout() {
                         let text = k.txt.split(" ").join("\n");
                         mat = globals.renderData.mats[k.matName].clone()
                         let textureDim = 256;
-                        let myDynamicTexture = new DynamicTexture(k.id, {width:textureDim, height:textureDim}, scene, true);
+                        rd.keycap.text = k.txt;
+                        let myDynamicTexture = new DynamicTexture(k.id, {width:textureDim*k.width, height:textureDim*k.height}, scene, true);
                         let fontSize = textureDim/4;
                         let font = `bold ${fontSize}px Helvetica`;
                         myDynamicTexture.getContext().font = font;

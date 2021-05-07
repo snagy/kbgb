@@ -95,6 +95,8 @@ export function exportKeyboard() {
     });
 }
 
+const buttonColor = "#607060"
+const backgroundColor = "#739484";
 function addButton(txt, action, style) {
     style = style?style:{};
     var button = Button.CreateSimpleButton("button", txt);
@@ -106,8 +108,8 @@ function addButton(txt, action, style) {
     button.thickness = 2;
     button.children[0].color = "#FFFFFF";
     button.children[0].fontSize = 24;
-    button.color = "#607060";
-    button.background = "#739484";
+    button.color = buttonColor;
+    button.background = backgroundColor;
     //button.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
 
     button.onPointerClickObservable.add( (a,b) => {
@@ -343,8 +345,8 @@ let pointerController = {
                                 let bd = boardData.getData();
                                 let ok = bd.layout.keys[kId];
                                 const savedKeyPos = pointerController.modes.keyMove.keyInfo[ok.id];
-                                const xDiff = 4*(k.x - savedKeyPos.x)/tuning.base1U[0];
-                                const yDiff = 4*(k.y - savedKeyPos.y)/tuning.base1U[0];
+                                const xDiff = 4*(k.x-k.width*tuning.base1U[0]*0.5 - savedKeyPos.x)/tuning.base1U[0];
+                                const yDiff = 4*(k.y-k.height*tuning.base1U[1]*0.5 - savedKeyPos.y)/tuning.base1U[0];
                                 savedKeyPos.x = savedKeyPos.x - (xDiff-Math.trunc(xDiff))*tuning.base1U[0]/4;
                                 savedKeyPos.y = savedKeyPos.y + (yDiff-Math.trunc(yDiff))*tuning.base1U[1]/4;
                             }
@@ -402,13 +404,22 @@ let pointerController = {
                     new Vector3(mins.x, 0, maxs.z)
                 ]);
                 let kRD = globals.renderData.keys;
+                let selMins = [100000.0, 100000.0];
+                let selMaxs = [-100000.0, -100000.0];
                 for (const [id, rd] of Object.entries(kRD)) {
                     for(const [ip, keyPoly] of Object.entries(rd["bezelHoles"])) {
                         if(coremath.polyPolyOverlap(selectionPoly,keyPoly)) {
                             keyPicking.pickKey(id);
+                            selMins[0] = Math.min(selMins[0],rd.mins[0]);
+                            selMins[1] = Math.min(selMins[1],rd.mins[1]);
+                            selMaxs[0] = Math.max(selMaxs[0],rd.maxs[0]);
+                            selMaxs[1] = Math.max(selMaxs[1],rd.maxs[1]);
                         }
                     }
                 }
+
+                updateRotationHandle(selMins,selMaxs);
+
                 updateSelectionBox();
                 pointerController.setMode(null,pointerInfo);
                 kbgbGUI.refresh();
@@ -442,7 +453,7 @@ function updateSelectionBox(start,end) {
                     coremath.genArrayFromOutline(selOutline, 0.5, 0.5, true)]
             }, globals.scene);
             selMesh.material = mats["keySel"];
-            selMesh.translate(new Vector3(0, 20.5, 0), 1, Space.LOCAL);
+            selMesh.translate(new Vector3(0, 25.5, 0), 1, Space.LOCAL);
         }
     }
 }
@@ -451,7 +462,7 @@ let frameMeshes = [];
 let matCoverMeshes = [];
 function updateFrameBox(cID,start,end) {
     let mats = globals.renderData.mats;
-    
+
     for(const frameMesh of frameMeshes) {
         globals.scene.removeMesh(frameMesh);
         frameMesh.dispose();
@@ -487,6 +498,33 @@ function updateFrameBox(cID,start,end) {
             matCoverMesh.translate(new Vector3(0, 0.2, 0), 1, Space.LOCAL);
             frameMeshes.push(frameMesh);
             matCoverMeshes.push(matCoverMesh);
+        }
+    }
+}
+
+let rotHandleMesh = null;
+function updateRotationHandle(start,end) {
+    let mats = globals.renderData.mats;
+    
+    if(rotHandleMesh) {
+        globals.scene.removeMesh(rotHandleMesh);
+        rotHandleMesh.dispose();
+    }
+
+    if(start && end) {
+        // const mins = {x: Math.min(start.x,end.x),z:Math.min(start.z,end.z)};
+        // const maxs = {x: Math.max(start.x,end.x),z:Math.max(start.z,end.z)};
+        const mids = {x: (start[0]+end[0])/2,z:(start[1]+end[1])/2 };
+        const rad = Math.sqrt(Math.pow(Math.abs(end[0]-mids.x),2)+Math.pow(Math.abs(end[1]-mids.z),2)) + 15;
+        if(rad > Epsilon) {
+            rotHandleMesh = MeshBuilder.CreateTorus("rotHandle",
+            {
+                diameter:rad*2,
+                thickness:3,
+                tessellation:64
+            }, globals.scene);
+            rotHandleMesh.material = mats["keySel"];
+            rotHandleMesh.translate(new Vector3(mids.x, 30.5, mids.z), 1, Space.LOCAL);
         }
     }
 }
@@ -652,9 +690,9 @@ export const kbgbGUI = {
                 keyCtrls.isPointerBlocker = true;
                 keyCtrls.isVertical = false;
                 keyCtrls.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
-                keyCtrls.addControl(kbgbGUI.addLabel("Rot: "));
-                keyCtrls.addControl(kbgbGUI.addKeyActionButton(`⤹`, (k) => k.rotation_angle -= 2, "q" ));
-                keyCtrls.addControl(kbgbGUI.addKeyActionButton(`⤸`, (k) => k.rotation_angle += 2, "e" ));
+                // keyCtrls.addControl(kbgbGUI.addLabel("Rot: "));
+                // keyCtrls.addControl(kbgbGUI.addKeyActionButton(`⤹`, (k) => k.rotation_angle -= 2, "q" ));
+                // keyCtrls.addControl(kbgbGUI.addKeyActionButton(`⤸`, (k) => k.rotation_angle += 2, "e" ));
             
                 keyCtrls.addControl(kbgbGUI.addLabel("  "));
                 let kAction = (keyAction) => {
@@ -667,6 +705,27 @@ export const kbgbGUI = {
                 let setKeyAction = (key,v) => kAction((k) => {
                     k[key] = v;
                 });
+
+                var textInput = new InputText();
+                // textInput.maxWidth = 0.2;
+                textInput.width = "150px";
+                textInput.height = buttonHeight;
+                textInput.text = " ";
+                textInput.color = "white";
+                textInput.background = buttonColor;
+                textInput.onFocusObservable.add((v) => {
+                    interactions.blockKeyBindings();
+                });
+                textInput.onBlurObservable.add((v) => {
+                    interactions.unblockKeyBindings();
+                });
+                textInput.onTextChangedObservable.add((v) => {
+                    setKeyAction("txt", v.text);
+                    textInput.text = ""+v.text;
+                    boardOps.refreshLayout();
+                });
+                kbgbGUI.mData.textInput = textInput;
+                keyCtrls.addControl(textInput);    
 
                 let keySelectionAction = (o,a,b) => {
                     setKeyAction("type", o.type);
@@ -773,6 +832,7 @@ export const kbgbGUI = {
                     // kbgbGUI.mData.stabCheckbox.isVisible = false;
                     let optionMatches = [];
                     let rowOptions = [];
+                    let text = "";
                     for (let kId of keyPicking.pickedKeys) {
                         let bd = boardData.getData();
                         let k = bd.layout.keys[kId];
@@ -786,6 +846,7 @@ export const kbgbGUI = {
                                 }
                             }
                         }
+                        text = k.txt;
                         // todo fix this for multiselection
                         kbgbGUI.mData.stabCheckbox = k.flipStab;
                     }
@@ -801,6 +862,17 @@ export const kbgbGUI = {
                     }
                     else if(rowOptions.length > 1) {
                         kbgbGUI.mData.rowDropdown.textBlock.text = `**`;
+                    }
+
+                    if(keyPicking.pickedKeys.length !== 1) {
+                        kbgbGUI.mData.textInput.isVisible = false;
+                    } else {
+                        kbgbGUI.mData.textInput.isVisible = true;
+                        if(text) {
+                            kbgbGUI.mData.textInput.text = text;
+                        } else {
+                            kbgbGUI.mData.textInput.text = "";
+                        }
                     }
                 }
                 for(const [cID,cRD] of Object.entries(globals.renderData.layoutData)) {
