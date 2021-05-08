@@ -418,7 +418,7 @@ let pointerController = {
                     }
                 }
 
-                updateRotationHandle(selMins,selMaxs);
+                // updateRotationHandle(selMins,selMaxs);
 
                 updateSelectionBox();
                 pointerController.setMode(null,pointerInfo);
