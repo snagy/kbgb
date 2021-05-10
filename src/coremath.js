@@ -204,12 +204,19 @@ export function polyIntersectionSlice(s0, s1, poly) {
 
 // only works on convex polygons
 export function isPointInPoly(p, poly) {
+    const nextDir = TmpVectors.Vector3[6];
+    const nextNorm = TmpVectors.Vector3[7];
+    const pV = TmpVectors.Vector3[8];
+    nextNorm.y = 0;
     for(let i = 0; i < poly.length; i++) {
         let point = poly[i];
         let next = poly[(i + 1) % poly.length];
-        let nextDir = next.subtract(point).normalize();
-        let nextNorm = new Vector3(nextDir.z, 0, -nextDir.x);
-        let pV = p.subtract(point).normalize();
+        next.subtractToRef(point,nextDir)
+        nextDir.normalize();
+        nextNorm.x = nextDir.z
+        nextNorm.z = -nextDir.x;
+        p.subtractToRef(point,pV);
+        pV.normalize();
         let d = Vector3.Dot(pV,nextNorm)
         if( d > Epsilon) {
             return false;

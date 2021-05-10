@@ -69,6 +69,16 @@ export function createMaterials() {
         mats[name].specularColor = new Color3(0, 0, 0);
     }
 
+    name = "rotHandle";
+    if(!mats[name])
+    {
+        mats[name] = new StandardMaterial(name, globals.scene);
+        mats[name].diffuseColor = new Color3(0, 0, 0);
+        mats[name].emissiveColor = new Color3(0.7, 0.9, 0.4);
+        mats[name].alpha = 0.7;
+        mats[name].specularColor = new Color3(0, 0, 0);
+    }
+
     name = "layoutFrame";
     if(!mats[name])
     {

@@ -304,15 +304,14 @@ let pointerController = {
                     pointerController.modes.keyMove.keyInfo[kId] = {x: k.x, y: k.y};
                 }
                 pointerController.alignHoverTimeoutId = null;
+
+                updateRotationHandle(false);
             },
             move: function(pointerInfo) {
                 let hitLoc = pointerController.getLocFromInfo(pointerInfo);
                 const e = pointerInfo.event;
-                console.log(`hitloc ${hitLoc}`)
                 let kRD = globals.renderData.keys;
                 let overKey = null;
-                console.log(`hover check`);
-                console.log(keyPicking.pickedKeys);
                 for (const [id, rd] of Object.entries(kRD)) {
                     if(!keyPicking.pickedKeys.includes(id)) {
                         for(const [ip, keyPoly] of Object.entries(rd["bezelHoles"])) {
@@ -377,6 +376,94 @@ let pointerController = {
                 }
 
                 pointerController.setMode(null,pointerInfo);
+
+                updateRotationHandle(true);
+                
+                console.log(`pointer up.... mode is ${pointerController.activeMode}`)
+            }
+        },
+        "keyRotation": {
+            keyInfo: {},
+            enter: function(pointerInfo) {
+                for (let kId of keyPicking.pickedKeys) {
+                    let bd = boardData.getData();
+                    let k = bd.layout.keys[kId];
+                    pointerController.modes.keyMove.keyInfo[kId] = {rotation_angle: k.rotation_angle, x: k.x, y: k.y};
+                }
+                pointerController.alignHoverTimeoutId = null;
+
+                updateRotationHandle(true);
+            },
+            move: function(pointerInfo) {
+                let hitLoc = pointerController.getLocFromInfo(pointerInfo);
+                const e = pointerInfo.event;
+                let kRD = globals.renderData.keys;
+                let overKey = null;
+                for (const [id, rd] of Object.entries(kRD)) {
+                    if(!keyPicking.pickedKeys.includes(id)) {
+                        for(const [ip, keyPoly] of Object.entries(rd["bezelHoles"])) {
+                            if(coremath.isPointInPoly(hitLoc,keyPoly.points)) {
+                                overKey = id;
+                                break;
+                            }
+                        }
+                        if(overKey!==null) {
+                            break;
+                        }
+                    } else {
+                        console.log(`discarding hover check for ${id}`);
+                    }
+                }
+
+                // if(pointerController.alignHoverKeyId !== overKey) {
+                //     if(pointerController.alignHoverTimeoutId) {
+                //         clearTimeout(pointerController.alignHoverTimeoutId);
+                //         pointerController.alignHoverTimeoutId = null;
+                //     }
+                //     if(overKey!==null) {
+                //         pointerController.alignHoverKeyId = overKey;
+    
+                //         const setGridAlignment = (id) => {
+                //             let bd = boardData.getData();
+                //             let k = bd.layout.keys[id];
+    
+                //             for (let kId of keyPicking.pickedKeys) {
+                //                 let bd = boardData.getData();
+                //                 let ok = bd.layout.keys[kId];
+                //                 const savedKeyPos = pointerController.modes.keyMove.keyInfo[ok.id];
+                //                 const rDiff = (k.rotation_angle-savedKeyPos.rotation_angle)/tuning.base1U[0];
+                //                 savedKeyPos.rotation_angle = savedKeyPos.x - (xDiff-Math.trunc(xDiff))*tuning.base1U[0]/4;
+                //                 savedKeyPos.y = savedKeyPos.y + (yDiff-Math.trunc(yDiff))*tuning.base1U[1]/4;
+                //             }
+                //         }
+    
+                //         pointerController.alignHoverTimeoutId = setTimeout(() => setGridAlignment(overKey), 1000);
+                //     }
+                // }
+
+                kbgbGUI.keyAction((k) => {
+                    const savedKeyPos = pointerController.modes.keyMove.keyInfo[k.id];
+                    if(savedKeyPos) {
+                        let rotBump = (coremath.getRotFromNormal(pointerController.enterModePosition.subtract(new Vector3(savedKeyPos.x,0,-savedKeyPos.y)).normalize())
+                                      -coremath.getRotFromNormal(hitLoc.subtract(new Vector3(savedKeyPos.x,0,-savedKeyPos.y)).normalize())) * 180.0 / Math.PI;
+                        if(e.shiftKey) {
+                            // don't snap to grid
+                            k.rotation_angle = savedKeyPos.rotation_angle + rotBump;
+                        } else {
+                            k.rotation_angle = savedKeyPos.rotation_angle + rotBump - rotBump % 15;
+                        }
+                    }
+                });
+            },
+            up: function(pointerInfo) {
+                if(pointerController.alignHoverTimeoutId) {
+                    clearTimeout(pointerController.alignHoverTimeoutId);
+                    pointerController.alignHoverTimeoutId = null;
+                }
+
+                pointerController.setMode(null,pointerInfo);
+
+                updateRotationHandle(true);
                 
                 console.log(`pointer up.... mode is ${pointerController.activeMode}`)
             }
@@ -404,21 +491,13 @@ let pointerController = {
                     new Vector3(mins.x, 0, maxs.z)
                 ]);
                 let kRD = globals.renderData.keys;
-                let selMins = [100000.0, 100000.0];
-                let selMaxs = [-100000.0, -100000.0];
                 for (const [id, rd] of Object.entries(kRD)) {
                     for(const [ip, keyPoly] of Object.entries(rd["bezelHoles"])) {
                         if(coremath.polyPolyOverlap(selectionPoly,keyPoly)) {
                             keyPicking.pickKey(id);
-                            selMins[0] = Math.min(selMins[0],rd.mins[0]);
-                            selMins[1] = Math.min(selMins[1],rd.mins[1]);
-                            selMaxs[0] = Math.max(selMaxs[0],rd.maxs[0]);
-                            selMaxs[1] = Math.max(selMaxs[1],rd.maxs[1]);
                         }
                     }
                 }
-
-                // updateRotationHandle(selMins,selMaxs);
 
                 updateSelectionBox();
                 pointerController.setMode(null,pointerInfo);
@@ -503,19 +582,29 @@ function updateFrameBox(cID,start,end) {
 }
 
 let rotHandleMesh = null;
-function updateRotationHandle(start,end) {
-    let mats = globals.renderData.mats;
-    
+function updateRotationHandle(show) {
+
     if(rotHandleMesh) {
         globals.scene.removeMesh(rotHandleMesh);
         rotHandleMesh.dispose();
     }
 
-    if(start && end) {
-        // const mins = {x: Math.min(start.x,end.x),z:Math.min(start.z,end.z)};
-        // const maxs = {x: Math.max(start.x,end.x),z:Math.max(start.z,end.z)};
-        const mids = {x: (start[0]+end[0])/2,z:(start[1]+end[1])/2 };
-        const rad = Math.sqrt(Math.pow(Math.abs(end[0]-mids.x),2)+Math.pow(Math.abs(end[1]-mids.z),2)) + 15;
+    if(show && keyPicking.pickedKeys.length > 0) {
+        let mats = globals.renderData.mats;
+
+        let kRD = globals.renderData.keys;
+        let selMins = [100000.0, 100000.0];
+        let selMaxs = [-100000.0, -100000.0];
+        for (const id of keyPicking.pickedKeys) {
+            const rd = kRD[id];
+            selMins[0] = Math.min(selMins[0],rd.mins[0]);
+            selMins[1] = Math.min(selMins[1],rd.mins[1]);
+            selMaxs[0] = Math.max(selMaxs[0],rd.maxs[0]);
+            selMaxs[1] = Math.max(selMaxs[1],rd.maxs[1]);
+        }
+
+        const mids = {x: (selMins[0]+selMaxs[0])/2,z:(selMins[1]+selMaxs[1])/2 };
+        const rad = Math.sqrt(Math.pow(Math.abs(selMaxs[0]-mids.x),2)+Math.pow(Math.abs(selMaxs[1]-mids.z),2)) + 15;
         if(rad > Epsilon) {
             rotHandleMesh = MeshBuilder.CreateTorus("rotHandle",
             {
@@ -523,7 +612,7 @@ function updateRotationHandle(start,end) {
                 thickness:3,
                 tessellation:64
             }, globals.scene);
-            rotHandleMesh.material = mats["keySel"];
+            rotHandleMesh.material = mats["rotHandle"];
             rotHandleMesh.translate(new Vector3(mids.x, 30.5, mids.z), 1, Space.LOCAL);
         }
     }
@@ -614,22 +703,32 @@ export const kbgbGUI = {
                     const t = -ray.origin.y / ray.direction.y;
                     const hitLoc = ray.origin.add(ray.direction.scale(t));
 
-                    let hitPickedKey = false;
+                    let beginSelection = true;
+
+                    console.log(`pickResult is`)
+                    console.log(pickResult)
 
                     if (pickResult && pickResult.pickedMesh) {
                         const parent = pickResult.pickedMesh.parent;
                         let name = pickResult.pickedMesh.name;
-                        if (parent && boardData.getData().layout.keys[parent.name]) {
-                            name = parent.name;
+                        if(name === "rotHandle") {
+                            console.log(`entering rotation!`)
+                            beginSelection = false;
+                            pointerController.setMode("keyRotation",pointerInfo);
                         }
-                        if (keyPicking.pickedKeys.indexOf(name) >= 0) {
-                            hitPickedKey = true;
-                            pointerController.setMode("keyMove",pointerInfo);
+                        else {
+                            if (parent && boardData.getData().layout.keys[parent.name]) {
+                                name = parent.name;
+                            }
+                            if (keyPicking.pickedKeys.indexOf(name) >= 0) {
+                                beginSelection = false;
+                                pointerController.setMode("keyMove",pointerInfo);
+                            }
                         }
                     }
 
                     // if we didn't hit a key that's already selected, start a selection box
-                    if(!hitPickedKey) {
+                    if(beginSelection) {
                         pointerController.setMode("selection",pointerInfo);
                     }
                 });
@@ -803,6 +902,8 @@ export const kbgbGUI = {
 
                 keyCtrls.addControl(kbgbGUI.addKeyActionButton("del", (k) => {
                     boardOps.removeKey(k.id);
+                    keyPicking.clearPickedKeys();
+                    kbgbGUI.refresh();
                 }, "Backspace"));
 
                 
@@ -875,6 +976,9 @@ export const kbgbGUI = {
                         }
                     }
                 }
+
+                updateRotationHandle(true);
+
                 for(const [cID,cRD] of Object.entries(globals.renderData.layoutData)) {
                     updateFrameBox(cID,cRD.bounds.mins,cRD.bounds.maxs);
                 }
