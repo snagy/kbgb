@@ -442,8 +442,8 @@ let pointerController = {
                 //     }
                 // }
 
-                let rotBump = (coremath.getRotFromNormal(pointerController.enterModePosition.subtract(new Vector3(rotHandleMiddle.x,0,-rotHandleMiddle.z)).normalize())
-                               -coremath.getRotFromNormal(hitLoc.subtract(new Vector3(rotHandleMiddle.x,0,-rotHandleMiddle.z)).normalize())) * 180.0 / Math.PI;
+                let rotBump = (coremath.getRotFromNormal(pointerController.enterModePosition.subtract(new Vector3(rotHandleMiddle.x,0,rotHandleMiddle.z)).normalize())
+                               -coremath.getRotFromNormal(hitLoc.subtract(new Vector3(rotHandleMiddle.x,0,rotHandleMiddle.z)).normalize())) * 180.0 / Math.PI;
                 
                 if(!e.shiftKey) {
                     rotBump = rotBump - rotBump % 15;
