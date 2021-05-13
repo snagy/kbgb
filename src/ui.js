@@ -1007,6 +1007,7 @@ export const kbgbGUI = {
                 boardOps.refreshCase();
                 kbgbGUI.mData.keySizeDropdown = null;
                 kbgbGUI.mData.stabCheckbox = null;
+                updateRotationHandle(false);
                 gfx.hideGrid();
                 for(const [cID,cRD] of Object.entries(globals.renderData.layoutData)) {
                     updateFrameBox(cID);
