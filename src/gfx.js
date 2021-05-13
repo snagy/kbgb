@@ -292,7 +292,7 @@ export function setEnvironmentLight(path) {
     // }
 }
 
-const bgColors = [
+export const bgColors = [
     Color3.FromHexString("#bef4ff"),
     Color3.FromHexString("#ffdcbe"),
     Color3.FromHexString("#f6ef7c"),
@@ -307,6 +307,9 @@ const bgColors = [
     Color3.FromHexString("#a08a8c"),
     Color3.FromHexString("#a79070")
 ];
+
+export const primaryColor = new Color3();
+export const secondaryColor = new Color3();
 
 function createScene() {
     const engine = globals.engine;
@@ -346,16 +349,19 @@ function createScene() {
     //     [camera] // The list of cameras to be attached to
     // );
 
-    scene.getOutlineRenderer().zOffset = 10;
-
     let colorTick = 0.0;
     let curColor = Math.floor(Math.random() * bgColors.length);
+    let altColor = Math.floor(curColor + 0.5 * bgColors.length) % bgColors.length;
+    scene.clearColor = primaryColor;
     scene.registerBeforeRender(function () {
-        scene.clearColor = Color3.Lerp(bgColors[curColor], bgColors[(curColor+1) % bgColors.length], colorTick);
+        Color3.LerpToRef(bgColors[curColor], bgColors[(curColor+1) % bgColors.length], colorTick, primaryColor);
+        Color3.LerpToRef(bgColors[altColor], bgColors[(altColor+1)%bgColors.length], colorTick, secondaryColor);
         colorTick += 0.00025;
+        // colorTick += 0.0025;
         if(colorTick >= 1.0) {
             colorTick = 0.0;
             curColor = (curColor+1) % bgColors.length;
+            altColor = (altColor+1) % bgColors.length;
         }
     });
 
@@ -531,6 +537,7 @@ export function init(loadCB) {
     globals.scene = createScene();
     let loading = [];
 
+    globals.scene.getOutlineRenderer().zOffset = 11;
     globals.scene.environmentIntensity = 0.7;
     let light = new DirectionalLight("DirectionalLight", new Vector3(-0.5, -0.3, 0.28), globals.scene);
     light.autoCalcShadowZBounds = true;

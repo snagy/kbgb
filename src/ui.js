@@ -9,7 +9,7 @@ import * as svg from './svg_export.js'
 import * as gbr from './gbr_export.js'
 import * as pcbOps from './pcbOps.js'
 import * as interactions from './interactions.js'
-import {PointerEventTypes, Vector3, Space, MeshBuilder, Epsilon, GLTF2Export} from 'babylonjs';
+import {PointerEventTypes, Matrix, Vector3, Space, MeshBuilder, Epsilon, GLTF2Export} from 'babylonjs';
 import * as keyPicking from './keyPicking.js'
 import {snapCamera} from './gfx.js'
 import {Button, ToggleButton, Rectangle, Control, TextBlock, InputText, StackPanel, RadioButton, Checkbox, 
@@ -95,8 +95,8 @@ export function exportKeyboard() {
     });
 }
 
-const buttonColor = "#607060"
-const backgroundColor = "#739484";
+const buttonColor = "#000000";
+const backgroundColor = gfx.bgColors[5].toHexString();
 function addButton(txt, action, style) {
     style = style?style:{};
     var button = Button.CreateSimpleButton("button", txt);
@@ -385,6 +385,7 @@ let pointerController = {
         "keyRotation": {
             keyInfo: {},
             enter: function(pointerInfo) {
+                pointerController.modes.keyMove.rotBump = 0;
                 for (let kId of keyPicking.pickedKeys) {
                     let bd = boardData.getData();
                     let k = bd.layout.keys[kId];
@@ -441,19 +442,29 @@ let pointerController = {
                 //     }
                 // }
 
-                kbgbGUI.keyAction((k) => {
-                    const savedKeyPos = pointerController.modes.keyMove.keyInfo[k.id];
-                    if(savedKeyPos) {
-                        let rotBump = (coremath.getRotFromNormal(pointerController.enterModePosition.subtract(new Vector3(savedKeyPos.x,0,-savedKeyPos.y)).normalize())
-                                      -coremath.getRotFromNormal(hitLoc.subtract(new Vector3(savedKeyPos.x,0,-savedKeyPos.y)).normalize())) * 180.0 / Math.PI;
-                        if(e.shiftKey) {
-                            // don't snap to grid
+                let rotBump = (coremath.getRotFromNormal(pointerController.enterModePosition.subtract(new Vector3(rotHandleMiddle.x,0,-rotHandleMiddle.z)).normalize())
+                               -coremath.getRotFromNormal(hitLoc.subtract(new Vector3(rotHandleMiddle.x,0,-rotHandleMiddle.z)).normalize())) * 180.0 / Math.PI;
+                
+                if(!e.shiftKey) {
+                    rotBump = rotBump - rotBump % 15;
+                }
+                if(Math.abs(pointerController.modes.keyMove.rotBump-rotBump) > Epsilon) {
+                    pointerController.modes.keyMove.rotBump = rotBump
+                    let newPos = new Vector3();
+                    kbgbGUI.keyAction((k) => {
+                        const savedKeyPos = pointerController.modes.keyMove.keyInfo[k.id];
+                        if(savedKeyPos) {
+                            let kXform = Matrix.Translation(savedKeyPos.x-rotHandleMiddle.x, 0, -savedKeyPos.y-rotHandleMiddle.z);
+                            kXform = kXform.multiply(Matrix.RotationY(rotBump * Math.PI / 180));
+                            kXform = kXform.multiply(Matrix.Translation(rotHandleMiddle.x,0,rotHandleMiddle.z));
+    
+                            Vector3.TransformCoordinatesToRef(Vector3.ZeroReadOnly, kXform, newPos);
+                            k.x = newPos.x;
+                            k.y = -newPos.z;
                             k.rotation_angle = savedKeyPos.rotation_angle + rotBump;
-                        } else {
-                            k.rotation_angle = savedKeyPos.rotation_angle + rotBump - rotBump % 15;
                         }
-                    }
-                });
+                    });
+                }
             },
             up: function(pointerInfo) {
                 if(pointerController.alignHoverTimeoutId) {
@@ -582,6 +593,7 @@ function updateFrameBox(cID,start,end) {
 }
 
 let rotHandleMesh = null;
+let rotHandleMiddle = {};
 function updateRotationHandle(show) {
 
     if(rotHandleMesh) {
@@ -603,17 +615,17 @@ function updateRotationHandle(show) {
             selMaxs[1] = Math.max(selMaxs[1],rd.maxs[1]);
         }
 
-        const mids = {x: (selMins[0]+selMaxs[0])/2,z:(selMins[1]+selMaxs[1])/2 };
-        const rad = Math.sqrt(Math.pow(Math.abs(selMaxs[0]-mids.x),2)+Math.pow(Math.abs(selMaxs[1]-mids.z),2)) + 15;
+        rotHandleMiddle = {x: (selMins[0]+selMaxs[0])/2,z:(selMins[1]+selMaxs[1])/2 };
+        const rad = Math.sqrt(Math.pow(Math.abs(selMaxs[0]-rotHandleMiddle.x),2)+Math.pow(Math.abs(selMaxs[1]-rotHandleMiddle.z),2)) + 15;
         if(rad > Epsilon) {
             rotHandleMesh = MeshBuilder.CreateTorus("rotHandle",
             {
                 diameter:rad*2,
-                thickness:3,
+                thickness:5,
                 tessellation:64
             }, globals.scene);
             rotHandleMesh.material = mats["rotHandle"];
-            rotHandleMesh.translate(new Vector3(mids.x, 30.5, mids.z), 1, Space.LOCAL);
+            rotHandleMesh.translate(new Vector3(rotHandleMiddle.x, 30.5, rotHandleMiddle.z), 1, Space.LOCAL);
         }
     }
 }
