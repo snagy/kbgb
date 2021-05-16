@@ -1054,37 +1054,6 @@ export const kbgbGUI = {
 
                 kbgbGUI.addCaseSelection(ctrlBar);
 
-                ctrlBar.addControl(kbgbGUI.addLabel("Type: "));
-
-                var addRadio = function(text, parent) {
-
-                    var button = new RadioButton();
-                    button.width = "20px";
-                    button.height = "20px";
-                    button.color = "white";
-                    button.background = "green";     
-            
-                    button.onIsCheckedChangedObservable.add(function(state) {
-                        if(state) {
-                            boardData.getData().cases[kbgbGUI.activeCase].caseType = text;
-                            boardOps.refreshCase()
-                        }
-                    }); 
-            
-                    var header = Control.AddHeader(button, text, "100px", { isHorizontal: true, controlFirst: true });
-                    header.height = "30px";
-            
-                    parent.addControl(header);    
-                }
-
-                let radioCtrl = new StackPanel();  
-                radioCtrl.height = "1";
-                radioCtrl.width = "200px";
-                radioCtrl.isVertical = true;
-                addRadio("convex", radioCtrl);
-                addRadio("concave", radioCtrl);
-                ctrlBar.addControl(radioCtrl);
-
                 var checkbox = new Checkbox();
                 checkbox.width = "10px";
                 checkbox.height = "10px";
