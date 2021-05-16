@@ -4,7 +4,6 @@ import * as coremath from './coremath.js';
 import * as gfx from './gfx.js';
 import * as pcb from './pcbOps.js';
 import * as keyPicking from './keyPicking.js';
-import * as keyTypes from './keytypes.js';
 import * as boardData from './boardData.js';
 import {Vector3, Vector4, MeshBuilder, Matrix, Epsilon, Color3, Color4,
         Animation, EasingFunction, QuinticEase, TransformNode, DynamicTexture, Scalar} from 'babylonjs'
@@ -1400,7 +1399,86 @@ function finalizeLayout() {
         }
 
         //todo:  map convexhull onto minoutline, start looking at edges between the convex points and repeat until we get to min
+        // THIS ASSUMES realOutline [0] == convexHull[0]
+        let minOutlineIdx = 0;
+        let eps = [];
+        let ecs = [];
+        let remainingSpans = [];
+        for(let i = 0; i < convexHull.length; i++) {
+            const p = convexHull[i];
+            const nP = convexHull[(i+1)%convexHull.length];
 
+            p.concavityDepth = 0;
+            // console.log(`hull point`);
+            // console.log(p);
+
+            let intermediates = [];
+            let startIdx = minOutlineIdx;
+            let splitSpan = (startOutlineIdx,endP) => {
+                const endPointIdx = endP.pointIdx;
+                const startP = realOutline[startOutlineIdx];
+                let lastPConnIdx = null;
+                let firstnPConnIdx = null;
+                let intermediateIdx = startOutlineIdx+1;
+                while(intermediateIdx < realOutline.length && realOutline[intermediateIdx].pointIdx != endPointIdx) {
+                    // console.log(`intermediate point ${realOutline[intermediateIdx].pointIdx}`);
+                    // console.log(realOutline[intermediateIdx]);
+                    const iP = realOutline[intermediateIdx];
+                    if(!iP.concavityDepth) {
+                        iP.concavityDepth = 1;
+                    } else {
+                        iP.concavityDepth += 1;
+                    }
+                    for(const dP of iP.delaunayPoints) {
+                        if(dP.p.pointIdx === startP.pointIdx) {
+                            lastPConnIdx = intermediateIdx;
+                        }
+                        if(firstnPConnIdx === null && dP.p.pointIdx === endPointIdx) {
+                            firstnPConnIdx = intermediateIdx;
+                        }
+                    }
+                    intermediateIdx+=1;
+                }
+
+                const spanLine = endP.subtract(startP);
+                if(lastPConnIdx !== null && firstnPConnIdx !== null && lastPConnIdx != firstnPConnIdx) {
+                    // lerp to 1/3rd and 2/3rds of the way from end to start
+                    realOutline[lastPConnIdx].lerpTarget = startP.add(spanLine.scale(1/3)).subtract(realOutline[lastPConnIdx]);
+                    realOutline[firstnPConnIdx].lerpTarget = startP.add(spanLine.scale(2/3)).subtract(realOutline[firstnPConnIdx]);
+                    // eps.push([realOutline[lastPConnIdx], realOutline[lastPConnIdx].lerpTarget]);
+                    // ecs.push([color1,color2]);
+                    // eps.push([realOutline[firstnPConnIdx], realOutline[firstnPConnIdx].lerpTarget]);
+                    // ecs.push([color1,color2]);
+                    if(lastPConnIdx-startOutlineIdx > 1) {
+                        splitSpan(startOutlineIdx,realOutline[lastPConnIdx]);
+                    }
+                    if(firstnPConnIdx - lastPConnIdx > 1) {
+                        splitSpan(lastPConnIdx, realOutline[firstnPConnIdx]);
+                    }
+                    if(intermediateIdx-firstnPConnIdx > 1) {
+                        splitSpan(firstnPConnIdx,endP);
+                    }
+                } else if(lastPConnIdx !== null || firstnPConnIdx !== null) {
+                    let splitPoint = (lastPConnIdx !== null)?lastPConnIdx:firstnPConnIdx;
+                    //split halfway
+                    realOutline[splitPoint].lerpTarget = startP.add(spanLine.scale(0.5)).subtract(realOutline[splitPoint]);
+                    // eps.push([realOutline[splitPoint], realOutline[splitPoint].lerpTarget]);
+                    // ecs.push([color1,color2]);
+                    if(splitPoint-startOutlineIdx > 1) {
+                        splitSpan(startOutlineIdx,realOutline[splitPoint]);
+                    }
+                    if(intermediateIdx-splitPoint > 1) {
+                        splitSpan(splitPoint,endP);
+                    }
+                }
+
+                return intermediateIdx;
+            };
+
+            minOutlineIdx = splitSpan(minOutlineIdx,nP,0);
+        }
+        gfx.drawDbgLines("edgeVoronois",eps,ecs)
+        console.log(`finished?`);
         // gfx.drawDbgOutline("realOutline", realOutline);
         globals.renderData.layoutData[caseIdx] = {bounds:bounds, keyGroups:keyGroups,convexHull:convexHull,kgOutlines:kgOutlines,minOutline:realOutline,kPs:kPs,thetaValues:thetaValues};
     }
@@ -1522,77 +1600,71 @@ export function refreshCase() {
 
             addUSBPort(cRD, cBD, maxThickness);
         }
-    
-        if(cBD.caseType === "concave") {
-            // cRD.outline = layoutData.minOutline;
-            // gfx.drawDbgOutline("badOutline", cRD.outline);
+
+        let pcbBounds = globals.pcbData[caseIdx].outlineBounds;
+        let bounds = cRD.bounds;
+        const rectangularBounds = [
+            new Vector3(Math.min(bounds.mins[0],pcbBounds.mins[0]), 0, Math.min(bounds.mins[1],pcbBounds.mins[1])),
+            new Vector3(Math.max(bounds.maxs[0],pcbBounds.maxs[0]), 0, Math.min(bounds.mins[1],pcbBounds.mins[1])),
+            new Vector3(Math.max(bounds.maxs[0],pcbBounds.maxs[0]), 0, Math.max(bounds.maxs[1],pcbBounds.maxs[1])),
+            new Vector3(Math.min(bounds.mins[0],pcbBounds.mins[0]), 0, Math.max(bounds.maxs[1],pcbBounds.maxs[1]))
+        ];
+
+        let convexHull = layoutData.convexHull;
+
+        if(cBD.forceSymmetrical && false) {
+            let midPoint = (bounds.maxs[0] - bounds.mins[0]) * 0.5 + bounds.mins[0];
+            let cvPs = [...convexHull];
+            for(let oP of convexHull) {
+                cvPs.push(new Vector3(midPoint - (oP.x - midPoint), oP.y, oP.z));
+            }
+            convexHull = coremath.convexHull2d(cvPs);
         }
-        else
-        {
-            let pcbBounds = globals.pcbData[caseIdx].outlineBounds;
-            let bounds = cRD.bounds;
-            const rectangularBounds = [
-                new Vector3(Math.min(bounds.mins[0],pcbBounds.mins[0]), 0, Math.min(bounds.mins[1],pcbBounds.mins[1])),
-                new Vector3(Math.max(bounds.maxs[0],pcbBounds.maxs[0]), 0, Math.min(bounds.mins[1],pcbBounds.mins[1])),
-                new Vector3(Math.max(bounds.maxs[0],pcbBounds.maxs[0]), 0, Math.max(bounds.maxs[1],pcbBounds.maxs[1])),
-                new Vector3(Math.min(bounds.mins[0],pcbBounds.mins[0]), 0, Math.max(bounds.maxs[1],pcbBounds.maxs[1]))
-            ];
 
-            let convexHull = layoutData.convexHull;
-    
-            if(cBD.forceSymmetrical) {
-                let midPoint = (bounds.maxs[0] - bounds.mins[0]) * 0.5 + bounds.mins[0];
-                let cvPs = [...convexHull];
-                for(let oP of convexHull) {
-                    cvPs.push(new Vector3(midPoint - (oP.x - midPoint), oP.y, oP.z));
-                }
-                convexHull = coremath.convexHull2d(cvPs);
-            }
+        let dists = [1000000,1000000,1000000,1000000];
+        //find the 4 convex hull points closest to each rectangular corner, and then map the points between them on the lines between the corners
+        let points = [-1, -1, -1, -1];
 
-            let dists = [1000000,1000000,1000000,1000000];
-            let points = [-1, -1, -1, -1];
-
-            for(let iP = 0; iP < convexHull.length; iP++) {
-                const p = convexHull[iP];
-                for(let iR = 0; iR < 4; iR++) {
-                    let dist = Vector3.DistanceSquared(p,rectangularBounds[iR]);
-                    if(dist < dists[iR]) {
-                        points[iR] = iP;
-                        dists[iR] = dist;
-                    }
+        for(let iP = 0; iP < convexHull.length; iP++) {
+            const p = convexHull[iP];
+            for(let iR = 0; iR < 4; iR++) {
+                let dist = Vector3.DistanceSquared(p,rectangularBounds[iR]);
+                if(dist < dists[iR]) {
+                    points[iR] = iP;
+                    dists[iR] = dist;
                 }
             }
-            let targets = new Array(convexHull.length);
-
-            let nPoints = 4;
-            for(let i = 0; i < nPoints; i++) {
-                let iThis = points[i];
-                let iNext = points[(i+1)%nPoints];
-                if(iNext < iThis) {
-                    iNext+=convexHull.length;
-                }
-
-                let pThis = rectangularBounds[i];
-                let pNext = rectangularBounds[(i+1)%nPoints];
-                // let pThis = convexHull[iThis];
-                // let pNext = convexHull[iNext%convexHull.length];
-
-                let line = pNext.subtract(pThis);
-                let lineLen = line.length();
-                line.normalizeFromLength(lineLen);
-                let step = lineLen/(iNext-iThis);
-                
-                for(let j = iThis+1; j < iNext; j++) {
-                    targets[j%convexHull.length] = coremath.nearestPointOnLine(pThis,line,convexHull[j%convexHull.length]);
-                    // targets[j%convexHull.length] = pThis.add(line.scale((j-iThis)*step));
-                }
-                targets[iThis] = pThis;
-            }
-
-            cRD.convexHull = [...convexHull];
-
-            cRD.outlineTargets = targets;
         }
+        let targets = {};//new Array(convexHull.length);
+
+        let nPoints = 4;
+        for(let i = 0; i < nPoints; i++) {
+            let iThis = points[i];
+            let iNext = points[(i+1)%nPoints];
+            if(iNext < iThis) {
+                iNext+=convexHull.length;
+            }
+
+            let pThis = rectangularBounds[i];
+            let pNext = rectangularBounds[(i+1)%nPoints];
+            // let pThis = convexHull[iThis];
+            // let pNext = convexHull[iNext%convexHull.length];
+
+            let line = pNext.subtract(pThis);
+            let lineLen = line.length();
+            line.normalizeFromLength(lineLen);
+            let step = lineLen/(iNext-iThis);
+            
+            for(let j = iThis+1; j < iNext; j++) {
+                targets[convexHull[j%convexHull.length].pointIdx] = coremath.nearestPointOnLine(pThis,line,convexHull[j%convexHull.length]);
+                // targets[j%convexHull.length] = pThis.add(line.scale((j-iThis)*step));
+            }
+            targets[convexHull[iThis].pointIdx] = pThis;
+        }
+
+        cRD.convexHull = [...convexHull];
+
+        cRD.outlineTargets = targets;
 
         let minBezelThickness = 100000.0;
         let maxConcavity = -1.0;
@@ -1601,30 +1673,47 @@ export function refreshCase() {
             const lRD = {name:layerName,outlines:[],meshes:[]};
             cRD.layers[layerName] = lRD;
 
-            if(cBD.caseType === "concave") {
-                lRD.outline = layoutData.minOutline;
-                maxConcaveLayer = lRD;
-                // gfx.drawDbgOutline("badOutline", cRD.outline);
-            }
-            else {
-                lRD.outline = [...cRD.convexHull];
-                const concavity = boardData.layerGetValue(cBD, layerName, "bezelConcavity");
-                const convexity = 1.0-concavity;
-                for(let iP = 0; iP < lRD.outline.length; iP++) {
-                    lRD.outline[iP] = lRD.outline[iP].scale(concavity).add(cRD.outlineTargets[iP].scale(convexity));
-                }
+            const concavity = boardData.layerGetValue(cBD, layerName, "bezelConcavity");
+            const convexity = 1.0-concavity;
 
-                if(layerDef.tuneable !== null && concavity > maxConcavity) {
-                    maxConcavity = concavity;
-                    maxConcaveLayer = lRD;
+            let maxConcavityDepth = 0;
+            for(const p of layoutData.minOutline) {
+                maxConcavityDepth = Math.max(maxConcavityDepth,p.concavityDepth);
+            }
+            const specificConcavityDepth = (1+maxConcavityDepth)*concavity;
+            const targetConcavityDepth = Math.floor(specificConcavityDepth);
+            const concavityRem = specificConcavityDepth - targetConcavityDepth;
+
+            lRD.outline = [];
+            for(const p of layoutData.minOutline) {
+                if(p.concavityDepth < targetConcavityDepth) {
+                    lRD.outline.push(p);
+                } else if(p.concavityDepth == targetConcavityDepth) {
+                    // lerp here.
+                    if(p.concavityDepth === 0) {
+                        lRD.outline.push(p.scale(concavityRem).add(cRD.outlineTargets[p.pointIdx].scale(1.0-concavityRem)));
+                    }
+                    else {
+                        lRD.outline.push(p.add(p.lerpTarget.scale(1.0-concavityRem)));
+                    }
                 }
+            }
+
+            // lRD.outline = [...cRD.convexHull];
+            // for(let iP = 0; iP < lRD.outline.length; iP++) {
+            //     lRD.outline[iP] = lRD.outline[iP].scale(concavity).add(cRD.outlineTargets[iP].scale(convexity));
+            // }
+
+            if(layerDef.tuneable !== null && concavity > maxConcavity) {
+                maxConcavity = concavity;
+                maxConcaveLayer = lRD;
             }
 
             const bezelThickness = Scalar.Lerp(tuning.bezelThickness.min, tuning.bezelThickness.max, boardData.layerGetValue(cBD, layerName, "bezelThickness"));
             if(layerDef.tuneable !== null) {
                 minBezelThickness = Math.min(minBezelThickness,bezelThickness);
             }
-            lRD.outline = coremath.offsetAndFixOutlinePoints(lRD.outline, bezelThickness,null).outline;
+            lRD.outline = coremath.offsetAndFixOutlinePoints(lRD.outline, bezelThickness, null).outline;
         }
 
         addScrewHoles(cRD, cBD, minBezelThickness, maxConcaveLayer.outline, "caseFrame", tesselatedGeo);
@@ -1634,7 +1723,7 @@ export function refreshCase() {
             const lRD = cRD.layers[layerName];
             const bezelThickness = Scalar.Lerp(tuning.bezelThickness.min, tuning.bezelThickness.max, boardData.layerGetValue(cBD, layerName, "bezelThickness"));
             const caseCornerFillet = Scalar.Lerp(tuning.caseCornerFillet.min, tuning.caseCornerFillet.max, boardData.layerGetValue(cBD, layerName, "caseCornerFillet"));
-            vectorGeo["cavityInner"] = coremath.offsetAndFilletOutline(lRD.outline, -bezelThickness, tuning.bezelCornerFillet, false);
+            vectorGeo["cavityInner"] = coremath.offsetAndFilletOutline(layoutData.minOutline, 0, tuning.bezelCornerFillet, false);
             tesselatedGeo["cavityInner"] = coremath.genPointsFromVectorPath(vectorGeo["cavityInner"],8);
 
             vectorGeo["cavityInnerEdge"] = [vectorGeo["cavityInner"]];
@@ -1978,127 +2067,7 @@ export function loadKeyboard(data) {
 
     let mats = globals.renderData.mats;
 
-    if(!data.kbdVersion) {
-        let bd = {};
-        bd.meta = data.meta;
-        bd.cases = data.cases?data.cases:{};
-        bd.hasFeet = true;
-        bd.layout = {keys: {}};
-        let kIdx = 0
-        for (let k of data.keys) {
-            let keyInfo = {id: "key" + kIdx++,
-                            special: "standard",
-                            x: k.x,
-                            y: k.y,
-                            caseIdx: k.caseIdx||0,
-                            width: k.width,
-                            height: k.height,
-                            rotation_angle: k.rotation_angle,
-                            nub:k.nub,
-                            stepped:k.stepped,
-                            type:k.type,
-                            encoder_knob_size:k.encoder_knob_size
-                            };
-
-            let rowGuess = 3;
-
-            if(k.labels) {
-                for(const label of k.labels) {
-                    if(label) {
-                        console.log(`checking label ${label}`)
-                        let info = keyTypes.labelsInfo[label.toLowerCase()];
-                        if(info) {
-                            console.log(`row guess ${info.row}`)
-                            rowGuess = info.row;
-                            keyInfo.txt = label;
-                            break;
-                        }
-                    }
-                }
-            }
-
-            keyInfo.row = rowGuess;
-
-
-            const getCenterOffset = (t) => {
-                switch(t) {
-                    case "oled": {
-                        // hacky dims
-                        let oledDim = [(38.1+tuning.bezelGap) / 2, (14.1+tuning.bezelGap) / 2];
-                        return( [k.x * tuning.base1U[0] + oledDim[0],
-                                  -(k.y * tuning.base1U[1] + oledDim[1])] );
-                    }
-                    case "ec11": {
-                        return ([(k.x+0.5) * tuning.base1U[0],
-                                  -((k.y+0.5) * tuning.base1U[1])]);
-                    }
-                    default: {
-                        const center = [(tuning.base1U[0] + tuning.base1U[0] * (k.width - 1)) / 2,
-                                (tuning.base1U[1] + tuning.base1U[1] * (k.height - 1)) / 2];
-                        return ([k.x * tuning.base1U[0] + center[0],
-                                  -(k.y * tuning.base1U[1] + center[1])]);
-                    }
-                }
-            }
-                            
-            let centerOffset = getCenterOffset(k.type);
-            let kXform = Matrix.Translation(centerOffset[0], 0, centerOffset[1]);
-            if (k.rotation_angle != 0) {
-                kXform = kXform.multiply(Matrix.Translation(-k.rotation_x * tuning.base1U[0], 0, k.rotation_y * tuning.base1U[1]));
-                kXform = kXform.multiply(Matrix.RotationY(k.rotation_angle * Math.PI / 180.0))
-                kXform = kXform.multiply(Matrix.Translation(k.rotation_x * tuning.base1U[0], 0, -k.rotation_y * tuning.base1U[1]));
-            }
-
-            let newPos = Vector3.TransformCoordinates(new Vector3(0,0,0), kXform);
-
-            keyInfo.x = newPos.x;
-            keyInfo.y = -newPos.z;
-
-            if(!bd.cases[keyInfo.caseIdx]) {
-                bd.cases[keyInfo.caseIdx]  = Object.assign({}, tuning.defaultCase);
-            }
-
-            keyInfo.matName = k.color;
-    
-            if( k.width === 1 && k.height > 1) {
-                keyInfo.vertical = true;
-            }
-            
-            if(!(k.width2 === k.width && k.height2 === k.height && k.x2 === 0 && k.y2 === 0)) {
-                if(k.width2 === 1.5 && k.height2 === 1 && k.width === 1.25 && k.height === 2 && k.x2 === -0.25 ) {
-                    keyInfo.row = "special";
-                    keyInfo.special = "ISO";
-                }
-                else if(k.width2 === 1.75 && k.height2 === 1 && k.width === 1.25 && k.x2 === 0) {
-                    // stepped is..uhhh...weird.            
-                    // keyInfo.width = 1.75;
-                }
-                keyInfo.width2 = k.width2;
-                keyInfo.height2 = k.height2;
-                keyInfo.x2 = k.x2;
-                keyInfo.y2 = k.y2;
-            }
-            
-            //todo: handle decals better
-            if(k.decal === false && k.ghost === false) {
-                bd.layout.keys[keyInfo.id] = keyInfo;
-            }
-        }
-        bd.kbdVersion = "0.0.2";
-        boardData.setData(bd);
-    }
-    else if(data.kbdVersion === "0.0.2") {
-        boardData.setData(data);
-        for(const [k,c] of Object.entries(boardData.getData().cases)) {
-            c.bezelThickness /= tuning.bezelThickness.max;
-            c.caseCornerFillet /= tuning.caseCornerFillet.max;
-
-            c.material = "pom_white";
-        }
-    }
-    else if(data.kbdVersion) {
-        boardData.setData(data);
-    }
+    boardData.loadData(data);
 
     if(!boardData.getKeycapDefaults()) {
         boardData.genKeycapDefaults();
@@ -2135,7 +2104,5 @@ export function addCase(newId) {
 }
 
 export function saveKeyboard() {
-    const bd = boardData.getData();
-    bd.kbdVersion = "0.0.3";
-    return JSON.stringify(bd);
+    return boardData.exportData();
 }

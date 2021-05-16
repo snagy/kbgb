@@ -29,7 +29,6 @@ export const tuning = {
         usbPortPos:1.85,
         usbPortCentered:true,
         forcePCBSymmetrical:false,
-        caseType:"rectangle",
         material:"pom_white"
     },
     caseMats: {
