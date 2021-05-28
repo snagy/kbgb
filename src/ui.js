@@ -680,12 +680,11 @@ export const kbgbGUI = {
         const appliedKeyAction = () => {this.keyAction(action)}
         interactions.addBinding("keydown", keyCode, appliedKeyAction)
     },
-    addKeyActionButton: function(txt, action, keyCode) {
-        const appliedKeyAction = () => {this.keyAction(action)}
+    addActionButton: function(txt, action, keyCode) {
         if(keyCode) {
-            interactions.addBinding("keydown", keyCode, appliedKeyAction)
+            interactions.addBinding("keydown", keyCode, action)
         }
-        return addButton(txt, appliedKeyAction); 
+        return addButton(txt, action); 
     },
     addCaseSelection: function(holder) {
         let caseOptions = []
@@ -912,8 +911,8 @@ export const kbgbGUI = {
 
                 keyCtrls.addControl(kbgbGUI.addLabel("  "));
 
-                keyCtrls.addControl(kbgbGUI.addKeyActionButton("del", (k) => {
-                    boardOps.removeKey(k.id);
+                keyCtrls.addControl(kbgbGUI.addActionButton("del", () => {
+                    kbgbGUI.keyAction((k)=> {boardOps.removeKey(k.id)});
                     keyPicking.clearPickedKeys();
                     kbgbGUI.refresh();
                 }, "Backspace"));
@@ -1151,8 +1150,14 @@ export const kbgbGUI = {
     
                         label.height = "40px"
     
-                        slider.minimum = 0;
-                        slider.maximum = 1;
+                        if(tuning[propName]) {
+                            slider.minimum = tuning[propName].min;
+                            slider.maximum = tuning[propName].max;
+                        }
+                        else {
+                            slider.minimum = 0;
+                            slider.maximum = 1;
+                        }
                         slider.value = boardData.layerGetValue(cBD, layerName, propName);
                         slider.height = "15px";
                         slider.width = "100px";

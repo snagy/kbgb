@@ -200,7 +200,7 @@ export function refreshLayout() {
             let circCenter = Vector3.TransformCoordinates(new Vector3(0, 0, 0), kXform)
             let keyOutlines = [new coremath.Poly(coremath.genArrayForCircle(new coremath.Circle(circCenter, rad), 0, 19))];
     
-            const bezelHole = new coremath.Poly(coremath.genArrayForCircle(new coremath.Circle(circCenter, rad), tuning.bezelGap, 19));
+            const bezelHole = new coremath.Poly(coremath.genArrayForCircle(new coremath.Circle(circCenter, rad), tuning.bezelGap, 50));
             rd.bezelHoles.push(bezelHole);
             
             let switchCutDims = [15*0.5, 15.5*0.5];
@@ -218,12 +218,12 @@ export function refreshLayout() {
             }
     
             if (tuning.keyShape) {
-                rd.keycap = MeshBuilder.CreatePolygon(id, { shape: coremath.genArrayFromOutline(rd.outline,0,0), depth: 9, smoothingThreshold: 0.1, updatable: false }, scene);
+                rd.keycap = MeshBuilder.CreatePolygon(id, { shape: coremath.genArrayFromOutline(rd.outline,0,0), depth: 15, bevel:0.5, smoothingThreshold: -2, updatable: false }, scene);
                 if(keyPicking.pickedKeys.indexOf(id)>=0) {
                     rd.keycap.renderOverlay = true;
                 }
                 rd.keycap.parent = root;
-                rd.keycap.heightOffset = 10.5;
+                rd.keycap.heightOffset = 18.5;
                 rd.keycap.position.y = rd.keycap.heightOffset;
                 gfx.addShadows(rd.keycap);
         
@@ -769,7 +769,7 @@ function screwAddLayer(screw, layerName) {
     }
 }
 
-export function addScrewHoles(cRD, cBD, bezelThickness, outline, primaryLayerName, layerOutlines) {
+export function addScrewHoles(cRD, cBD, bezelThickness, cornerFillet, outline, primaryLayerName, layerOutlines) {
     const defaultScrew = {};
     const screwBoss = getScrewBoss();
     const screwRadius = getScrewRadius(defaultScrew);
@@ -907,8 +907,8 @@ export function getFootShape(layerName, layerDef, cRD, cBD, bd) {
     const root = cRD.rootXform;
     const mats = globals.renderData.mats;
     let feet = cRD.feet;
-    const bezelThickness = Scalar.Lerp(tuning.bezelThickness.min, tuning.bezelThickness.max, boardData.layerGetValue(cBD, layerName, "bezelThickness"));
-    const caseCornerFillet = Scalar.Lerp(tuning.caseCornerFillet.min, tuning.caseCornerFillet.max, boardData.layerGetValue(cBD, layerName, "caseCornerFillet"));
+    const bezelThickness = boardData.layerGetValue(cBD, layerName, "bezelThickness");
+    const caseCornerFillet = Math.min(bezelThickness,boardData.layerGetValue(cBD, layerName, "caseCornerFillet"));
                     
     cRD.layers[layerName] = {name:layerName,outlines:[],meshes:[],outlineBounds:{mins:(new Vector3(10000000.0,1000000.0,1000000.0)), maxs:(new Vector3(-10000000,-1000000,-1000000))}};
     for(const foot of feet) {
@@ -933,7 +933,7 @@ export function getFootShape(layerName, layerDef, cRD, cBD, bd) {
         }
         // let shape = coremath.genArrayForCircle(foot,0,44);
         let shape = coremath.genPointsFromVectorPath(points,8);
-        const mesh = MeshBuilder.CreatePolygon(layerName, { shape: shape, depth:layerDef.height, smoothingThreshold: 0.1, holes:polyHoles }, scene);
+        const mesh = MeshBuilder.CreatePolygon(layerName, { shape: shape, depth:layerDef.height, /*bevel:0.15,*/ smoothingThreshold: 0.1, holes:polyHoles }, scene);
         mesh.parent = root;
         mesh.position.y = lastLayerOffset[layerName]||layerDef.offset;
         mesh.material = mats[boardData.layerGetValue(cBD,layerName,"material")];
@@ -1060,19 +1060,6 @@ function finalizeLayout() {
             }
             oid += 1;
             pid += o.length;
-        }
-
-        // not implemented yet
-        if(false && cBD.forceSymmetrical) {
-            let midPoint = (cRD.bounds.maxs[0] - cRD.bounds.mins[0]) * 0.5 + cRD.bounds.mins[0];
-            let kpLen = kPs.length;
-            for(let i = 0; i < kpLen; i++) {
-                const kP = kPs[i];
-                const p = new Vector3(midPoint - (kP.x - midPoint), kP.y, kP.z);
-                p.delaunayPoints = [];
-                p.pointIdx = pid++;
-                kPs.push(p);
-            }
         }
 
         const vRes = coremath.createVoronoi(kPs);
@@ -1593,7 +1580,7 @@ export function refreshCase() {
             let maxThickness = 0.0;
             for(const [layerName, layerDef] of Object.entries(boardData.layerDefs)) {
                 if(layerDef.portCut) {
-                    const bezelThickness = Scalar.Lerp(tuning.bezelThickness.min, tuning.bezelThickness.max, boardData.layerGetValue(cBD, layerName, "bezelThickness"));
+                    const bezelThickness = boardData.layerGetValue(cBD, layerName, "bezelThickness");
                     maxThickness = Math.max(maxThickness,bezelThickness);
                 }
             }
@@ -1611,15 +1598,6 @@ export function refreshCase() {
         ];
 
         let convexHull = layoutData.convexHull;
-
-        if(cBD.forceSymmetrical && false) {
-            let midPoint = (bounds.maxs[0] - bounds.mins[0]) * 0.5 + bounds.mins[0];
-            let cvPs = [...convexHull];
-            for(let oP of convexHull) {
-                cvPs.push(new Vector3(midPoint - (oP.x - midPoint), oP.y, oP.z));
-            }
-            convexHull = coremath.convexHull2d(cvPs);
-        }
 
         let dists = [1000000,1000000,1000000,1000000];
         //find the 4 convex hull points closest to each rectangular corner, and then map the points between them on the lines between the corners
@@ -1667,6 +1645,7 @@ export function refreshCase() {
         cRD.outlineTargets = targets;
 
         let minBezelThickness = 100000.0;
+        let maxCornerFillet = 0.0;
         let maxConcavity = -1.0;
         let maxConcaveLayer = null;
         for(const [layerName, layerDef] of Object.entries(boardData.layerDefs)) {
@@ -1709,20 +1688,47 @@ export function refreshCase() {
                 maxConcaveLayer = lRD;
             }
 
-            const bezelThickness = Scalar.Lerp(tuning.bezelThickness.min, tuning.bezelThickness.max, boardData.layerGetValue(cBD, layerName, "bezelThickness"));
+            if(cBD.forceSymmetrical && false) {
+                let midPoint = (bounds.maxs[0] - bounds.mins[0]) * 0.5 + bounds.mins[0];
+                let cvPs = [];
+                for(let oP of lRD.outline) {
+                    cvPs.push(new Vector3(midPoint - (oP.x - midPoint), oP.y, oP.z));
+                }
+                cvPs.reverse();
+
+                const caseCornerFillet = boardData.layerGetValue(cBD, layerName, "caseCornerFillet");
+                let outlineFillets = (new Array(lRD.outline.length)).fill(caseCornerFillet);
+                const combined = coremath.combineOutlines(lRD.outline,outlineFillets,cvPs,outlineFillets,caseCornerFillet,false);
+                if(layerName === "bezel") {
+                    let red = new Color4(1,0,0,1);
+                    let blue = new Color4(0,0,1,1);
+                    let green = new Color4(0,1,0,1);
+                    let yellow = new Color4(1,1,0,1);
+                    gfx.drawDbgOutline("outline_prev",lRD.outline,blue,blue,true);
+                    gfx.drawDbgOutline("outline_rev",cvPs,red,red,true);
+                    gfx.drawDbgOutline("outline_done",combined.outline,yellow,yellow,true);
+                }
+            
+                lRD.outline = combined.outline;
+            }
+            
+            const bezelThickness = boardData.layerGetValue(cBD, layerName, "bezelThickness");
+            const caseCornerFillet = Math.min(bezelThickness,boardData.layerGetValue(cBD, layerName, "caseCornerFillet"));
             if(layerDef.tuneable !== null) {
+                maxCornerFillet = Math.max(maxCornerFillet,caseCornerFillet);
                 minBezelThickness = Math.min(minBezelThickness,bezelThickness);
             }
+
             lRD.outline = coremath.offsetAndFixOutlinePoints(lRD.outline, bezelThickness, null).outline;
         }
 
-        addScrewHoles(cRD, cBD, minBezelThickness, maxConcaveLayer.outline, "caseFrame", tesselatedGeo);
+        addScrewHoles(cRD, cBD, minBezelThickness, maxCornerFillet, maxConcaveLayer.outline, "caseFrame", tesselatedGeo);
         getFeet(bd, cRD, cBD);
 
         for(const [layerName, layerDef] of Object.entries(boardData.layerDefs)) {
             const lRD = cRD.layers[layerName];
-            const bezelThickness = Scalar.Lerp(tuning.bezelThickness.min, tuning.bezelThickness.max, boardData.layerGetValue(cBD, layerName, "bezelThickness"));
-            const caseCornerFillet = Scalar.Lerp(tuning.caseCornerFillet.min, tuning.caseCornerFillet.max, boardData.layerGetValue(cBD, layerName, "caseCornerFillet"));
+            const bezelThickness = boardData.layerGetValue(cBD, layerName, "bezelThickness");
+            const caseCornerFillet = Math.min(boardData.layerGetValue(cBD, layerName, "caseCornerFillet"));
             vectorGeo["cavityInner"] = coremath.offsetAndFilletOutline(layoutData.minOutline, 0, tuning.bezelCornerFillet, false);
             tesselatedGeo["cavityInner"] = coremath.genPointsFromVectorPath(vectorGeo["cavityInner"],8);
 
@@ -1792,7 +1798,7 @@ export function refreshCase() {
                         }
                     }
                     // console.log("adding layer "+layerName);
-                    const mesh = MeshBuilder.CreatePolygon(layerName, { shape: polyShape, depth:layerDef.height, smoothingThreshold: 0.1, holes:polyHoles }, scene);
+                    const mesh = MeshBuilder.CreatePolygon(layerName, { shape: polyShape, depth:layerDef.height, /*bevel:0.15,*/ smoothingThreshold: 0.1, holes:polyHoles }, scene);
                     mesh.parent = root;
                     mesh.position.y = lastLayerOffset[layerName]||layerDef.offset;
                     mesh.material = mats[boardData.layerGetValue(cBD,layerName,"material")];

@@ -15,12 +15,12 @@ export const tuning = {
     drawPCB:true,
     drawCaseFoam:true,
     drawPlateFoam:true,
-    bezelThickness:{min:5.5,max:50},
-    caseCornerFillet:{min:0.5,max:30},
+    bezelThickness:{min:5.5,max:30},
+    caseCornerFillet:{min:0.5,max:15},
     defaultCase: {
-        bezelThickness: 0.2,
+        bezelThickness: 10,
         bezelConcavity: 1.0,
-        caseCornerFillet: 0.2,
+        caseCornerFillet: 6,
         screwSideBuffer: 0,
         maxScrewSpan: 150,
         screwBezelBias:0.5,
@@ -80,5 +80,7 @@ export const tuning = {
         "pom_black":{alpha:1, metallic:0, roughness:0.4, albedoColor:[0.02,0.02,0.02]},
         "steel":{alpha:1, metallic:1, roughness:0.05, albedoColor:[0.3,0.3,0.3]},
         "fr4":{alpha:1, metallic:0, roughness:0.15, albedoColor:[45/255, 90/255, 10/255]},
+        "foam_white":{alpha:1, metallic:0, roughness:0.8, albedoColor:[0.85,0.85,0.85]},
+        "foam_black":{alpha:1, metallic:0, roughness:0.8, albedoColor:[0.1,0.1,0.1]},
     }
 }

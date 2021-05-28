@@ -1,6 +1,6 @@
 import {getFootShape} from './boardOps.js'
 import {tuning} from './tuning.js';
-import {Vector3, Matrix} from 'babylonjs';
+import {Scalar, Vector3, Matrix} from 'babylonjs';
 import * as keyTypes from './keytypes.js';
 
 let data = {};
@@ -13,9 +13,9 @@ export function getKeycapDefaults() { return data.keycapDefaults; }
 export function setData(newData) { data = newData; };
 
 export const layerDefs = {
-    "pcbMesh":{height:1.6,offset:-5.1,stackOrder:null,visFilter:"drawPCB",shape:"pcbOutline",holes:[],mat:"fr4",physicalMat:"FR4",tuneable:null},
-    "plateFoam":{height:3.5,offset:-1.5,stackOrder:null,visFilter:"drawPlateFoam",shape:"pcbOutline",holes:["switchCuts"],mat:"foam",physicalMat:"FOAM",tuneable:null},
-    "caseFoam":{height:3.5,offset:-7.5,stackOrder:null,visFilter:"drawCaseFoam",shape:"cavityInner",holes:[],mat:"foam",physicalMat:"FOAM",tuneable:null},
+    "pcbMesh":{height:1.6,offset:-5.1,stackOrder:null,visFilter:"drawPCB",shape:"pcbOutline",holes:[],material:"fr4",physicalMat:"FR4",tuneable:null},
+    "plateFoam":{height:3.5,offset:-1.5,stackOrder:null,visFilter:"drawPlateFoam",shape:"pcbOutline",holes:["switchCuts"],material:"foam_white",physicalMat:"FOAM",tuneable:null},
+    "caseFoam":{height:3.5,offset:-7.5,stackOrder:null,visFilter:"drawCaseFoam",shape:"cavityInner",holes:[],material:"foam_white",physicalMat:"FOAM",tuneable:null},
     "bezel":{height:3,offset:6,stackOrder:2,visFilter:"drawBezel",shape:"caseFrame",holes:["bezel","screwHoles"],mat:"case",physicalMat:"acrylic"},
     "bezel1":{height:3,offset:3,stackOrder:1,visFilter:"drawBezel",shape:"caseFrame",holes:["bezel","screwHoles"],mat:"case",physicalMat:"acrylic"},
     "plate":{height:1.5,offset:0,stackOrder:0,visFilter:"drawPlate",shape:"caseFrame",holes:["screwHoles","switchCuts"],mat:"plate",physicalMat:"alu"},
@@ -33,6 +33,9 @@ export const layerDefs = {
 export function layerGetValue(cBD, l, k) {
     if(cBD.layers && cBD.layers[l] && cBD.layers[l][k]!==undefined) {
         return cBD.layers[l][k];
+    }
+    else if(layerDefs[l] && layerDefs[l][k]!==undefined) {
+        return layerDefs[l][k];
     }
     else {
         return cBD[k];
@@ -53,7 +56,6 @@ export function layerSetValue(cBD, l, k, v) {
 
 
 export function loadData(data) {
-
     if(!data.kbdVersion) {
         let bd = {};
         bd.meta = data.meta;
@@ -165,10 +167,28 @@ export function loadData(data) {
     }
     else if(data.kbdVersion === "0.0.2") {
         for(const [k,c] of Object.entries(data.cases)) {
-            c.bezelThickness /= tuning.bezelThickness.max;
-            c.caseCornerFillet /= tuning.caseCornerFillet.max;
+            // c.bezelThickness /= tuning.bezelThickness.max;
+            // c.caseCornerFillet /= tuning.caseCornerFillet.max;
 
             c.material = "pom_white";
+        }
+        setData(data);
+    }
+    else if(data.kbdVersion === "0.0.3") {
+        const oldBezelThickness = {min:5.5,max:50};
+        const oldCaseCornerFillet = {min:0.5,max:30};
+        for(const [k,c] of Object.entries(data.cases)) {
+            c.bezelThickness = Scalar.Lerp(oldBezelThickness.min, oldBezelThickness.max, c.bezelThickness);
+            c.caseCornerFillet = Scalar.Lerp(oldCaseCornerFillet.min, oldCaseCornerFillet.max, c.caseCornerFillet);
+
+            for(const [lK, layer] of Object.entries(c.layers)) {
+                if(layer.bezelThickness !== undefined) {
+                    layer.bezelThickness = Scalar.Lerp(oldBezelThickness.min, oldBezelThickness.max, layer.bezelThickness);
+                }
+                if(layer.caseCornerFillet !== undefined) {
+                    layer.caseCornerFillet = Scalar.Lerp(oldCaseCornerFillet.min, oldCaseCornerFillet.max, layer.caseCornerFillet);
+                }
+            }
         }
         setData(data);
     }
@@ -180,6 +200,6 @@ export function loadData(data) {
 
 export function exportData() {
     const bd = getData();
-    bd.kbdVersion = "0.0.3";
+    bd.kbdVersion = "0.0.4";
     return JSON.stringify(bd);
 }

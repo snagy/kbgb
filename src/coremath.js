@@ -1,3 +1,4 @@
+import { off } from '@svgdotjs/svg.js';
 import {Epsilon, Vector3, Color4, TmpVectors} from 'babylonjs';
 import * as gfx from './gfx.js';
 
@@ -434,6 +435,7 @@ export function combineOutlines(primary, primaryFillets, secondary, secondaryFil
     let targ = walkingShape[1];
     let targFillet = walkingFillets[1];
     let nextWalkingIdx = 2;
+    let hitSomething = false;
     do {
         let tL = targ.subtract(curr);
         const tNorm = new Vector3(tL.z,0,-tL.x).normalize();
@@ -443,16 +445,17 @@ export function combineOutlines(primary, primaryFillets, secondary, secondaryFil
         let closestExit = 1000000000.0;
         let exit = null;
 
-        const maxLen = (tL.lengthSquared() - Epsilon*Epsilon);
+        const maxLen = (tL.lengthSquared() - Epsilon);
         for(let j = 0; j < targetShape.length; j++) {
-            const sLine = [targetShape[j], targetShape[(j+1)%targetShape.length]];
+            const jNext = (j+1)%targetShape.length;
+            const sLine = [targetShape[j], targetShape[jNext]];
             const sL = sLine[1].subtract(sLine[0]);
             const sNorm = new Vector3(sL.z,0,-sL.x).normalize();
             
             let segRes = segmentToSegment(curr, targ, tL, tNorm, sLine[0], sLine[1]);
             if(segRes.type === "in_segment" && segRes.intersection) {
                 let dist = segRes.intersection.subtract(curr).lengthSquared();
-                if( dist > Epsilon*Epsilon && dist < maxLen) {
+                if( dist > Epsilon && dist < maxLen) {
                     let isEntry = (Vector3.Dot(sNorm, tL) < 0) ^ subtraction;
                     if(isEntry) {
                         if( dist < closestEntry ) {
@@ -468,10 +471,35 @@ export function combineOutlines(primary, primaryFillets, secondary, secondaryFil
                     }
                 }
             }
+            else if(segRes.type === "colinear" && segRes.isOverlapping) {
+                let hitPoint = sLine[1];
+                let hitIdx = (jNext+1)%outline.length;
+                if(Vector3.Dot(sL, tL)) {  // same dir
+                    if(!segRes.y1In) {
+                        hitPoint = targ;
+                        hitIdx = jNext;
+                        // console.log(`${currIdx} to ${targIdx} ending at eol jump ${hitPoint} ${jNext}`)
+                    }
+                }
+
+                // console.log(`hitting the colinear`)
+                const currToHit = TmpVectors.Vector3[6];
+                hitPoint.subtractToRef(curr,currToHit);
+                let dist = currToHit.lengthSquared();
+                if( dist > Epsilon*Epsilon && dist <= (closestEntry-Epsilon) ) {
+                    // console.log(`setting closest entry to d ${closestEntry} at ${hitPoint} ${hitIdx}`)
+                    closestEntry = dist;
+                    entry = hitPoint;
+                    entryNextIdx = hitIdx;
+                }
+                else {
+                    // console.log(`dist failed check: ${dist} (from ${hitPoint} to ${curr})`);
+                }
+            }
         }
         if( entry || exit ) {
             if(closestExit < closestEntry) {
-                console.log("started inside");
+                // console.log("started inside");
                 // we're in it.  uhhhh.
                 // target remains the same and push the entry point on the stack
                 output.pop();
@@ -493,6 +521,11 @@ export function combineOutlines(primary, primaryFillets, secondary, secondaryFil
                 targFillet = walkingFillets[nextWalkingIdx];
                 nextWalkingIdx = (nextWalkingIdx+1)%walkingShape.length;
             }
+            if(!hitSomething) {
+                output = [];
+                outputFillets = [];
+                hitSomething = true;
+            }
         }
         else {
             // console.log(`walking to ${targ}`);
@@ -511,7 +544,7 @@ export function combineOutlines(primary, primaryFillets, secondary, secondaryFil
             outputFillets = [];
             break;
         }
-    }  while(curr.subtract(output[0]).lengthSquared() > Epsilon*Epsilon);
+    }  while(output.length <= 1 || curr.subtract(output[0]).lengthSquared() > Epsilon*Epsilon);
     output.pop();
     outputFillets.pop();
     return {outline:output,fillets:outputFillets};
@@ -532,7 +565,7 @@ export function fixupOutline(outline, originalOutline, fillets, intersectionFill
             currIdx = i;
         }
     }
-    console.log(`starting at ${currIdx}`)
+    // console.log(`starting at ${currIdx}`)
     let targIdx = (currIdx+1)%outline.length;
     let targ = outline[targIdx];
     
@@ -923,62 +956,215 @@ export function offsetOutlinePoints(outline, offset, skippedPoints) {
     return newOutline;
 }
 
+function getFilletPoints(fillet, prev, point, next, offsetPrevLine, offsetNextLine) {
+    let offset0 = offsetPrevLine || 0;
+    let offset1 = offsetNextLine || 0;
+    const nextVec = next.subtract(point);
+    const nextLen = nextVec.length();
+    const nextDir = nextVec.normalizeFromLength(nextLen);
+    const prevVec = point.subtract(prev);
+    const prevLen = prevVec.length();
+    const prevDir = prevVec.normalizeFromLength(prevLen);
+    const nextNorm = new Vector3(nextDir.z, 0, -nextDir.x);
+    const prevNorm = new Vector3(prevDir.z, 0, -prevDir.x);
+
+    const nDotP = Vector3.Dot(nextDir,prevDir);
+
+    if ( Math.abs(nDotP) < 0.99) {
+        let flip = Vector3.Dot(prevNorm,nextDir) > 0;
+        if( flip ) {
+            fillet = -fillet;
+            offset0 = -offset0;
+            offset1 = -offset1;
+        }
+        let filletCenter = lineLineIntersection(point.add(prevNorm.scale(offset0-fillet)), prevNorm,
+                                                point.add(nextNorm.scale(offset1-fillet)), nextNorm);
+
+        if(filletCenter) {
+            return {center: filletCenter,
+                    entry: filletCenter.add(prevNorm.scale(fillet)),
+                    exit: filletCenter.add(nextNorm.scale(fillet))}
+                    // entry: prev.add(prevDir.scale(Vector3.Dot(filletCenter.subtract(prev),prevDir))),
+                    // exit: point.add(nextDir.scale(Vector3.Dot(filletCenter.subtract(point),nextDir)))}
+        }
+    }
+    return null;
+}
+
+function getFilletArc(entryNorm,exitNorm,flip) {
+    let startRot = getRotFromNormal(entryNorm)+ Math.PI * 2;
+    let endRot = getRotFromNormal(exitNorm)+ Math.PI * 2;
+    if(flip) {
+        startRot += Math.PI;
+        endRot += Math.PI;
+        while (startRot < endRot) {
+            startRot += Math.PI * 2;
+        }
+    }
+    else {
+        while (endRot < startRot) {
+            endRot += Math.PI * 2;
+        }
+    }
+    let totRot = endRot - startRot;
+    return {total:totRot, end:endRot};
+}
+
 export function filletOutline(outline, fillets, close) {
     let vectorOutline = [];
+    let filletInfos = [].fill(null,0,outline.length);
+    let filletCenters = [].fill(null,0,outline.length);
+    let entryPoints = [].fill(null,0,outline.length);
+    let exitPoints = [].fill(null,0,outline.length);
     // turn fillets into array if it's just a value
     if(fillets && !Array.isArray(fillets)) {
         fillets = (new Array(outline.length)).fill(fillets)
     }
+
     for (let i = 0; i < outline.length; i++) {
         const point = outline[i];
+        if (!fillets) {
+            continue;
+        }
+        let fillet = fillets[i];
         const next = outline[(i + 1) % outline.length];
         const prev = outline[(i - 1 + outline.length) % outline.length];
-        const nextVec = next.subtract(point);
-        const nextLen = nextVec.length();
-        const nextDir = nextVec.normalizeFromLength(nextLen);
+
+        filletInfos[i] = getFilletPoints(fillet,prev,point,next);
+    }
+
+    let lastValidEntryIndex = null;
+    let danglingExitIndex = null;
+    for (let i = 0; i < outline.length; i++) {
+        const point = outline[i];
+        if(!filletInfos[i]) {
+            vectorOutline.push(new Point(point));
+            continue;
+        }
+        
+        const filletInfo = filletInfos[i];
+        const filletCenter = filletInfo.center;
+        const entryPoint = filletInfo.entry;
+        const exitPoint = filletInfo.exit;
+        const prevIdx = (i - 1 + outline.length) % outline.length;
+        const prev = outline[prevIdx];
+        const prevExit = filletInfos[prevIdx]?filletInfos[prevIdx].exit:prev;
+        const nextIdx = (i + 1) % outline.length;
+        const next = outline[nextIdx];
+        const nextEntry = filletInfos[nextIdx]?filletInfos[nextIdx].entry:next;
         const prevVec = point.subtract(prev);
         const prevLen = prevVec.length();
         const prevDir = prevVec.normalizeFromLength(prevLen);
-        const nextNorm = new Vector3(nextDir.z, 0, -nextDir.x);
-        const prevNorm = new Vector3(prevDir.z, 0, -prevDir.x);
+        const nextVec = next.subtract(point);
+        const nextLen = nextVec.length();
+        const nextDir = nextVec.normalizeFromLength(nextLen);
 
-        const nDotP = Vector3.Dot(nextDir,prevDir);
+        // console.log(`first check ${Vector3.Dot(prevExit.subtract(prev),prevDir)} <= ${Vector3.Dot(entryPoint.subtract(prev),prevDir)}`)
+        if(Vector3.Dot(prevExit.subtract(prev),prevDir) <= Vector3.Dot(entryPoint.subtract(prev),prevDir)) {
+            if(lastValidEntryIndex !== null) {
+                console.log(`CRAP OVERWRITING INDEX ${lastValidEntryIndex} with ${i}`);
+            }
+            lastValidEntryIndex = i;
+        }
 
-        if (!fillets || Math.abs(nDotP) > 0.99) {
-            vectorOutline.push(new Point(point));
+        // console.log(`second check ${Vector3.Dot(nextEntry.subtract(point),nextDir)} >= ${Vector3.Dot(exitPoint.subtract(point),nextDir)}`)
+        if(Vector3.Dot(nextEntry.subtract(point),nextDir) < Vector3.Dot(exitPoint.subtract(point),nextDir)) {
+            if(i == outline.length-1 && danglingExitIndex !== null) {
+                console.log(`oh boy we're at the end and have a dangling index!`);
+            }
+            continue;
+        }
+
+        if(lastValidEntryIndex===i) {
+            let fillet = fillets[i];
+            const nextNorm = new Vector3(nextDir.z, 0, -nextDir.x);
+            const prevNorm = new Vector3(prevDir.z, 0, -prevDir.x);
+    
+            let flip = Vector3.Dot(prevNorm,nextDir) > 0;
+
+            const arcRots = getFilletArc(prevNorm,nextNorm,flip);
+            vectorOutline.push(new Point(entryPoint));
+            vectorOutline.push(new Arc(filletCenter, fillet, arcRots.total, arcRots.end))
+            lastValidEntryIndex = null;
+        }
+        else if(lastValidEntryIndex!==null) {
+            const pPIdx = (lastValidEntryIndex - 1 + outline.length) % outline.length;
+            const pP = outline[pPIdx];
+            const p0 = outline[lastValidEntryIndex];
+            const p1 = outline[i];
+            const pN = outline[nextIdx];
+
+            let fillet0 = fillets[lastValidEntryIndex];
+            let fillet1 = fillets[i];
+            const prevVec = p0.subtract(pP);
+            const prevLen = prevVec.length();
+            const prevDir = prevVec.normalizeFromLength(prevLen);
+            const prevNorm = new Vector3(prevDir.z, 0, -prevDir.x);
+            const midVec = p1.subtract(p0);
+            const midLen = midVec.length();
+            const midDir = midVec.normalizeFromLength(midLen);
+            const midNorm = new Vector3(midDir.z, 0, -midDir.x);
+            const nextVec = pN.subtract(p1);
+            const nextLen = nextVec.length();
+            const nextDir = nextVec.normalizeFromLength(nextLen);
+            const nextNorm = new Vector3(nextDir.z, 0, -nextDir.x);
+
+            const nDotP = Vector3.Dot(nextDir,prevDir);
+
+            let corners0 = getFilletPoints(fillet0,pP,p0,p1);
+            let corners1 = getFilletPoints(fillet1,p0,p1,pN);
+            
+            if(!corners0 || !corners1) {
+                vectorOutline.push(new Point(p0));
+                vectorOutline.push(new Point(p1));
+            }
+            else {
+                const c0L = corners0.exit.subtract(p0).length();
+                const c1L = corners1.entry.subtract(p0).length();
+                let flip0 = Vector3.Dot(prevNorm,midDir) > 0;
+                let flip1 = Vector3.Dot(midNorm,nextDir) > 0;
+                let midNorm0 = midNorm;
+                let midNorm1 = midNorm;
+
+                if( nDotP > Epsilon && c1L < c0L ) {
+                    const adjMeetingPoint = corners0.exit.add(corners1.entry).scale(0.5);
+                    const adjAmt = corners0.exit.subtract(adjMeetingPoint).length();
+                    const moveLineBy = fillet0 - Math.sqrt(fillet0*fillet0 - adjAmt*adjAmt);
+                    
+                    // find fillet points AGAIN
+                    corners0 = getFilletPoints(fillet0,pP,p0,p1,0,moveLineBy);
+                    corners0.exit = adjMeetingPoint;
+                    corners1 = getFilletPoints(fillet1,p0,p1,pN,moveLineBy,0);
+                    corners1.entry = adjMeetingPoint;
+
+                    if(flip0) {
+                        midNorm0 = corners0.center.subtract(corners0.exit).normalize();
+                    }
+                    else {
+                        midNorm0 = corners0.exit.subtract(corners0.center).normalize();
+                    }
+
+                    if(flip1) {
+                        midNorm1 = corners1.center.subtract(corners1.entry).normalize();
+                    } else {
+                        midNorm1 = corners1.entry.subtract(corners1.center).normalize()
+                    }
+                }
+                const arcRots = getFilletArc(prevNorm,midNorm0,flip0);
+                vectorOutline.push(new Point(corners0.entry));
+                // vectorOutline.push(new Point(corners0.exit));
+                vectorOutline.push(new Arc(corners0.center, fillet0, arcRots.total, arcRots.end))
+                
+                const arcRots1 = getFilletArc(midNorm1,nextNorm,flip1);
+                vectorOutline.push(new Point(corners1.entry));
+                // vectorOutline.push(new Point(corners1.exit));
+                vectorOutline.push(new Arc(corners1.center, fillet1, arcRots1.total, arcRots1.end))
+            }
+            lastValidEntryIndex = null;
         }
         else {
-            // todo:  should this be offset or some kind of scaled offset from inPoint/outPoint etc?
-            let fillet = Math.min(fillets[i],Math.min(prevLen,nextLen)*0.5);
-            let flip = Vector3.Dot(prevNorm,nextDir) > 0;
-            if( flip ) {
-                fillet = -fillet;
-            }
-            let filletCenter = lineLineIntersection(point.add(prevNorm.scale(-fillet)), prevNorm,
-                                                    point.add(nextNorm.scale(-fillet)), nextNorm);
-
-            if(!filletCenter) {
-                vectorOutline.push(new Point(point));
-                continue;
-            }
-
-            vectorOutline.push(new Point(filletCenter.add(prevNorm.scale(fillet))));
-
-            let startRot = getRotFromNormal(prevNorm)+ Math.PI * 2;
-            let endRot = getRotFromNormal(nextNorm)+ Math.PI * 2;
-            if(flip) {
-                startRot += Math.PI;
-                endRot += Math.PI;
-                fillet = -fillet;
-                if (startRot < endRot) {
-                    startRot += Math.PI * 2;
-                }
-            }
-            else if (endRot < startRot) {
-                endRot += Math.PI * 2;
-            }
-            let totRot = endRot - startRot;
-            vectorOutline.push(new Arc(filletCenter, fillet, totRot, endRot))
+            console.log(`dangler!  gonna have to clean that up`);
+            danglingExitIndex = i;
         }
     }
 
@@ -989,16 +1175,80 @@ export function filletOutline(outline, fillets, close) {
     return vectorOutline;    
 }
 
-export function offsetAndFixOutlinePoints(outline, offset, fillets, close) {
+
+// export function filletOutline(outline, fillets, close) {
+//     let vectorOutline = [];
+//     // turn fillets into array if it's just a value
+//     if(fillets && !Array.isArray(fillets)) {
+//         fillets = (new Array(outline.length)).fill(fillets)
+//     }
+//     for (let i = 0; i < outline.length; i++) {
+//         const point = outline[i];
+//         const next = outline[(i + 1) % outline.length];
+//         const prev = outline[(i - 1 + outline.length) % outline.length];
+//         const nextVec = next.subtract(point);
+//         const nextLen = nextVec.length();
+//         const nextDir = nextVec.normalizeFromLength(nextLen);
+//         const prevVec = point.subtract(prev);
+//         const prevLen = prevVec.length();
+//         const prevDir = prevVec.normalizeFromLength(prevLen);
+//         const nextNorm = new Vector3(nextDir.z, 0, -nextDir.x);
+//         const prevNorm = new Vector3(prevDir.z, 0, -prevDir.x);
+
+//         const nDotP = Vector3.Dot(nextDir,prevDir);
+
+//         if (!fillets || Math.abs(nDotP) > 0.99) {
+//             vectorOutline.push(new Point(point));
+//         }
+//         else {
+//             // todo:  should this be offset or some kind of scaled offset from inPoint/outPoint etc?
+//             let fillet = Math.min(fillets[i],Math.min(prevLen,nextLen)*0.5);
+//             let flip = Vector3.Dot(prevNorm,nextDir) > 0;
+//             if( flip ) {
+//                 fillet = -fillet;
+//             }
+//             let filletCenter = lineLineIntersection(point.add(prevNorm.scale(-fillet)), prevNorm,
+//                                                     point.add(nextNorm.scale(-fillet)), nextNorm);
+
+//             if(!filletCenter) {
+//                 vectorOutline.push(new Point(point));
+//                 continue;
+//             }
+
+//             vectorOutline.push(new Point(filletCenter.add(prevNorm.scale(fillet))));
+
+//             let startRot = getRotFromNormal(prevNorm)+ Math.PI * 2;
+//             let endRot = getRotFromNormal(nextNorm)+ Math.PI * 2;
+//             if(flip) {
+//                 startRot += Math.PI;
+//                 endRot += Math.PI;
+//                 fillet = -fillet;
+//                 if (startRot < endRot) {
+//                     startRot += Math.PI * 2;
+//                 }
+//             }
+//             else if (endRot < startRot) {
+//                 endRot += Math.PI * 2;
+//             }
+//             let totRot = endRot - startRot;
+//             vectorOutline.push(new Arc(filletCenter, fillet, totRot, endRot))
+//         }
+//     }
+
+//     if (close) {
+//         vectorOutline.push(vectorOutline[0]);
+//     }
+
+//     return vectorOutline;    
+// }
+
+export function offsetAndFixOutlinePoints(outline, offset, fillets, drawDebug) {
     const isFilletArray = fillets && Array.isArray(fillets);
 
     let red = new Color4(1,0,0,1);
     let blue = new Color4(0,0,1,1);
     let green = new Color4(0,1,0,1);
     let yellow = new Color4(1,1,0,1);
-    if(false && outline.length > 0) {
-        gfx.drawDbgOutline("outline_orig",outline,red,green,true);
-    }
 
     // let fixup = {fixedOutline:[...outline],offsetPoints:[]};
     let fixup = {fixedOutline:[...outline],fillets:fillets};
@@ -1008,7 +1258,7 @@ export function offsetAndFixOutlinePoints(outline, offset, fillets, close) {
         fixup = copyWithoutColinear(fixup.fixedOutline,offset,isFilletArray?fixup.fillets:null);
         // console.log(`went from ${outlineLen} to ${fixup.fixedOutline.length}`);
     } 
-    if(false && fixup.offsetOutline.length > 0) {
+    if(drawDebug && fixup.offsetOutline.length > 0) {
         gfx.drawDbgOutline("outline_fixed_1",fixup.offsetOutline,blue,yellow,true);
     }
 
@@ -1017,6 +1267,10 @@ export function offsetAndFixOutlinePoints(outline, offset, fillets, close) {
     const offsetPoints = fixed.outline;//offsetOutlinePoints(fixedOutline,offset)
     if(!isFilletArray) {
         fillets = (new Array(offsetPoints.length)).fill(fillets)
+    }
+
+    if(drawDebug && offsetPoints.length > 0) {
+        gfx.drawDbgOutline("outline_orig",offsetPoints,red,green,false);
     }
 
     // return fixupOutline(offsetPoints,fixup.fixedOutline,fillets,fillets?fillets[0]:0.5);

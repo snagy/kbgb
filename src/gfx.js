@@ -431,7 +431,7 @@ export function getKeycap(profile, width, height, opts) {
             bestName = d;
         }
     }
-    console.log(`returning ${bestName.r}`);
+    // console.log(`returning ${bestName.r}`);
     return {container:best,preXform:xForm};
 }
 
