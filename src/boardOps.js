@@ -1049,6 +1049,8 @@ function finalizeLayout() {
 
         let pid = 0;
         let oid = 0;
+        let outlineConnections = {};
+        //assign outline index to each point (which outline that point belongs to)
         for(const [id,o] of Object.entries(kgOutlines)) {
             for(let i = 0; i < o.length; i++) {
                 const p = o[i];
@@ -1058,6 +1060,7 @@ function finalizeLayout() {
                 p.outlinePoints = [pid+((i+o.length-1)%o.length),pid+((i+1)%o.length)];
                 kPs.push(p);
             }
+            outlineConnections[oid] = [oid];
             oid += 1;
             pid += o.length;
         }
@@ -1252,8 +1255,12 @@ function finalizeLayout() {
             }
             // console.log(`nextAngle ${nextAngle}`)
         }
+
+
+        const outlineOutlinePairs = [];
         // this might not work, we might need an actual o -> o linkage
         for(const [ooId,ooEdges] of Object.entries(outlineLinks)) {
+            // sort the edges so the shortest ones are first
             ooEdges.sort((a,b) => {return a.dp.dist > b.dp.dist});
             let linkedPts = [];
             let minEdges = [];
@@ -1275,7 +1282,7 @@ function finalizeLayout() {
 
             // out of the set of short edges, find the two that are the farthest apart (in the center, maybe do seg->seg in the future?)
             let maxDist = -1;
-            let bestEdges = [];
+            let bestEdges = null;
             for(const e of minEdges) {
                 for(const oE of minEdges) {
                     if(e.p.pointIdx !== oE.p.pointIdx) {
@@ -1290,22 +1297,51 @@ function finalizeLayout() {
                 }
             }
 
+            if(bestEdges)
+            {
+                outlineOutlinePairs.push({outline1:Math.min(bestEdges[0].p.outlineIdx,bestEdges[0].dp.p.outlineIdx), 
+                                          outline2:Math.max(bestEdges[0].p.outlineIdx,bestEdges[0].dp.p.outlineIdx),
+                                          maxDist:maxDist,
+                                          edgeLength:bestEdges[0].dp.dist+bestEdges[1].dp.dist,
+                                          bestEdges:bestEdges});
+            }
+        }
 
+        outlineOutlinePairs.sort((a,b) => a.edgeLength - b.edgeLength);
 
+        for(const ooPair of outlineOutlinePairs) {
             // set the linking edges in the points  (todo: this should be an array that we rotationally sort)
-            for(const e of bestEdges) {
-                if(!e.p.linkingEdges) {
-                    e.p.linkingEdges = [];
+
+            let mergeArrays = function(a,b) {
+                for(const c of a) {
+                    if(!b.includes(c)) {
+                        b.push(c);
+                    }
                 }
-                e.p.linkingEdges.push(e.dp);
-                const revP = kPs[e.dp.p.pointIdx];
-                for(const dp of revP.delaunayPoints) {
-                    if(dp.p.pointIdx === e.p.pointIdx) {
-                        if(!revP.linkingEdges) {
-                            revP.linkingEdges = [];
+                for(const c of b) {
+                    if(!a.includes(c)) {
+                        a.push(c);
+                    }
+                }
+            }
+            if(ooPair.edgeLength < 20 || !outlineConnections[ooPair.outline1].includes(ooPair.outline2))
+            {
+                mergeArrays(outlineConnections[ooPair.outline1],outlineConnections[ooPair.outline2]);
+                const bestEdges = ooPair.bestEdges;
+                for(const e of bestEdges) {
+                    if(!e.p.linkingEdges) {
+                        e.p.linkingEdges = [];
+                    }
+                    e.p.linkingEdges.push(e.dp);
+                    const revP = kPs[e.dp.p.pointIdx];
+                    for(const dp of revP.delaunayPoints) {
+                        if(dp.p.pointIdx === e.p.pointIdx) {
+                            if(!revP.linkingEdges) {
+                                revP.linkingEdges = [];
+                            }
+                            revP.linkingEdges.push(dp);
+                            break;
                         }
-                        revP.linkingEdges.push(dp);
-                        break;
                     }
                 }
             }
@@ -1671,6 +1707,7 @@ export function refreshCase() {
                     // lerp here.
                     if(p.concavityDepth === 0) {
                         lRD.outline.push(p.scale(concavityRem).add(cRD.outlineTargets[p.pointIdx].scale(1.0-concavityRem)));
+                        // lRD.outline.push(p);
                     }
                     else {
                         lRD.outline.push(p.add(p.lerpTarget.scale(1.0-concavityRem)));
@@ -1688,7 +1725,7 @@ export function refreshCase() {
                 maxConcaveLayer = lRD;
             }
 
-            if(cBD.forceSymmetrical && false) {
+            if(cBD.forceSymmetrical) {
                 let midPoint = (bounds.maxs[0] - bounds.mins[0]) * 0.5 + bounds.mins[0];
                 let cvPs = [];
                 for(let oP of lRD.outline) {
@@ -1699,7 +1736,7 @@ export function refreshCase() {
                 const caseCornerFillet = boardData.layerGetValue(cBD, layerName, "caseCornerFillet");
                 let outlineFillets = (new Array(lRD.outline.length)).fill(caseCornerFillet);
                 const combined = coremath.combineOutlines(lRD.outline,outlineFillets,cvPs,outlineFillets,caseCornerFillet,false);
-                if(layerName === "bezel") {
+                if(false && layerName === "bezel") {
                     let red = new Color4(1,0,0,1);
                     let blue = new Color4(0,0,1,1);
                     let green = new Color4(0,1,0,1);

@@ -473,7 +473,7 @@ export function combineOutlines(primary, primaryFillets, secondary, secondaryFil
             }
             else if(segRes.type === "colinear" && segRes.isOverlapping) {
                 let hitPoint = sLine[1];
-                let hitIdx = (jNext+1)%outline.length;
+                let hitIdx = (jNext+1)%targetShape.length;
                 if(Vector3.Dot(sL, tL)) {  // same dir
                     if(!segRes.y1In) {
                         hitPoint = targ;
