@@ -398,7 +398,15 @@ export function getKeycap(profile, width, height, opts) {
     }
     else if(profile == "KRK") {
         if(opts.vertical) {
-            opts.h = height;
+            // KRK ONLY HAS 2U VERTICALS (because folks only have 2u verticals, afaik)
+            if(height === 2) {
+                opts.h = height;
+            }
+            else {
+                width = height;
+                height = 1;
+                xForm = Matrix.RotationY(Math.PI / 2);
+            }
         }
     }
 
