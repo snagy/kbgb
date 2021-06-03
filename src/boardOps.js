@@ -1025,7 +1025,9 @@ function finalizeLayout() {
     const kRD = globals.renderData.keys;
     globals.renderData.layoutData = {};
     for(const [caseIdx,cBD] of Object.entries(bd.cases)) {
-        let keyGroups = findOverlappingGroups(kRD, "bezelHoles", caseIdx);
+        let polyGroupName = "bezelHoles";
+
+        let keyGroups = findOverlappingGroups(kRD, polyGroupName, caseIdx);
         let kgOutlines = {};
 
         if( Object.keys(keyGroups).length > 0 ) {
@@ -1038,6 +1040,60 @@ function finalizeLayout() {
             continue;
         }
 
+        let bezelCuts = kgOutlines;
+
+        if(cBD.forceSymmetrical) {
+            let combinedPolyGroupName = "bezelHolesMirrored"
+            const bounds = { mins:[100000.0, 100000.0],
+                maxs:[-100000.0, -100000.0] };
+
+            for (const [id, rd] of Object.entries(kRD)) {
+                if(rd.caseIdx != caseIdx)  {
+                    continue;
+                }
+                for(const poly of rd[polyGroupName]) {
+                    for(let oP of poly.points) {
+                        bounds.mins[0] = Math.min(bounds.mins[0],oP.x);
+                        bounds.maxs[0] = Math.max(bounds.maxs[0],oP.x);
+                        bounds.mins[1] = Math.min(bounds.mins[1],oP.z);
+                        bounds.maxs[1] = Math.max(bounds.maxs[1],oP.z);
+                    }
+                }
+            }
+
+            let midPoint = (bounds.maxs[0] - bounds.mins[0]) * 0.5 + bounds.mins[0];
+            for (const [id, rd] of Object.entries(kRD)) {
+                if(rd.caseIdx != caseIdx)  {
+                    continue;
+                }
+                rd[combinedPolyGroupName] = [];
+                for(const poly of rd[polyGroupName]) {
+                    // rd[combinedPolyGroupName].push(poly);
+                    const newPoints = []
+                    const points = [];
+                    for(let oP of poly.points) {
+                        newPoints.push(new Vector3(midPoint - (oP.x - midPoint), oP.y, oP.z));
+                        points.push(oP);
+                    }
+                    newPoints.reverse();
+                    rd[combinedPolyGroupName].push(new coremath.Poly(newPoints));
+                    rd[combinedPolyGroupName].push(new coremath.Poly(points));
+                }
+            }
+            polyGroupName = combinedPolyGroupName;
+            let groups = findOverlappingGroups(kRD, polyGroupName, caseIdx);
+            kgOutlines = {};
+    
+            if( Object.keys(groups).length > 0 ) {
+                for(const [kgId, KG] of Object.entries(groups)) {
+                    let outline = getCombinedOutlineFromPolyGroup(KG);
+                    kgOutlines[kgId] = outline;
+                }
+            }
+            else {
+                continue;
+            }
+        }
 
         let kPs = [];
 
@@ -1503,7 +1559,7 @@ function finalizeLayout() {
         gfx.drawDbgLines("edgeVoronois",eps,ecs)
         console.log(`finished?`);
         // gfx.drawDbgOutline("realOutline", realOutline);
-        globals.renderData.layoutData[caseIdx] = {bounds:bounds, keyGroups:keyGroups,convexHull:convexHull,kgOutlines:kgOutlines,minOutline:realOutline,kPs:kPs,thetaValues:thetaValues};
+        globals.renderData.layoutData[caseIdx] = {bounds:bounds, keyGroups:keyGroups,convexHull:convexHull,kgOutlines:bezelCuts,minOutline:realOutline,kPs:kPs,thetaValues:thetaValues};
     }
 }
 
@@ -1723,30 +1779,6 @@ export function refreshCase() {
             if(layerDef.tuneable !== null && concavity > maxConcavity) {
                 maxConcavity = concavity;
                 maxConcaveLayer = lRD;
-            }
-
-            if(cBD.forceSymmetrical) {
-                let midPoint = (bounds.maxs[0] - bounds.mins[0]) * 0.5 + bounds.mins[0];
-                let cvPs = [];
-                for(let oP of lRD.outline) {
-                    cvPs.push(new Vector3(midPoint - (oP.x - midPoint), oP.y, oP.z));
-                }
-                cvPs.reverse();
-
-                const caseCornerFillet = boardData.layerGetValue(cBD, layerName, "caseCornerFillet");
-                let outlineFillets = (new Array(lRD.outline.length)).fill(caseCornerFillet);
-                const combined = coremath.combineOutlines(lRD.outline,outlineFillets,cvPs,outlineFillets,caseCornerFillet,false);
-                if(false && layerName === "bezel") {
-                    let red = new Color4(1,0,0,1);
-                    let blue = new Color4(0,0,1,1);
-                    let green = new Color4(0,1,0,1);
-                    let yellow = new Color4(1,1,0,1);
-                    gfx.drawDbgOutline("outline_prev",lRD.outline,blue,blue,true);
-                    gfx.drawDbgOutline("outline_rev",cvPs,red,red,true);
-                    gfx.drawDbgOutline("outline_done",combined.outline,yellow,yellow,true);
-                }
-            
-                lRD.outline = combined.outline;
             }
             
             const bezelThickness = boardData.layerGetValue(cBD, layerName, "bezelThickness");

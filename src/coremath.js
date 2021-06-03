@@ -1,4 +1,3 @@
-import { off } from '@svgdotjs/svg.js';
 import {Epsilon, Vector3, Color4, TmpVectors} from 'babylonjs';
 import * as gfx from './gfx.js';
 
