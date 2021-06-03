@@ -781,14 +781,12 @@ export const kbgbGUI = {
                 let capProfileChange = (o,a,b) => {
                     boardOps.updateKeycapMorphTargets(o.val);
                 }
-                setCtrls.addControl(
-                    createDropdown(globals.screengui, boardData.getData().keycapProfile, capProfile, capProfileChange));
+                setCtrls.addControl(createDropdown(globals.screengui, boardData.getData().keycapProfile, capProfile, capProfileChange));
 
-
-                    setCtrls.addControl(addButton("add key", (e) => {
-                    boardOps.addKey();
-                    refreshLayout();
-                }, {height:buttonHeight, width:"120px"}));
+                setCtrls.addControl(addButton("add key", (e) => {
+                        boardOps.addKey();
+                        refreshLayout();
+                    }, {height:buttonHeight, width:"120px"}));
 
                 kbgbGUI.addKeyActionKeycode((k) => k.x -= 0.25*tuning.base1U[0], "ArrowLeft");
                 kbgbGUI.addKeyActionKeycode((k) => k.y -= 0.25*tuning.base1U[1], "ArrowUp");
@@ -815,6 +813,11 @@ export const kbgbGUI = {
                 let setKeyAction = (key,v) => kAction((k) => {
                     k[key] = v;
                 });
+
+                keyCtrls.addControl(addButton("add mirror", (e) => {
+                    boardOps.mirrorSelectedKeys();
+                    refreshLayout();
+                }, {height:buttonHeight, width:"120px"}));
 
                 var textInput = new InputText();
                 // textInput.maxWidth = 0.2;

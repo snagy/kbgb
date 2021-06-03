@@ -2058,7 +2058,7 @@ export function collapseLayers() {
     }
 }
 
-export function addKey() {
+export function addKey(kProps) {
     const bd = boardData.getData();
     let kIdx = Object.keys(bd.layout.keys).length;
     while(bd.layout.keys[`key${kIdx}`]) {
@@ -2088,7 +2088,38 @@ export function addKey() {
             "nub": false,
             "id":`key${kIdx}`
     }
+    if(kProps) {
+        for(const [p,v] of Object.entries(kProps)) {
+            k[p] = v;
+        }
+    }
     bd.layout.keys[k.id] = k;
+}
+
+export function mirrorSelectedKeys() {
+    let bd = boardData.getData();
+    const bounds = { mins:[100000.0, 100000.0],
+        maxs:[-100000.0, -100000.0] };
+
+    for (let kId of keyPicking.pickedKeys) {
+        let k = bd.layout.keys[kId];
+
+        bounds.mins[0] = Math.min(bounds.mins[0],k.x - tuning.base1U[0]*k.width/2);
+        bounds.maxs[0] = Math.max(bounds.maxs[0],k.x + tuning.base1U[0]*k.width/2);
+        bounds.mins[1] = Math.min(bounds.mins[1],k.y - tuning.base1U[1]*k.height/2);
+        bounds.maxs[1] = Math.max(bounds.maxs[1],k.y + tuning.base1U[1]*k.height/2);
+    }
+
+
+    for (let kId of keyPicking.pickedKeys) {
+        let k = {...bd.layout.keys[kId]};
+        delete k.id;
+
+        k.x += 2*(bounds.maxs[0] - k.x);
+        k.rotation_angle = -k.rotation_angle;
+
+        addKey(k);
+    }
 }
 
 export function removeKeyRD(kId) {
