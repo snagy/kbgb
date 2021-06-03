@@ -51,7 +51,7 @@ function loadKeyboardFromKBD(txt) {
 
 const keyboardPaths = [
     'testkbs/hy_nova.kbd',
-    'testkbs/ansi104.kle',
+    'testkbs/ansi104.kbd',
     'testkbs/fc660m.kbd',
     'testkbs/fake_alice.kle',
     'testkbs/fake_alice_split.kle',
