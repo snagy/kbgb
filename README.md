@@ -25,8 +25,9 @@ npm link @ijprest/kle-serial
     pos xyz = 0,0,0
     scale = (1000,-1000,1000)
     ortho view down z axis
-    uv unwrap -> project from view
+    uv unwrap -> project from view (bounds)
     export gltf
 
 
 krk iso enter x/y = -9525 mm, 9525 mm
+KRK bae enter x/y = -7143.75 mm, 9525 mm

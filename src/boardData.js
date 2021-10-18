@@ -147,6 +147,10 @@ export function loadData(data) {
                     keyInfo.row = "special";
                     keyInfo.special = "ISO";
                 }
+                else if(k.width2 === 2.25 && k.height2 === 1 && k.width === 1.5 && k.height === 2 && k.x2 === -0.75 ) {
+                    keyInfo.row = "special";
+                    keyInfo.special = "BAE";
+                }
                 else if(k.width2 === 1.75 && k.height2 === 1 && k.width === 1.25 && k.x2 === 0) {
                     // stepped is..uhhh...weird.            
                     // keyInfo.width = 1.75;

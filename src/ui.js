@@ -647,7 +647,8 @@ const keySizeOptions = [
     {txt:"EC11-19", type:"ec11", rad:19.05},
     {txt:"EC11-30", type:"ec11", rad:30},
     {txt:"ISO"},
-    {txt:"1.75U STEPPED"}
+    {txt:"1.75U STEPPED"},
+    {txt:"BAE"}
 ];
 
 function refreshLayout() {

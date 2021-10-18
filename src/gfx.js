@@ -478,7 +478,8 @@ const krkList = {
     "5r_6u_c.glb": {r:5, w:6, convex:true},
     "5r_6_25u_c.glb": {r:5, w:6.25, convex:true},
     "5r_7u_c.glb": {r:5, w:7, convex:true},
-    "ISO_enter.glb": {r:"special", w:"ISO", type:"ISO ENTER", nub:false, stepped:false}
+    "ISO_enter.glb": {r:"special", w:"ISO", special:"ISO", nub:false, stepped:false},
+    "BAE.glb": {r:"special", w:"BAE", special:"BAE", nub:false, stepped:false}
 }
 
 const katList = {
