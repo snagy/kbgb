@@ -4,6 +4,11 @@ import {tuning} from './tuning.js';
 import * as coremath from './coremath.js';
 import {Matrix, Vector3, Epsilon, TmpVectors} from 'babylonjs'
 import FlatQueue from 'flatqueue';
+import {wasmImport} from './bootstrap.js';
+
+// import { PCBData } from "kbgb-wasm";
+// import { memory } from "kbgb-wasm/kbgb_wasm_bg";
+
 
 // DRL = drill  
 // GKO = outline           +
@@ -207,7 +212,7 @@ function createMatrix(pcb) {
 
                 let ogCol = colGuess;
                 let ogRow = rowGuess;
-                console.log(`initial guess: row ${rowGuess} col ${colGuess}`)
+                // console.log(`initial guess: row ${rowGuess} col ${colGuess}`)
                 while( matrix[rowGuess][colGuess] ) {
                     colGuess += 1;
                     //TODO BETTER INSERTION HERE
@@ -366,6 +371,15 @@ function genSDF(pcb) {
 export function createNets(pcb) {
     const startTime = window.performance.now();
     const matrix = createMatrix(pcb);
+
+    console.log(wasmImport.PCBData);
+    const pcbData = wasmImport.PCBData.new();
+    console.log(pcbData);
+    pcbData.set_bounds(pcb.outlineBounds.mins[0],pcb.outlineBounds.mins[1],pcb.outlineBounds.maxs[0],pcb.outlineBounds.maxs[1]);
+    const pcbX = pcbData.route();
+    console.log(`pcbX ${pcbX}`);
+
+    return;
 
     const matrixCreatedTime = window.performance.now();
     const cellSizeMM = 0.8;// via size, was

@@ -2,11 +2,13 @@ import {globals} from './globals.js';
 import {tuning} from './tuning.js';
 import * as coremath from './coremath.js';
 import * as gfx from './gfx.js';
-import * as pcb from './pcbOps.js';
+import * as pcbOps from './pcbOps.js';
 import * as keyPicking from './keyPicking.js';
 import * as boardData from './boardData.js';
 import {Vector3, Vector4, MeshBuilder, Matrix, Epsilon, Color3, Color4,
         Animation, EasingFunction, QuinticEase, TransformNode, DynamicTexture, Scalar} from 'babylonjs'
+import {wasmImport} from './bootstrap.js';
+
 
 function getPlateCutsWithStabs(id,width,height,kXform,flipStab,plateCuts,caseIdx) {
     let switchCutDims = [tuning.switchCutout[0]*0.5, tuning.switchCutout[1]*0.5];
@@ -20,7 +22,7 @@ function getPlateCutsWithStabs(id,width,height,kXform,flipStab,plateCuts,caseIdx
     if(width !== 666) {
         plateCuts.push(coremath.createRectPoly(switchCutDims[0], switchCutDims[1], sXform));
 
-        pcb.addDevice(id, "mx_hotswap", sXform, caseIdx);
+        pcbOps.addDevice(id, "mx_hotswap", sXform, caseIdx);
     }
 
     let span = width;
@@ -81,7 +83,7 @@ function getPlateCutsWithStabs(id,width,height,kXform,flipStab,plateCuts,caseIdx
 
         for(let j = 0; j < stabXforms.length; j++) {
             plateCuts.push(coremath.createRectPoly(stabCutDims[0], stabCutDims[1], stabXforms[j]));
-            pcb.addDevice(id, "stab", stabPCBXforms[j], caseIdx);
+            pcbOps.addDevice(id, "stab", stabPCBXforms[j], caseIdx);
         }
     }
 }
@@ -106,11 +108,20 @@ export function updateKeycapMorphTargets(newProfileName) {
     }
 }
 
+let nextkId = 1;
+const kIdMap = {};
 export function refreshLayout() {
     const scene = globals.scene;
     const bd = boardData.getData();
+    if(!wasmImport.BoardGeometry) {
+        console.log(`skipping update until wasm loads`);
+        return;
+    }
+    const rBD = wasmImport.BoardGeometry.new();
+    bd.wasmBD = rBD;
+    bd.wasmCases = {};
 
-    pcb.clearPCBs();
+    pcbOps.clearPCBs();
 
     if(!bd.layout) { return; }
 
@@ -128,13 +139,26 @@ export function refreshLayout() {
                         caseIdx:k.caseIdx||0
                     };
         }
-
         let rd = kRD[id];
+
+        if(!bd.wasmCases[rd.caseIdx]) {
+            bd.wasmCases[rd.caseIdx] = wasmImport.CaseGeometry.new();
+        }
+        const wasmCase = bd.wasmCases[rd.caseIdx]
+
+        if(!kIdMap[id]) {
+            kIdMap[id] = nextkId++;
+            // rBD.add_key(rd.caseIdx, kIdMap[id], "key", k.x, k.y, k.width, k.height, k.rotation_angle * Math.PI / 180.0);
+            wasmCase.add_key(kIdMap[id], "key", k.x, k.y, k.width, k.height, k.rotation_angle * Math.PI / 180.0);
+        }
+
         rd.mins = [100000.0, 100000.0];
         rd.maxs = [-100000.0, -100000.0];
         rd.switchCut.length = 0;
         rd.bezelHoles.length = 0;
         const root = globals.renderData.cases[rd.caseIdx].rootXform;
+
+        let combinedOutline = [];
 
         if(k.type === "oled") {
             //oled sizing: greater than 38 x 12    20.1*2 x 14.1 ?
@@ -150,9 +174,9 @@ export function refreshLayout() {
             
             rd.switchCut.push(coremath.createRectPoly(oledDim[0] + tuning.bezelGap, oledDim[1] + tuning.bezelGap, kXform));
 
-            pcb.addDevice(k.id, k.type, kXform, rd.caseIdx);
+            pcbOps.addDevice(k.id, k.type, kXform, rd.caseIdx);
 
-            rd.outline = getCombinedOutlineFromPolyGroup(keyOutlines);
+            combinedOutline = getCombinedOutlineFromPolyGroup(keyOutlines);
             if (rd.keycap) {
                 gfx.removeMesh(rd.keycap);
             }
@@ -165,7 +189,7 @@ export function refreshLayout() {
                 faceUV[0] = new Vector4(0, 0, 1, 1);
                 faceUV[1] = new Vector4(0, 0, 0, 0);
                 faceUV[2] = new Vector4(0, 0, 0, 0);
-                rd.keycap = MeshBuilder.CreatePolygon(id, { shape: coremath.genArrayFromOutline(rd.outline,0,0.25), faceUV: faceUV, depth: 2, smoothingThreshold: 0.1, updatable: false }, scene);
+                rd.keycap = MeshBuilder.CreatePolygon(id, { shape: coremath.genArrayFromOutline(combinedOutline,0,0.25), faceUV: faceUV, depth: 2, smoothingThreshold: 0.1, updatable: false }, scene);
                 if(keyPicking.pickedKeys.indexOf(id)>=0) {
                     rd.keycap.renderOverlay = true;
                 }
@@ -207,9 +231,9 @@ export function refreshLayout() {
             
             rd.switchCut.push(coremath.createRectPoly(switchCutDims[0], switchCutDims[1], kXform));
             
-            pcb.addDevice(k.id, k.type, kXform, rd.caseIdx);
+            pcbOps.addDevice(k.id, k.type, kXform, rd.caseIdx);
             
-            rd.outline = getCombinedOutlineFromPolyGroup(keyOutlines);
+            combinedOutline = getCombinedOutlineFromPolyGroup(keyOutlines);
             if (rd.keycap) {
                 gfx.removeMesh(rd.keycap);
             }
@@ -218,7 +242,7 @@ export function refreshLayout() {
             }
     
             if (tuning.keyShape) {
-                rd.keycap = MeshBuilder.CreatePolygon(id, { shape: coremath.genArrayFromOutline(rd.outline,0,0), depth: 15, bevel:0.5, smoothingThreshold: -2, updatable: false }, scene);
+                rd.keycap = MeshBuilder.CreatePolygon(id, { shape: coremath.genArrayFromOutline(combinedOutline,0,0), depth: 15, bevel:0.5, smoothingThreshold: -2, updatable: false }, scene);
                 if(keyPicking.pickedKeys.indexOf(id)>=0) {
                     rd.keycap.renderOverlay = true;
                 }
@@ -233,8 +257,8 @@ export function refreshLayout() {
             }
         }
         else { //normal keycap
-            let keycapDim = [(tuning.keyDims[0] + tuning.base1U[0] * (k.width - 1)) / 2,
-                            (tuning.keyDims[1] + tuning.base1U[1] * (k.height - 1)) / 2];
+            let keycapDim = [(tuning.keyDims[0] + tuning.base1U[0] * (k.width  - 1)) / 2,
+                             (tuning.keyDims[1] + tuning.base1U[1] * (k.height - 1)) / 2];
 
             let kXform = Matrix.Translation(k.x, 0, -k.y);
             if (k.rotation_angle != 0) {
@@ -262,6 +286,8 @@ export function refreshLayout() {
             
             getPlateCutsWithStabs(k.id,k.width,k.height,kXform,k.flipStab,rd.switchCut,rd.caseIdx);
             
+            combinedOutline = getCombinedOutlineFromPolyGroup(keyOutlines);
+
             if(!rd.switch) {
                 const switchGLTF = gfx.switchAsset.container;
                 if( switchGLTF ) {
@@ -280,7 +306,6 @@ export function refreshLayout() {
                 rd.switch.setPreTransformMatrix(kcXform);
             }
 
-            rd.outline = getCombinedOutlineFromPolyGroup(keyOutlines);
             // if (rd.keycap) {
             //     gfx.removeMesh(rd.keycap);
             // }
@@ -325,7 +350,7 @@ export function refreshLayout() {
                     gfx.addShadows(rd.keycap);
                 }
                 else {
-                    rd.keycap = MeshBuilder.CreatePolygon(id, { shape: coremath.genArrayFromOutline(rd.outline,0,0.25), depth: 7, smoothingThreshold: 0.1, updatable: false }, scene);
+                    rd.keycap = MeshBuilder.CreatePolygon(id, { shape: coremath.genArrayFromOutline(combinedOutline,0,0.25), depth: 7, smoothingThreshold: 0.1, updatable: false }, scene);
                     rd.keycap.isProceduralCap = true;
                     rd.keycap.parent = root;
                     rd.keycap.preXform = null;
@@ -382,12 +407,16 @@ export function refreshLayout() {
             }
         }
 
-        for (let p of rd.outline) {
+        for (let p of combinedOutline) {
             rd.mins[0] = Math.min(rd.mins[0], p.x);
             rd.maxs[0] = Math.max(rd.maxs[0], p.x);
             rd.mins[1] = Math.min(rd.mins[1], p.z);
             rd.maxs[1] = Math.max(rd.maxs[1], p.z);
         }
+
+        // console.log(`kid ${id}`);
+        // console.log(rBD.get_bezel_hole(kIdMap[id]));
+        // console.log(rd.bezelHoles);
     }
     
     finalizeLayout();
@@ -1024,8 +1053,15 @@ function finalizeLayout() {
     const bd = boardData.getData();
     const kRD = globals.renderData.keys;
     globals.renderData.layoutData = {};
+    console.log(`finalize wasm`);
+    console.log(bd.wasmBD);
+
+    //bd.wasmBD.find_overlapping_groups("bezel_holes");
     for(const [caseIdx,cBD] of Object.entries(bd.cases)) {
+        
+        bd.wasmCases[caseIdx].find_overlapping_groups("bezel_holes");
         let keyGroups = findOverlappingGroups(kRD, "bezelHoles", caseIdx);
+
         let kgOutlines = {};
 
         if( Object.keys(keyGroups).length > 0 ) {
@@ -1514,7 +1550,7 @@ export function refreshPCBs() {
         const layoutData = globals.renderData.layoutData[caseIdx];
 
         if(layoutData) {
-            pcb.refreshPCBOutline(layoutData.minOutline, caseIdx, cRD);
+            pcbOps.refreshPCBOutline(layoutData.minOutline, caseIdx, cRD);
         }
 
         // cBD.pcbBounds = globals.pcbData[caseIdx].outlineBounds;
@@ -1879,6 +1915,10 @@ export function refreshKeyboard() {
 
     // refreshOutlines();
     refreshCase();
+
+    for(const [cID,cRD] of Object.entries(globals.renderData.cases)) {
+        pcbOps.routePCB(cID);
+    }
 }
 
 export function updateRotation(cRD, cBD) {
@@ -2133,6 +2173,7 @@ export function loadKeyboard(data) {
     }
     
     refreshKeyboard();
+    
     gfx.snapCamera("angle");
 }
 

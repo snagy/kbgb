@@ -14,6 +14,7 @@ import Analytics from '@aws-amplify/analytics';
 // import Amplify from 'aws-amplify';
 import awsconfig from './aws-exports';
 
+
 Amplify.configure(awsconfig);
 Auth.configure({ mandatorySignIn: false});
 

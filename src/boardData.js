@@ -83,10 +83,10 @@ export function loadData(data) {
             if(k.labels) {
                 for(const label of k.labels) {
                     if(label) {
-                        console.log(`checking label ${label}`)
+                        // console.log(`checking label ${label}`)
                         let info = keyTypes.labelsInfo[label.toLowerCase()];
                         if(info) {
-                            console.log(`row guess ${info.row}`)
+                            // console.log(`row guess ${info.row}`)
                             rowGuess = info.row;
                             keyInfo.txt = label;
                             break;

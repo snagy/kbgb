@@ -1458,11 +1458,11 @@ export const kbgbGUI = {
                 ctrlBar.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
 
                 ctrlBar.addControl(addButton("DEBUG", () => {
-                            // for(const [cID,cRD] of Object.entries(globals.renderData.cases)) {
-                            //     pcbOps.routePCB(cID);
-                            // }
-                            // globals.debugCanvas.hidden = false;
-                            exportKeyboard();
+                            for(const [cID,cRD] of Object.entries(globals.renderData.cases)) {
+                                pcbOps.routePCB(cID);
+                            }
+                            globals.debugCanvas.hidden = false;
+                            // exportKeyboard();
                         }, {height:buttonHeight,width:"120px"}));
 
                 ctrlBar.addControl(addButton("export SVGs", () => {
