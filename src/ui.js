@@ -25,6 +25,8 @@ function download(content, fileName, contentType) {
     a.click();
 }
 
+const snapGridSizeInU = 0.125;
+
 const buttonHeight = "50px";
 const ctrlBarHeight = "50px";
 
@@ -346,8 +348,8 @@ let pointerController = {
                                 const savedKeyPos = pointerController.modes.keyMove.keyInfo[ok.id];
                                 const xDiff = 4*(k.x-k.width*tuning.base1U[0]*0.5 - savedKeyPos.x)/tuning.base1U[0];
                                 const yDiff = 4*(k.y-k.height*tuning.base1U[1]*0.5 - savedKeyPos.y)/tuning.base1U[0];
-                                savedKeyPos.x = savedKeyPos.x - (xDiff-Math.trunc(xDiff))*tuning.base1U[0]/4;
-                                savedKeyPos.y = savedKeyPos.y + (yDiff-Math.trunc(yDiff))*tuning.base1U[1]/4;
+                                savedKeyPos.x = savedKeyPos.x - (xDiff-Math.trunc(xDiff))*tuning.base1U[0] * snapGridSizeInU;
+                                savedKeyPos.y = savedKeyPos.y + (yDiff-Math.trunc(yDiff))*tuning.base1U[1] * snapGridSizeInU;
                             }
                         }
     
@@ -363,8 +365,8 @@ let pointerController = {
                             k.x = savedKeyPos.x + (hitLoc.x - pointerController.enterModePosition.x);
                             k.y = savedKeyPos.y - (hitLoc.z - pointerController.enterModePosition.z);
                         } else {
-                            k.x = savedKeyPos.x + Math.floor(4*(hitLoc.x - pointerController.enterModePosition.x)/tuning.base1U[0])*tuning.base1U[0]/4;
-                            k.y = savedKeyPos.y - Math.floor(4*(hitLoc.z - pointerController.enterModePosition.z)/tuning.base1U[1])*tuning.base1U[1]/4;
+                            k.x = savedKeyPos.x + Math.floor(4*(hitLoc.x - pointerController.enterModePosition.x)/tuning.base1U[0])*tuning.base1U[0]*snapGridSizeInU;
+                            k.y = savedKeyPos.y - Math.floor(4*(hitLoc.z - pointerController.enterModePosition.z)/tuning.base1U[1])*tuning.base1U[1]*snapGridSizeInU;
                         }
                     }
                 });
@@ -433,8 +435,8 @@ let pointerController = {
                 //                 let ok = bd.layout.keys[kId];
                 //                 const savedKeyPos = pointerController.modes.keyMove.keyInfo[ok.id];
                 //                 const rDiff = (k.rotation_angle-savedKeyPos.rotation_angle)/tuning.base1U[0];
-                //                 savedKeyPos.rotation_angle = savedKeyPos.x - (xDiff-Math.trunc(xDiff))*tuning.base1U[0]/4;
-                //                 savedKeyPos.y = savedKeyPos.y + (yDiff-Math.trunc(yDiff))*tuning.base1U[1]/4;
+                //                 savedKeyPos.rotation_angle = savedKeyPos.x - (xDiff-Math.trunc(xDiff))*tuning.base1U[0]*snapGridSizeInU;
+                //                 savedKeyPos.y = savedKeyPos.y + (yDiff-Math.trunc(yDiff))*tuning.base1U[1]*snapGridSizeInU;
                 //             }
                 //         }
     
@@ -803,10 +805,10 @@ export const kbgbGUI = {
                         refreshLayout();
                     }, {height:buttonHeight, width:"120px"}));
 
-                kbgbGUI.addKeyActionKeycode((k) => k.x -= 0.25*tuning.base1U[0], "ArrowLeft");
-                kbgbGUI.addKeyActionKeycode((k) => k.y -= 0.25*tuning.base1U[1], "ArrowUp");
-                kbgbGUI.addKeyActionKeycode((k) => k.y += 0.25*tuning.base1U[1], "ArrowDown");
-                kbgbGUI.addKeyActionKeycode((k) => k.x += 0.25*tuning.base1U[0], "ArrowRight");
+                kbgbGUI.addKeyActionKeycode((k) => k.x -= snapGridSizeInU*tuning.base1U[0], "ArrowLeft");
+                kbgbGUI.addKeyActionKeycode((k) => k.y -= snapGridSizeInU*tuning.base1U[1], "ArrowUp");
+                kbgbGUI.addKeyActionKeycode((k) => k.y += snapGridSizeInU*tuning.base1U[1], "ArrowDown");
+                kbgbGUI.addKeyActionKeycode((k) => k.x += snapGridSizeInU*tuning.base1U[0], "ArrowRight");
             
                 let keyCtrls = new StackPanel();  
                 keyCtrls.height = ctrlBarHeight;
