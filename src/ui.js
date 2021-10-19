@@ -643,13 +643,27 @@ const keySizeOptions = [
     {txt:"6.25U", width:6.25 },
     {txt:"7U", width:7 },
     {txt:"OLED", type:"oled"},
-    {txt:"EC11-18", type:"ec11", rad:18},
-    {txt:"EC11-19", type:"ec11", rad:19.05},
-    {txt:"EC11-30", type:"ec11", rad:30},
-    {txt:"ISO"},
-    {txt:"1.75U STEPPED"},
-    {txt:"BAE"}
+    {txt:"EC11-18", type:"ec11", encoder_knob_size:18},
+    {txt:"EC11-19", type:"ec11", encoder_knob_size:19.05},
+    {txt:"EC11-30", type:"ec11", encoder_knob_size:30},
+    // this is an awful way to do this.  someday deal with this elsewhere
+    {txt:"ISO", type:"special", special:"ISO", width: 1.25, height: 2, width2: 1.5, height2: 1, x2: -0.25, y2: 0},
+    {txt:"1.75U STEPPED", width:1.75, stepped:true},
+    {txt:"BAE", type:"special", special:"BAE", width:1.5, height: 2, width2: 2.25, height2: 1, x2: -0.75, y2: 1}
 ];
+
+const keySizeDefaults = {
+    width:1,
+    height:1,
+    width2:null,
+    height2:null,
+    x2:0,
+    y2:0,
+    nub:null,
+    type:"standard",
+    special:null,
+    encoder_knob_size:null
+};
 
 function refreshLayout() {
     boardOps.refreshLayout();
@@ -842,9 +856,13 @@ export const kbgbGUI = {
                 keyCtrls.addControl(textInput);    
 
                 let keySelectionAction = (o,a,b) => {
-                    setKeyAction("type", o.type);
-                    setKeyAction("width", o.width);
-                    setKeyAction("encoder_knob_size", o.rad);
+                    for (const [k, v] of Object.entries(keySizeDefaults)) {
+                        if(o[k]) {
+                            setKeyAction(k,o[k]);
+                        } else {
+                            setKeyAction(k,v);
+                        }
+                    }
                     refreshLayout();
                 }
 

@@ -9,7 +9,7 @@ module.exports = {
     // mode: 'development', devtool: 'source-map',
     mode: 'production',
     entry: './src/base.js',
-    //devtool: 'eval-source-map',
+    // devtool: 'eval-source-map',
     optimization: {
         usedExports: true,
       },

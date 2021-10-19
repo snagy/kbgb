@@ -291,11 +291,11 @@ export function refreshLayout() {
                 }
 
                 let primeSearch = k.width;
-                if(k.row === "special") {
-                    primeSearch = k.special;
+                let searchOpts = {vertical:k.vertical, special: k.special, stepped: k.stepped, nub: k.nub, r:k.row};
+                if(k.special && k.special !== "standard") {
+                    searchOpts.r = k.special;
                 }
-                let searchOpts = {vertical:k.vertical, stepped: k.stepped, nub: k.nub, r:k.row};
-                const keyModel = "KRK"; // wish it was KRK
+                const keyModel = "KRK";
                 const keyCapGLTF = gfx.getKeycap(keyModel, primeSearch, k.height, searchOpts);
                 if( keyCapGLTF ) {
                     rd.keycap = keyCapGLTF.container.instantiateModelsToScene(name => id, false).rootNodes[0];
