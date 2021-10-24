@@ -972,7 +972,7 @@ export const kbgbGUI = {
                     for (let kId of keyPicking.pickedKeys) {
                         let bd = boardData.getData();
                         let k = bd.layout.keys[kId];
-                        if(rowOptions.indexOf(k.row) === -1) {
+                        if(rowOptions.indexOf(k.row) !== -1) {
                             rowOptions.push(k.row);
                         }
                         for(const o of keySizeOptions) {
