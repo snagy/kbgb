@@ -30,15 +30,11 @@
     "webpack-dev-server": "^3.1.5"
   },
   "dependencies": {
-    "@aws-amplify/analytics": "^4.0.4",
-    "@aws-amplify/auth": "^3.4.16",
-    "@aws-amplify/core": "^3.8.8",
     "@babylonjs/core": "^4.2.0",
     "@babylonjs/gui": "^4.2.0",
     "@babylonjs/loaders": "^4.2.0",
     "@ijprest/kle-serial": "^0.15.1",
     "@svgdotjs/svg.js": "^3.0.16",
-    "aws-amplify": "^3.3.13",
     "flatqueue": "^1.2.1",
     "jszip": "^3.5.0",
     "rbush": "^3.0.1"

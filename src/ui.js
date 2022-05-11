@@ -15,7 +15,6 @@ import {snapCamera} from './gfx.js'
 import {Button, ToggleButton, Rectangle, Control, TextBlock, InputText, StackPanel, RadioButton, Checkbox, 
         Slider, ScrollViewer, AdvancedDynamicTexture} from 'babylonjsGUI'
 import JSZip from 'jszip/dist/jszip';
-import Analytics from '@aws-amplify/analytics';
 
 function download(content, fileName, contentType) {
     var a = document.createElement("a");
@@ -38,7 +37,6 @@ const formatter = new Intl.NumberFormat('en-US', {
 function format_float(a) { return formatter.format(a)}
 
 function downloadSVGs() {
-    Analytics.record({ name: 'SVG export' });
     var zip = new JSZip();
     const bd = boardData.getData();
     let layerInfoCSV = `Layer Name,Material,Thickness(mm),Part Width(mm),PartHeight(mm)\n`
@@ -59,7 +57,6 @@ function downloadSVGs() {
 }
 
 function downloadGBRs() {
-    Analytics.record({ name: 'GBR export' });
     var zip = new JSZip();
     const bd = boardData.getData();
     for(const [cID,cRD] of Object.entries(globals.renderData.cases)) {
