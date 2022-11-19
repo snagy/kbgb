@@ -46,7 +46,7 @@ export function init(scene) {
 
     scene.onPointerObservable.add((pointerInfo) => {
         if(pointerBindings[pointerInfo.type]) {
-            // console.log(`bound pointer event ${pointerInfo.type}`)
+            // console.log(`bound pointer event ${pointerInfo.event.timeStamp} ${pointerInfo.type}`)
             pointerBindings[pointerInfo.type](pointerInfo);
         }
         else {
