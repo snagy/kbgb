@@ -7,16 +7,6 @@ import * as dxf from './dxf_export.js'
 import * as kle from '@ijprest/kle-serial';
 import * as inspectorStub from './inspectorstub.js'
 import * as interactions from './interactions.js'
-import Amplify from '@aws-amplify/core';
-import Auth from '@aws-amplify/auth';
-import Analytics from '@aws-amplify/analytics';
-
-// import Amplify from 'aws-amplify';
-import awsconfig from './aws-exports';
-
-
-Amplify.configure(awsconfig);
-Auth.configure({ mandatorySignIn: false});
 
 const hdris = [
     "assets/carpentry_shop.env",
@@ -38,7 +28,6 @@ export function loadKeyboardFromPath(path) {
 }
 
 function loadKeyboardFromKLE1(txt) {
-    Analytics.record({ name: 'Manual KLE1 Import' });
     let old_kle = JSON.parse(txt);
 
     var new_kle = kle.Serial.deserialize(old_kle);
@@ -46,7 +35,6 @@ function loadKeyboardFromKLE1(txt) {
 }
 
 function loadKeyboardFromKBD(txt) {
-    Analytics.record({ name: 'KBD Load' });
     boardOps.loadKeyboard(JSON.parse(txt));
 }
 
@@ -76,7 +64,8 @@ const keyboardPaths = [
     'testkbs/fourkeygap.kle',
     'testkbs/atreus_row.kle',
     'testkbs/keysize_test.kle',
-    'testkbs/staggertest.kbd' //25
+    'testkbs/staggertest.kbd', //25
+    'testkbs/busted_corner.kbd'
 ];
 
 export function getKBPathFromIdx(idx) {
@@ -94,10 +83,7 @@ export function loadPrevKeyboard() {
 }
 
 function initKBGB() {
-    Analytics.record({ name: 'initKBGB' });
     gfx.init(boardOps.refreshKeyboard);
-
-
 
     gfx.setEnvironmentLight(hdris[hdriIdx]);
 

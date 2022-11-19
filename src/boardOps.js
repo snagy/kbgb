@@ -113,9 +113,9 @@ const kIdMap = {};
 export function refreshLayout() {
     const scene = globals.scene;
     const bd = boardData.getData();
-    if(!wasmImport.BoardGeometry) {
+    while(!wasmImport || !wasmImport.BoardGeometry) {
         console.log(`skipping update until wasm loads`);
-        return;
+        return false;
     }
     const rBD = wasmImport.BoardGeometry.new();
     bd.wasmBD = rBD;
@@ -123,7 +123,7 @@ export function refreshLayout() {
 
     pcbOps.clearPCBs();
 
-    if(!bd.layout) { return; }
+    if(!bd.layout) { return false; }
 
     let kRD = globals.renderData.keys;
     // kRD = globals.renderData.keys = [];
@@ -148,9 +148,8 @@ export function refreshLayout() {
 
         if(!kIdMap[id]) {
             kIdMap[id] = nextkId++;
-            // rBD.add_key(rd.caseIdx, kIdMap[id], "key", k.x, k.y, k.width, k.height, k.rotation_angle * Math.PI / 180.0);
-            wasmCase.add_key(kIdMap[id], "key", k.x, k.y, k.width, k.height, k.rotation_angle * Math.PI / 180.0);
         }
+        wasmCase.add_key(kIdMap[id], k.type||"key", k.x, k.y, k.width, k.height, k.rotation_angle * Math.PI / 180.0);
 
         rd.mins = [100000.0, 100000.0];
         rd.maxs = [-100000.0, -100000.0];
@@ -420,6 +419,7 @@ export function refreshLayout() {
     }
     
     finalizeLayout();
+    return true;
 }
 
 function getCombinedOutlineFromPolyGroup(group, ignoreOverlapping) {
@@ -1007,7 +1007,7 @@ function getFeet(bd, cRD, cBD) {
     let screwLocs = cBD.screws;
     let feet = [];
 
-    if(!cBD.hasFeet) {
+    if(!cBD.hasFeet || true) {
         cRD.feet = feet;
         return;
     }
@@ -1058,8 +1058,24 @@ function finalizeLayout() {
 
     //bd.wasmBD.find_overlapping_groups("bezel_holes");
     for(const [caseIdx,cBD] of Object.entries(bd.cases)) {
+        console.log("LAYYYOUUUTT");
+        let wasmLayout = bd.wasmCases[caseIdx].process_layout();
         
-        bd.wasmCases[caseIdx].find_overlapping_groups("bezel_holes");
+        if(false){
+            let wps = [];
+            let wcs = [];
+            let wc1 = new Color4(1,0,0,1);
+            let wc2 = new Color4(0,1,0,1);
+            let e0 = wasmLayout.points[wasmLayout.points.length-1];
+    
+            for( let e of wasmLayout.points ) {
+                wps.push([new Vector3(e0[0], e0[1],  e0[2]), new Vector3(e[0], e[1],  e[2])]);
+                wcs.push([wc1,wc2]);
+                e0 = e;
+            }
+            gfx.drawDbgLines("wasmLayout", wps, wcs);
+        }
+
         let keyGroups = findOverlappingGroups(kRD, "bezelHoles", caseIdx);
 
         let kgOutlines = {};
@@ -1093,7 +1109,7 @@ function finalizeLayout() {
                 p.delaunayPoints = [];
                 p.pointIdx = pid+i;
                 p.outlineIdx = oid;
-                p.outlinePoints = [pid+((i+o.length-1)%o.length),pid+((i+1)%o.length)];
+                p.outlinePoints = [pid+((i-1+o.length)%o.length),pid+((i+1)%o.length)];
                 kPs.push(p);
             }
             outlineConnections[oid] = [oid];
@@ -1102,6 +1118,8 @@ function finalizeLayout() {
         }
 
         const vRes = coremath.createVoronoi(kPs);
+        // console.log("old voronoi:");
+        // console.log(vRes);
 
         let dbglines = [];
         let color1 = new Color4(1,0,0,1);
@@ -1118,6 +1136,7 @@ function finalizeLayout() {
                 let lP = edge.lSite;
                 let rP = edge.rSite;
                 let outlineEdge = false;
+                // console.log(`lP: ${lP.x} ${lP.z} rP: ${rP.x} ${rP.z}`)
                 const rToL = lP.subtract(rP);
                 let dist = rToL.length();
                 if(dist < Epsilon) {
@@ -1296,6 +1315,7 @@ function finalizeLayout() {
         const outlineOutlinePairs = [];
         // this might not work, we might need an actual o -> o linkage
         for(const [ooId,ooEdges] of Object.entries(outlineLinks)) {
+            // console.log(ooEdges);
             // sort the edges so the shortest ones are first
             ooEdges.sort((a,b) => {return a.dp.dist > b.dp.dist});
             let linkedPts = [];
@@ -1335,6 +1355,7 @@ function finalizeLayout() {
 
             if(bestEdges)
             {
+                console.log(`Best ${ooId} edges! ${minEdges.length} from ${ooEdges.length}`);
                 outlineOutlinePairs.push({outline1:Math.min(bestEdges[0].p.outlineIdx,bestEdges[0].dp.p.outlineIdx), 
                                           outline2:Math.max(bestEdges[0].p.outlineIdx,bestEdges[0].dp.p.outlineIdx),
                                           maxDist:maxDist,
@@ -1462,7 +1483,6 @@ function finalizeLayout() {
         let minOutlineIdx = 0;
         let eps = [];
         let ecs = [];
-        let remainingSpans = [];
         for(let i = 0; i < convexHull.length; i++) {
             const p = convexHull[i];
             const nP = convexHull[(i+1)%convexHull.length];
@@ -1539,7 +1559,7 @@ function finalizeLayout() {
         gfx.drawDbgLines("edgeVoronois",eps,ecs)
         console.log(`finished?`);
         // gfx.drawDbgOutline("realOutline", realOutline);
-        globals.renderData.layoutData[caseIdx] = {bounds:bounds, keyGroups:keyGroups,convexHull:convexHull,kgOutlines:kgOutlines,minOutline:realOutline,kPs:kPs,thetaValues:thetaValues};
+        globals.renderData.layoutData[caseIdx] = {bounds:bounds, keyGroups:keyGroups,convexHull:convexHull,kgOutlines:kgOutlines,minOutline:realOutline};
     }
 }
 
@@ -1626,27 +1646,42 @@ export function refreshCase() {
     
         let vectorGeo = {};
         let tesselatedGeo = {};
-        vectorGeo["bezel"] = []
-        tesselatedGeo["bezel"] = [];
         
         cRD.bounds = layoutData.bounds;
 
-        for(const [id,outline] of Object.entries(kgOutlines)) {
-            let bezelOutlineVec = coremath.offsetAndFilletOutline(outline, 0.0, tuning.bezelCornerFillet, false);
-            vectorGeo["bezel"].push(bezelOutlineVec);
-            tesselatedGeo["bezel"].push(coremath.genPointsFromVectorPath(bezelOutlineVec));
-        }
+        console.log('lolz');
+        let wasmOutlines = bd.wasmCases[caseIdx].process_case();
 
-        let plateGroups = findOverlappingGroups(kRD, "switchCut", caseIdx);
-        vectorGeo["switchCuts"] = [];
-        tesselatedGeo["switchCuts"] = [];
-        for(const [gId, G] of Object.entries(plateGroups)) {
-            let outline = getCombinedOutlineFromPolyGroup(G);
-            let switchOutlineVec = coremath.offsetAndFilletOutline(outline, 0.0, 0.5, false);
-            vectorGeo["switchCuts"].push(switchOutlineVec);
-            const genPoints = coremath.genPointsFromVectorPath(switchOutlineVec);
-            tesselatedGeo["switchCuts"].push(genPoints);
-        }
+        console.log('outline');
+        console.log(wasmOutlines);
+        // let wIdx = 0;
+
+        // let dbgOutline = [];
+        // for( let p of wasmOutlines.layers["edge"].boundary_shape.points ) {
+        //     dbgOutline.push(new Vector3(p[0],p[1],p[2]));
+        // }
+        // console.log(`drawing outline ${wIdx}`)
+        // gfx.drawDbgOutline("wasmOutline"+wIdx, dbgOutline, null, null, true);
+        // wIdx+=1;
+
+        // vectorGeo["bezel_keygroup_cuts"] = []
+        // tesselatedGeo["bezel_keygroup_cuts"] = [];
+        // for(const [id,outline] of Object.entries(kgOutlines)) {
+        //     let bezelOutlineVec = coremath.offsetAndFilletOutline(outline, 0.0, tuning.bezelCornerFillet, false);
+        //     vectorGeo["bezel_keygroup_cuts"].push(bezelOutlineVec);
+        //     tesselatedGeo["bezel_keygroup_cuts"].push(coremath.genPointsFromVectorPath(bezelOutlineVec));
+        // }
+        
+        // let plateGroups = findOverlappingGroups(kRD, "switchCut", caseIdx);
+        // vectorGeo["plate_cuts"] = [];
+        // tesselatedGeo["plate_cuts"] = [];
+        // for(const [gId, G] of Object.entries(plateGroups)) {
+        //     let outline = getCombinedOutlineFromPolyGroup(G);
+        //     let switchOutlineVec = coremath.offsetAndFilletOutline(outline, 0.0, 0.5, false);
+        //     vectorGeo["plate_cuts"].push(switchOutlineVec);
+        //     const genPoints = coremath.genPointsFromVectorPath(switchOutlineVec);
+        //     tesselatedGeo["plate_cuts"].push(genPoints);
+        // }
 
         if(cBD.hasUSBPort) {
             let maxThickness = 0.0;
@@ -1860,14 +1895,32 @@ export function refreshCase() {
                         tesselatedGeo["screwHoles"] = vectorGeo["screwHoles"].map((a) => coremath.genArrayForCircle(a,0,19));
                     }
 
-                    const polyShape = tesselatedGeo[layerDef.shape];
+                    let polyShape = tesselatedGeo[layerDef.shape];
+                    if(wasmOutlines.layers[layerName]) {
+                        let newShape = [];
+                        for(let p of wasmOutlines.layers[layerName].boundary_shape.points) {
+                            newShape.push(new Vector3(p[0], p[1], p[2]));
+                        }
+                        polyShape = newShape;
+                    }
+                    
                     let polyHoles = [];
                     for(const holeLayer of layerDef.holes) {
                         if(vectorGeo[holeLayer] != null) {
-                            cRD.layers[layerName].outlines = cRD.layers[layerName].outlines.concat(vectorGeo[holeLayer]);
+                            lRD.outlines = lRD.outlines.concat(vectorGeo[holeLayer]);
                         }
-                        if(tesselatedGeo[holeLayer] != null) {
-                            polyHoles = polyHoles.concat(tesselatedGeo[holeLayer]);
+
+                        if(wasmOutlines[holeLayer]) {
+                            for(let h of wasmOutlines[holeLayer].points) {
+                                let newHole = [];
+                                for(let p of h) {
+                                    newHole.push(new Vector3(p[0], p[1], p[2]));
+                                }
+                                polyHoles.push(newHole);
+                            }
+                        }
+                        else if(tesselatedGeo[holeLayer] != null) {
+                            //polyHoles = polyHoles.concat(tesselatedGeo[holeLayer]);
                         }
                     }
                     // console.log("adding layer "+layerName);
@@ -1876,10 +1929,12 @@ export function refreshCase() {
                     mesh.position.y = lastLayerOffset[layerName]||layerDef.offset;
                     mesh.material = mats[boardData.layerGetValue(cBD,layerName,"material")];
                     gfx.addShadows(mesh);
-                    cRD.layers[layerName].meshes.push(mesh);
-                    cRD.layers[layerName].outlineBounds = coremath.getVectorPathBounds(vectorGeo[layerDef.shape]);
+                    lRD.meshes.push(mesh);
+                    lRD.outlineBounds = coremath.getVectorPathBounds(vectorGeo[layerDef.shape]);
                 }
             }
+
+            lRD.outline = null;
         }
         
         if(cBD.hasFeet) {
@@ -1910,7 +1965,11 @@ export function refreshCase() {
 }
 
 export function refreshKeyboard() {
-    refreshLayout();
+    if(!boardData) return;
+
+    if(!refreshLayout()) {
+        return;
+    }
     refreshPCBs();
 
     // refreshOutlines();
@@ -2144,7 +2203,20 @@ function clearOldBoard() {
     }
 }
 
+let pendingLoadData = null;
 export function loadKeyboard(data) {
+    pendingLoadData = data;
+
+    finalizeLoadKeyboard();
+}
+
+export function finalizeLoadKeyboard() {
+    if(!pendingLoadData) return;
+    if(!wasmImport) return;
+
+    const data = pendingLoadData;
+    pendingLoadData = null;
+
     // console.log(data);
     clearOldBoard();
 

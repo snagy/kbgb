@@ -143,9 +143,11 @@ export function snapCamera(mode) {
     const mins = [100000,100000];
     const maxs = [-100000,-100000];
     for(const [k,cRD] of Object.entries(globals.renderData.cases)) {
-        for(let i = 0; i < 2; i++) {
-            mins[i] = Math.min(mins[i],cRD.bounds.mins[i]);
-            maxs[i] = Math.max(maxs[i],cRD.bounds.maxs[i]);
+        if(cRD.bounds) {
+            for(let i = 0; i < 2; i++) {
+                mins[i] = Math.min(mins[i],cRD.bounds.mins[i]);
+                maxs[i] = Math.max(maxs[i],cRD.bounds.maxs[i]);
+            }
         }
     }
 
