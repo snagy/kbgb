@@ -194,7 +194,7 @@
 /******/ 				promises.push(installedWasmModuleData);
 /******/ 			else {
 /******/ 				var importObject = wasmImportObjects[wasmModuleId]();
-/******/ 				var req = fetch(__webpack_require__.p + "" + {"../kbgb-wasm/pkg/kbgb_wasm_bg.wasm":"bfec9b20cf37055df66a"}[wasmModuleId] + ".module.wasm");
+/******/ 				var req = fetch(__webpack_require__.p + "" + {"../kbgb-wasm/pkg/kbgb_wasm_bg.wasm":"fdfcc0ffff92b789f068"}[wasmModuleId] + ".module.wasm");
 /******/ 				var promise;
 /******/ 				if(importObject instanceof Promise && typeof WebAssembly.compileStreaming === 'function') {
 /******/ 					promise = Promise.all([WebAssembly.compileStreaming(req), importObject]).then(function(items) {
@@ -17860,20 +17860,7 @@ function finalizeLayout() {
         console.log("LAYYYOUUUTT");
         let wasmLayout = bd.wasmCases[caseIdx].process_layout();
         
-        if(true){
-            let wps = [];
-            let wcs = [];
-            let wc1 = new babylonjs__WEBPACK_IMPORTED_MODULE_7__["Color4"](1,0,0,1);
-            let wc2 = new babylonjs__WEBPACK_IMPORTED_MODULE_7__["Color4"](0,1,0,1);
-            let e0 = wasmLayout.points[wasmLayout.points.length-1];
-    
-            for( let e of wasmLayout.points ) {
-                wps.push([new babylonjs__WEBPACK_IMPORTED_MODULE_7__["Vector3"](e0[0], e0[1],  e0[2]), new babylonjs__WEBPACK_IMPORTED_MODULE_7__["Vector3"](e[0], e[1],  e[2])]);
-                wcs.push([wc1,wc2]);
-                e0 = e;
-            }
-            _gfx_js__WEBPACK_IMPORTED_MODULE_3__[/* drawDbgLines */ "d"]("wasmLayout", wps, wcs);
-        }
+        if(false){}
 
         let keyGroups = findOverlappingGroups(kRD, "bezelHoles", caseIdx);
 
@@ -18454,16 +18441,14 @@ function refreshCase() {
         console.log('outline');
         console.log(wasmOutlines);
         // let wIdx = 0;
-        // for( let o of wasmOutlines[0] ) {
-        //     let wasmOutline = [];
-        //     let oPoints = o[1];
-        //     for(let p of oPoints) {
-        //         wasmOutline.push(new Vector3(p[0],p[1],p[2]));
-        //     }
-        //     console.log(`drawing outline ${wIdx}`)
-        //     gfx.drawDbgOutline("wasmOutline"+wIdx, wasmOutline, null, null, true);
-        //     wIdx+=1;
+
+        // let dbgOutline = [];
+        // for( let p of wasmOutlines.layers["edge"].boundary_shape.points ) {
+        //     dbgOutline.push(new Vector3(p[0],p[1],p[2]));
         // }
+        // console.log(`drawing outline ${wIdx}`)
+        // gfx.drawDbgOutline("wasmOutline"+wIdx, dbgOutline, null, null, true);
+        // wIdx+=1;
 
         // vectorGeo["bezel_keygroup_cuts"] = []
         // tesselatedGeo["bezel_keygroup_cuts"] = [];
