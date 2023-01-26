@@ -596,7 +596,7 @@ export function fixupOutline(outline, originalOutline, fillets, intersectionFill
                         curr = outline[currIdx].add(curr).scale(0.5);
                         targIdx = (currIdx+1)%outline.length;
                         targ = outline[targIdx];
-                        console.log(`jump to ${currIdx} ${targIdx} via nearest`)
+                        // console.log(`jump to ${currIdx} ${targIdx} via nearest`)
                         break;
                     }
                 }

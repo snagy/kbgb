@@ -1083,7 +1083,8 @@ export const kbgbGUI = {
                 checkbox.color = "green";
                 checkbox.onIsCheckedChangedObservable.add(function(value) {
                     boardData.getData().cases[kbgbGUI.activeCase].forceSymmetrical = value;
-                    boardOps.refreshCase();
+                    // refresh the whole shebang here because that's how we do the symmetry
+                    boardOps.refreshKeyboard();
                 });
 
                 ctrlBar.addControl(kbgbGUI.addLabel("SYM: "));
