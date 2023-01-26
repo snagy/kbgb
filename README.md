@@ -30,3 +30,16 @@ npm link @ijprest/kle-serial
 
 
 krk iso enter x/y = -9525 mm, 9525 mm
+
+
+
+### 🛠️ Build with `wasm-pack build`
+
+```
+wasm-pack build
+```
+
+### 🔬 Test in Headless Browsers with `wasm-pack test`
+
+```
+wasm-pack test --headless --firefox

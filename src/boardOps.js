@@ -1355,7 +1355,6 @@ function finalizeLayout() {
 
             if(bestEdges)
             {
-                console.log(`Best ${ooId} edges! ${minEdges.length} from ${ooEdges.length}`);
                 outlineOutlinePairs.push({outline1:Math.min(bestEdges[0].p.outlineIdx,bestEdges[0].dp.p.outlineIdx), 
                                           outline2:Math.max(bestEdges[0].p.outlineIdx,bestEdges[0].dp.p.outlineIdx),
                                           maxDist:maxDist,
@@ -1654,15 +1653,28 @@ export function refreshCase() {
 
         console.log('outline');
         console.log(wasmOutlines);
-        // let wIdx = 0;
+        let wIdx = 0;
 
-        // let dbgOutline = [];
-        // for( let p of wasmOutlines.layers["edge"].boundary_shape.points ) {
-        //     dbgOutline.push(new Vector3(p[0],p[1],p[2]));
-        // }
-        // console.log(`drawing outline ${wIdx}`)
-        // gfx.drawDbgOutline("wasmOutline"+wIdx, dbgOutline, null, null, true);
-        // wIdx+=1;
+
+        {
+            let dbgOutline = [];
+            for( let p of wasmOutlines.layers["edge"].boundary_shape.points ) {
+                dbgOutline.push(new Vector3(p[0],p[1],p[2]));
+            }
+            console.log(`drawing outline ${wIdx}`)
+            gfx.drawDbgOutline("wasmOutline"+wIdx, dbgOutline, null, null, true);
+            wIdx+=1;
+        }
+
+        for(let c of wasmOutlines.bezel_keygroup_cuts.points) {
+            let dbgOutline = [];
+            for( let p of c ) {
+                dbgOutline.push(new Vector3(p[0],p[1],p[2]));
+            }
+            console.log(`drawing outline ${wIdx}`)
+            gfx.drawDbgOutline("wasmOutline"+wIdx, dbgOutline, null, null, true);
+            wIdx+=1;
+        }
 
         // vectorGeo["bezel_keygroup_cuts"] = []
         // tesselatedGeo["bezel_keygroup_cuts"] = [];

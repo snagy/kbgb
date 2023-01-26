@@ -65,7 +65,8 @@ const keyboardPaths = [
     'testkbs/atreus_row.kle',
     'testkbs/keysize_test.kle',
     'testkbs/staggertest.kbd', //25
-    'testkbs/busted_corner.kbd'
+    'testkbs/busted_corner.kbd',
+    'testkbs/alice_opts_busted.kbd'
 ];
 
 export function getKBPathFromIdx(idx) {

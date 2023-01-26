@@ -1,17 +1,53 @@
 (window["webpackJsonp"] = window["webpackJsonp"] || []).push([[0],{
 
-/***/ "../kbgb-wasm/pkg/kbgb_wasm.js":
-/*!*******************************!*\
-  !*** .-wasm/pkg/kbgb_wasm.js ***!
-  \*******************************/
+/***/ "./node_modules/webpack/buildin/harmony-module.js":
+/*!*******************************************!*\
+  !*** (webpack)/buildin/harmony-module.js ***!
+  \*******************************************/
+/*! no static exports found */
+/*! all exports used */
+/***/ (function(module, exports) {
+
+module.exports = function(originalModule) {
+	if (!originalModule.webpackPolyfill) {
+		var module = Object.create(originalModule);
+		// module.parent = undefined by default
+		if (!module.children) module.children = [];
+		Object.defineProperty(module, "loaded", {
+			enumerable: true,
+			get: function() {
+				return module.l;
+			}
+		});
+		Object.defineProperty(module, "id", {
+			enumerable: true,
+			get: function() {
+				return module.i;
+			}
+		});
+		Object.defineProperty(module, "exports", {
+			enumerable: true
+		});
+		module.webpackPolyfill = 1;
+	}
+	return module;
+};
+
+
+/***/ }),
+
+/***/ "./pkg/kbgb_wasm.js":
+/*!**************************!*\
+  !*** ./pkg/kbgb_wasm.js ***!
+  \**************************/
 /*! exports provided: init_wasm_env, BoardGeometry, CaseGeometry, PCBData, __wbindgen_object_drop_ref, __wbindgen_string_new, __wbindgen_json_parse, __wbg_new_59cb74e423758ede, __wbg_stack_558ba5917b466edd, __wbg_error_4bb6c2a97407129a, __wbg_log_386a8115a84a780d, __wbindgen_throw */
 /*! all exports used */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
 __webpack_require__.r(__webpack_exports__);
-/* harmony import */ var _kbgb_wasm_bg_wasm__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./kbgb_wasm_bg.wasm */ "../kbgb-wasm/pkg/kbgb_wasm_bg.wasm");
-/* harmony import */ var _kbgb_wasm_bg_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./kbgb_wasm_bg.js */ "../kbgb-wasm/pkg/kbgb_wasm_bg.js");
+/* harmony import */ var _kbgb_wasm_bg_wasm__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./kbgb_wasm_bg.wasm */ "./pkg/kbgb_wasm_bg.wasm");
+/* harmony import */ var _kbgb_wasm_bg_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./kbgb_wasm_bg.js */ "./pkg/kbgb_wasm_bg.js");
 /* harmony reexport (safe) */ __webpack_require__.d(__webpack_exports__, "init_wasm_env", function() { return _kbgb_wasm_bg_js__WEBPACK_IMPORTED_MODULE_1__["l"]; });
 
 /* harmony reexport (safe) */ __webpack_require__.d(__webpack_exports__, "BoardGeometry", function() { return _kbgb_wasm_bg_js__WEBPACK_IMPORTED_MODULE_1__["a"]; });
@@ -41,10 +77,10 @@ __webpack_require__.r(__webpack_exports__);
 
 /***/ }),
 
-/***/ "../kbgb-wasm/pkg/kbgb_wasm_bg.js":
-/*!**********************************!*\
-  !*** .-wasm/pkg/kbgb_wasm_bg.js ***!
-  \**********************************/
+/***/ "./pkg/kbgb_wasm_bg.js":
+/*!*****************************!*\
+  !*** ./pkg/kbgb_wasm_bg.js ***!
+  \*****************************/
 /*! exports provided: init_wasm_env, BoardGeometry, CaseGeometry, PCBData, __wbindgen_object_drop_ref, __wbindgen_string_new, __wbindgen_json_parse, __wbg_new_59cb74e423758ede, __wbg_stack_558ba5917b466edd, __wbg_error_4bb6c2a97407129a, __wbg_log_386a8115a84a780d, __wbindgen_throw */
 /*! exports used: BoardGeometry, CaseGeometry, PCBData, __wbg_error_4bb6c2a97407129a, __wbg_log_386a8115a84a780d, __wbg_new_59cb74e423758ede, __wbg_stack_558ba5917b466edd, __wbindgen_json_parse, __wbindgen_object_drop_ref, __wbindgen_string_new, __wbindgen_throw, init_wasm_env */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
@@ -62,7 +98,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "d", function() { return __wbg_error_4bb6c2a97407129a; });
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "e", function() { return __wbg_log_386a8115a84a780d; });
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "k", function() { return __wbindgen_throw; });
-/* harmony import */ var _kbgb_wasm_bg_wasm__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./kbgb_wasm_bg.wasm */ "../kbgb-wasm/pkg/kbgb_wasm_bg.wasm");
+/* harmony import */ var _kbgb_wasm_bg_wasm__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./kbgb_wasm_bg.wasm */ "./pkg/kbgb_wasm_bg.wasm");
 
 
 const heap = new Array(32).fill(undefined);
@@ -93,8 +129,8 @@ cachedTextDecoder.decode();
 
 let cachegetUint8Memory0 = null;
 function getUint8Memory0() {
-    if (cachegetUint8Memory0 === null || cachegetUint8Memory0.buffer !== _kbgb_wasm_bg_wasm__WEBPACK_IMPORTED_MODULE_0__[/* memory */ "n"].buffer) {
-        cachegetUint8Memory0 = new Uint8Array(_kbgb_wasm_bg_wasm__WEBPACK_IMPORTED_MODULE_0__[/* memory */ "n"].buffer);
+    if (cachegetUint8Memory0 === null || cachegetUint8Memory0.buffer !== _kbgb_wasm_bg_wasm__WEBPACK_IMPORTED_MODULE_0__[/* memory */ "o"].buffer) {
+        cachegetUint8Memory0 = new Uint8Array(_kbgb_wasm_bg_wasm__WEBPACK_IMPORTED_MODULE_0__[/* memory */ "o"].buffer);
     }
     return cachegetUint8Memory0;
 }
@@ -114,7 +150,7 @@ function addHeapObject(obj) {
 /**
 */
 function init_wasm_env() {
-    _kbgb_wasm_bg_wasm__WEBPACK_IMPORTED_MODULE_0__[/* init_wasm_env */ "m"]();
+    _kbgb_wasm_bg_wasm__WEBPACK_IMPORTED_MODULE_0__[/* init_wasm_env */ "n"]();
 }
 
 let WASM_VECTOR_LEN = 0;
@@ -176,8 +212,8 @@ function passStringToWasm0(arg, malloc, realloc) {
 
 let cachegetInt32Memory0 = null;
 function getInt32Memory0() {
-    if (cachegetInt32Memory0 === null || cachegetInt32Memory0.buffer !== _kbgb_wasm_bg_wasm__WEBPACK_IMPORTED_MODULE_0__[/* memory */ "n"].buffer) {
-        cachegetInt32Memory0 = new Int32Array(_kbgb_wasm_bg_wasm__WEBPACK_IMPORTED_MODULE_0__[/* memory */ "n"].buffer);
+    if (cachegetInt32Memory0 === null || cachegetInt32Memory0.buffer !== _kbgb_wasm_bg_wasm__WEBPACK_IMPORTED_MODULE_0__[/* memory */ "o"].buffer) {
+        cachegetInt32Memory0 = new Int32Array(_kbgb_wasm_bg_wasm__WEBPACK_IMPORTED_MODULE_0__[/* memory */ "o"].buffer);
     }
     return cachegetInt32Memory0;
 }
@@ -256,6 +292,15 @@ class CaseGeometry {
         return CaseGeometry.__wrap(ret);
     }
     /**
+    * @param {string} layer_name
+    * @param {number} thickness
+    */
+    set_layer_override(layer_name, thickness) {
+        var ptr0 = passStringToWasm0(layer_name, _kbgb_wasm_bg_wasm__WEBPACK_IMPORTED_MODULE_0__[/* __wbindgen_malloc */ "e"], _kbgb_wasm_bg_wasm__WEBPACK_IMPORTED_MODULE_0__[/* __wbindgen_realloc */ "f"]);
+        var len0 = WASM_VECTOR_LEN;
+        _kbgb_wasm_bg_wasm__WEBPACK_IMPORTED_MODULE_0__[/* casegeometry_set_layer_override */ "m"](this.ptr, ptr0, len0, thickness);
+    }
+    /**
     * @param {number} id
     * @param {string} device_type_string
     * @param {number} x
@@ -310,7 +355,7 @@ class PCBData {
     * @returns {PCBData}
     */
     static new() {
-        var ret = _kbgb_wasm_bg_wasm__WEBPACK_IMPORTED_MODULE_0__[/* pcbdata_new */ "o"]();
+        var ret = _kbgb_wasm_bg_wasm__WEBPACK_IMPORTED_MODULE_0__[/* pcbdata_new */ "p"]();
         return PCBData.__wrap(ret);
     }
     /**
@@ -320,14 +365,14 @@ class PCBData {
     * @param {number} max_y
     */
     set_bounds(min_x, min_y, max_x, max_y) {
-        _kbgb_wasm_bg_wasm__WEBPACK_IMPORTED_MODULE_0__[/* pcbdata_set_bounds */ "q"](this.ptr, min_x, min_y, max_x, max_y);
+        _kbgb_wasm_bg_wasm__WEBPACK_IMPORTED_MODULE_0__[/* pcbdata_set_bounds */ "r"](this.ptr, min_x, min_y, max_x, max_y);
     }
     /**
     * @returns {number}
     */
     route() {
         const ptr = this.__destroy_into_raw();
-        var ret = _kbgb_wasm_bg_wasm__WEBPACK_IMPORTED_MODULE_0__[/* pcbdata_route */ "p"](ptr);
+        var ret = _kbgb_wasm_bg_wasm__WEBPACK_IMPORTED_MODULE_0__[/* pcbdata_route */ "q"](ptr);
         return ret;
     }
 }
@@ -376,16 +421,16 @@ const __wbindgen_throw = function(arg0, arg1) {
 };
 
 
-/* WEBPACK VAR INJECTION */}.call(this, __webpack_require__(/*! ./../../kbgb/node_modules/webpack/buildin/harmony-module.js */ "./node_modules/webpack/buildin/harmony-module.js")(module)))
+/* WEBPACK VAR INJECTION */}.call(this, __webpack_require__(/*! ./../node_modules/webpack/buildin/harmony-module.js */ "./node_modules/webpack/buildin/harmony-module.js")(module)))
 
 /***/ }),
 
-/***/ "../kbgb-wasm/pkg/kbgb_wasm_bg.wasm":
-/*!************************************!*\
-  !*** .-wasm/pkg/kbgb_wasm_bg.wasm ***!
-  \************************************/
-/*! exports provided: memory, init_wasm_env, __wbg_casegeometry_free, casegeometry_new, casegeometry_add_key, casegeometry_process_layout, casegeometry_process_case, __wbg_boardgeometry_free, boardgeometry_new, boardgeometry_add_key, __wbg_pcbdata_free, pcbdata_new, pcbdata_set_bounds, pcbdata_route, __wbindgen_malloc, __wbindgen_realloc, __wbindgen_free */
-/*! exports used: __wbg_boardgeometry_free, __wbg_casegeometry_free, __wbg_pcbdata_free, __wbindgen_free, __wbindgen_malloc, __wbindgen_realloc, boardgeometry_add_key, boardgeometry_new, casegeometry_add_key, casegeometry_new, casegeometry_process_case, casegeometry_process_layout, init_wasm_env, memory, pcbdata_new, pcbdata_route, pcbdata_set_bounds */
+/***/ "./pkg/kbgb_wasm_bg.wasm":
+/*!*******************************!*\
+  !*** ./pkg/kbgb_wasm_bg.wasm ***!
+  \*******************************/
+/*! exports provided: memory, init_wasm_env, __wbg_casegeometry_free, casegeometry_new, casegeometry_set_layer_override, casegeometry_add_key, casegeometry_process_layout, casegeometry_process_case, __wbg_boardgeometry_free, boardgeometry_new, boardgeometry_add_key, __wbg_pcbdata_free, pcbdata_new, pcbdata_set_bounds, pcbdata_route, __wbindgen_malloc, __wbindgen_realloc, __wbindgen_free */
+/*! exports used: __wbg_boardgeometry_free, __wbg_casegeometry_free, __wbg_pcbdata_free, __wbindgen_free, __wbindgen_malloc, __wbindgen_realloc, boardgeometry_add_key, boardgeometry_new, casegeometry_add_key, casegeometry_new, casegeometry_process_case, casegeometry_process_layout, casegeometry_set_layer_override, init_wasm_env, memory, pcbdata_new, pcbdata_route, pcbdata_set_bounds */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -395,47 +440,11 @@ var wasmExports = __webpack_require__.w[module.i];
 // export exports from WebAssembly module
 module.exports = wasmExports;
 // exec imports from WebAssembly module (for esm order)
-/* harmony import */ var m0 = __webpack_require__(/*! ./kbgb_wasm_bg.js */ "../kbgb-wasm/pkg/kbgb_wasm_bg.js");
+/* harmony import */ var m0 = __webpack_require__(/*! ./kbgb_wasm_bg.js */ "./pkg/kbgb_wasm_bg.js");
 
 
 // exec wasm module
-wasmExports["r"]()
-
-/***/ }),
-
-/***/ "./node_modules/webpack/buildin/harmony-module.js":
-/*!*******************************************!*\
-  !*** (webpack)/buildin/harmony-module.js ***!
-  \*******************************************/
-/*! no static exports found */
-/*! all exports used */
-/***/ (function(module, exports) {
-
-module.exports = function(originalModule) {
-	if (!originalModule.webpackPolyfill) {
-		var module = Object.create(originalModule);
-		// module.parent = undefined by default
-		if (!module.children) module.children = [];
-		Object.defineProperty(module, "loaded", {
-			enumerable: true,
-			get: function() {
-				return module.l;
-			}
-		});
-		Object.defineProperty(module, "id", {
-			enumerable: true,
-			get: function() {
-				return module.i;
-			}
-		});
-		Object.defineProperty(module, "exports", {
-			enumerable: true
-		});
-		module.webpackPolyfill = 1;
-	}
-	return module;
-};
-
+wasmExports["s"]()
 
 /***/ })
 

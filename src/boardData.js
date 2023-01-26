@@ -42,6 +42,19 @@ export function layerGetValue(cBD, l, k) {
     }
 }
 
+export function bdLayerGetValue(i, l, k) {
+    const cBD = getData().cases[i];
+    if(cBD.layers && cBD.layers[l] && cBD.layers[l][k]!==undefined) {
+        return cBD.layers[l][k];
+    }
+    else if(layerDefs[l] && layerDefs[l][k]!==undefined) {
+        return layerDefs[l][k];
+    }
+    else {
+        return cBD[k];
+    }
+}
+
 export function layerSetValue(cBD, l, k, v) {
     if(!cBD.layers) {
         cBD.layers = {};

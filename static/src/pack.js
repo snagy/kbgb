@@ -66,32 +66,32 @@
 /******/ 	function promiseResolve() { return Promise.resolve(); }
 /******/
 /******/ 	var wasmImportObjects = {
-/******/ 		"../kbgb-wasm/pkg/kbgb_wasm_bg.wasm": function() {
+/******/ 		"./pkg/kbgb_wasm_bg.wasm": function() {
 /******/ 			return {
 /******/ 				"./kbgb_wasm_bg.js": {
 /******/ 					"__wbindgen_object_drop_ref": function(p0i32) {
-/******/ 						return installedModules["../kbgb-wasm/pkg/kbgb_wasm_bg.js"].exports["i"](p0i32);
+/******/ 						return installedModules["./pkg/kbgb_wasm_bg.js"].exports["i"](p0i32);
 /******/ 					},
 /******/ 					"__wbindgen_string_new": function(p0i32,p1i32) {
-/******/ 						return installedModules["../kbgb-wasm/pkg/kbgb_wasm_bg.js"].exports["j"](p0i32,p1i32);
+/******/ 						return installedModules["./pkg/kbgb_wasm_bg.js"].exports["j"](p0i32,p1i32);
 /******/ 					},
 /******/ 					"__wbindgen_json_parse": function(p0i32,p1i32) {
-/******/ 						return installedModules["../kbgb-wasm/pkg/kbgb_wasm_bg.js"].exports["h"](p0i32,p1i32);
+/******/ 						return installedModules["./pkg/kbgb_wasm_bg.js"].exports["h"](p0i32,p1i32);
 /******/ 					},
 /******/ 					"__wbg_new_59cb74e423758ede": function() {
-/******/ 						return installedModules["../kbgb-wasm/pkg/kbgb_wasm_bg.js"].exports["f"]();
+/******/ 						return installedModules["./pkg/kbgb_wasm_bg.js"].exports["f"]();
 /******/ 					},
 /******/ 					"__wbg_stack_558ba5917b466edd": function(p0i32,p1i32) {
-/******/ 						return installedModules["../kbgb-wasm/pkg/kbgb_wasm_bg.js"].exports["g"](p0i32,p1i32);
+/******/ 						return installedModules["./pkg/kbgb_wasm_bg.js"].exports["g"](p0i32,p1i32);
 /******/ 					},
 /******/ 					"__wbg_error_4bb6c2a97407129a": function(p0i32,p1i32) {
-/******/ 						return installedModules["../kbgb-wasm/pkg/kbgb_wasm_bg.js"].exports["d"](p0i32,p1i32);
+/******/ 						return installedModules["./pkg/kbgb_wasm_bg.js"].exports["d"](p0i32,p1i32);
 /******/ 					},
 /******/ 					"__wbg_log_386a8115a84a780d": function(p0i32) {
-/******/ 						return installedModules["../kbgb-wasm/pkg/kbgb_wasm_bg.js"].exports["e"](p0i32);
+/******/ 						return installedModules["./pkg/kbgb_wasm_bg.js"].exports["e"](p0i32);
 /******/ 					},
 /******/ 					"__wbindgen_throw": function(p0i32,p1i32) {
-/******/ 						return installedModules["../kbgb-wasm/pkg/kbgb_wasm_bg.js"].exports["k"](p0i32,p1i32);
+/******/ 						return installedModules["./pkg/kbgb_wasm_bg.js"].exports["k"](p0i32,p1i32);
 /******/ 					}
 /******/ 				}
 /******/ 			};
@@ -184,7 +184,7 @@
 /******/
 /******/ 		// Fetch + compile chunk loading for webassembly
 /******/
-/******/ 		var wasmModules = {"0":["../kbgb-wasm/pkg/kbgb_wasm_bg.wasm"]}[chunkId] || [];
+/******/ 		var wasmModules = {"0":["./pkg/kbgb_wasm_bg.wasm"]}[chunkId] || [];
 /******/
 /******/ 		wasmModules.forEach(function(wasmModuleId) {
 /******/ 			var installedWasmModuleData = installedWasmModules[wasmModuleId];
@@ -194,7 +194,7 @@
 /******/ 				promises.push(installedWasmModuleData);
 /******/ 			else {
 /******/ 				var importObject = wasmImportObjects[wasmModuleId]();
-/******/ 				var req = fetch(__webpack_require__.p + "" + {"../kbgb-wasm/pkg/kbgb_wasm_bg.wasm":"fdfcc0ffff92b789f068"}[wasmModuleId] + ".module.wasm");
+/******/ 				var req = fetch(__webpack_require__.p + "" + {"./pkg/kbgb_wasm_bg.wasm":"e56238f25691cbaf8df8"}[wasmModuleId] + ".module.wasm");
 /******/ 				var promise;
 /******/ 				if(importObject instanceof Promise && typeof WebAssembly.compileStreaming === 'function') {
 /******/ 					promise = Promise.all([WebAssembly.compileStreaming(req), importObject]).then(function(items) {
@@ -16410,7 +16410,8 @@ const keyboardPaths = [
     'testkbs/atreus_row.kle',
     'testkbs/keysize_test.kle',
     'testkbs/staggertest.kbd', //25
-    'testkbs/busted_corner.kbd'
+    'testkbs/busted_corner.kbd',
+    'testkbs/alice_opts_busted.kbd'
 ];
 
 function getKBPathFromIdx(idx) {
@@ -16527,7 +16528,7 @@ window.addEventListener('DOMContentLoaded', function () {
 /*!**************************!*\
   !*** ./src/boardData.js ***!
   \**************************/
-/*! exports provided: getData, genKeycapDefaults, getKeycapDefaults, setData, layerDefs, layerGetValue, layerSetValue, loadData, exportData */
+/*! exports provided: getData, genKeycapDefaults, getKeycapDefaults, setData, layerDefs, layerGetValue, bdLayerGetValue, layerSetValue, loadData, exportData */
 /*! all exports used */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
@@ -16539,6 +16540,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "setData", function() { return setData; });
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "layerDefs", function() { return layerDefs; });
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "layerGetValue", function() { return layerGetValue; });
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "bdLayerGetValue", function() { return bdLayerGetValue; });
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "layerSetValue", function() { return layerSetValue; });
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "loadData", function() { return loadData; });
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "exportData", function() { return exportData; });
@@ -16580,6 +16582,19 @@ const layerDefs = {
 };
 
 function layerGetValue(cBD, l, k) {
+    if(cBD.layers && cBD.layers[l] && cBD.layers[l][k]!==undefined) {
+        return cBD.layers[l][k];
+    }
+    else if(layerDefs[l] && layerDefs[l][k]!==undefined) {
+        return layerDefs[l][k];
+    }
+    else {
+        return cBD[k];
+    }
+}
+
+function bdLayerGetValue(i, l, k) {
+    const cBD = getData().cases[i];
     if(cBD.layers && cBD.layers[l] && cBD.layers[l][k]!==undefined) {
         return cBD.layers[l][k];
     }
@@ -18141,7 +18156,6 @@ function finalizeLayout() {
 
             if(bestEdges)
             {
-                console.log(`Best ${ooId} edges! ${minEdges.length} from ${ooEdges.length}`);
                 outlineOutlinePairs.push({outline1:Math.min(bestEdges[0].p.outlineIdx,bestEdges[0].dp.p.outlineIdx), 
                                           outline2:Math.max(bestEdges[0].p.outlineIdx,bestEdges[0].dp.p.outlineIdx),
                                           maxDist:maxDist,
@@ -18440,15 +18454,28 @@ function refreshCase() {
 
         console.log('outline');
         console.log(wasmOutlines);
-        // let wIdx = 0;
+        let wIdx = 0;
 
-        // let dbgOutline = [];
-        // for( let p of wasmOutlines.layers["edge"].boundary_shape.points ) {
-        //     dbgOutline.push(new Vector3(p[0],p[1],p[2]));
-        // }
-        // console.log(`drawing outline ${wIdx}`)
-        // gfx.drawDbgOutline("wasmOutline"+wIdx, dbgOutline, null, null, true);
-        // wIdx+=1;
+
+        {
+            let dbgOutline = [];
+            for( let p of wasmOutlines.layers["edge"].boundary_shape.points ) {
+                dbgOutline.push(new babylonjs__WEBPACK_IMPORTED_MODULE_7__["Vector3"](p[0],p[1],p[2]));
+            }
+            console.log(`drawing outline ${wIdx}`)
+            _gfx_js__WEBPACK_IMPORTED_MODULE_3__[/* drawDbgOutline */ "e"]("wasmOutline"+wIdx, dbgOutline, null, null, true);
+            wIdx+=1;
+        }
+
+        for(let c of wasmOutlines.bezel_keygroup_cuts.points) {
+            let dbgOutline = [];
+            for( let p of c ) {
+                dbgOutline.push(new babylonjs__WEBPACK_IMPORTED_MODULE_7__["Vector3"](p[0],p[1],p[2]));
+            }
+            console.log(`drawing outline ${wIdx}`)
+            _gfx_js__WEBPACK_IMPORTED_MODULE_3__[/* drawDbgOutline */ "e"]("wasmOutline"+wIdx, dbgOutline, null, null, true);
+            wIdx+=1;
+        }
 
         // vectorGeo["bezel_keygroup_cuts"] = []
         // tesselatedGeo["bezel_keygroup_cuts"] = [];
@@ -19059,7 +19086,7 @@ function saveKeyboard() {
 // that no one else needs to worry about it again.
 
 let wasmImport = null;
-__webpack_require__.e(/*! import() */ 0).then(__webpack_require__.bind(null, /*! kbgb-wasm */ "../kbgb-wasm/pkg/kbgb_wasm.js")).then( wasm => {
+__webpack_require__.e(/*! import() */ 0).then(__webpack_require__.bind(null, /*! kbgb-wasm */ "./pkg/kbgb_wasm.js")).then( wasm => {
     console.log(wasm);
     wasmImport = wasm;
     wasmImport.init_wasm_env();
